@@ -259,7 +259,12 @@ export class CandidateDetailComponent implements OnInit {
       'CORPO_INTEIRO': 'Corpo Inteiro',
       'COMPOSITE': 'Composite Técnico'
     };
-    return map[type] || type;
+    if (map[type]) return map[type];
+    if (type?.startsWith('POLAROID_')) {
+      const num = type.replace('POLAROID_', '');
+      return `Polaroid #${num}`;
+    }
+    return type || 'Polaroid';
   }
 
   cleanPhone(phone?: string): string {

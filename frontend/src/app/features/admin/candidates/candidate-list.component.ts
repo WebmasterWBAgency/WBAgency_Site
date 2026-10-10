@@ -302,11 +302,35 @@ export class CandidateListComponent implements OnInit, OnDestroy {
 
   // --- Helpers de Exibição ---
 
-  getMainPhoto(candidate: Candidate): string {
-    if (candidate.photos && candidate.photos.length > 0) {
-      return candidate.photos[0].url;
+  getCoverPhoto(candidate: any): string | null {
+    if (!candidate) return null;
+
+    // 1. Campo direto da submissão (face_photo_url / facePhotoUrl / coverPhotoUrl / coverPhoto)
+    if (candidate.facePhotoUrl) return candidate.facePhotoUrl;
+    if (candidate.face_photo_url) return candidate.face_photo_url;
+    if (candidate.coverPhotoUrl) return candidate.coverPhotoUrl;
+    if (candidate.coverPhoto) return candidate.coverPhoto;
+
+    // 2. Se as fotos vierem como array (candidate.photos)
+    if (Array.isArray(candidate.photos) && candidate.photos.length > 0) {
+      // Procura especificamente a foto do rosto
+      const facePhoto = candidate.photos.find((p: any) => 
+        p.type === 'POLAROID_ROSTO' || 
+        p.photo_position === 1 || 
+        p.photoPosition === 1
+      );
+      if (facePhoto) return facePhoto.url || facePhoto.file_url || facePhoto.fileUrl || null;
+
+      // Fallback para a primeira foto disponível da lista
+      const first = candidate.photos[0];
+      return first.url || first.file_url || first.fileUrl || null;
     }
-    return 'assets/images/hero-poster.jpg';
+
+    return null;
+  }
+
+  getMainPhoto(candidate: Candidate): string {
+    return this.getCoverPhoto(candidate) || 'assets/images/hero-poster.jpg';
   }
 
   getPhotoTypeLabel(type: string): string {
@@ -315,7 +339,12 @@ export class CandidateListComponent implements OnInit, OnDestroy {
       case 'POLAROID_PERFIL': return 'Polaroid Perfil';
       case 'CORPO_INTEIRO': return 'Corpo Inteiro';
       case 'COMPOSITE': return 'Composite';
-      default: return 'Foto';
+      default:
+        if (type?.startsWith('POLAROID_')) {
+          const num = type.replace('POLAROID_', '');
+          return `Polaroid #${num}`;
+        }
+        return type || 'Foto';
     }
   }
 

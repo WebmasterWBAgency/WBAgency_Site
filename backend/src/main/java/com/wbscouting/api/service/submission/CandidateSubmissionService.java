@@ -12,4 +12,12 @@ public interface CandidateSubmissionService {
             MultipartFile profilePhoto,
             MultipartFile fullBodyPhoto
     );
+
+    CandidateSubmissionResponseDto submit(
+            CandidateSubmissionRequestDto request,
+            MultipartFile facePhoto,
+            MultipartFile profilePhoto,
+            MultipartFile fullBodyPhoto,
+            java.util.List<MultipartFile> additionalPhotos
+    );
 }

@@ -23,6 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -72,6 +74,18 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
             MultipartFile profilePhoto,
             MultipartFile fullBodyPhoto
     ) {
+        return submit(request, facePhoto, profilePhoto, fullBodyPhoto, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CandidateSubmissionResponseDto submit(
+            CandidateSubmissionRequestDto request,
+            MultipartFile facePhoto,
+            MultipartFile profilePhoto,
+            MultipartFile fullBodyPhoto,
+            List<MultipartFile> additionalPhotos
+    ) {
         log.info("Processando submissão pública de candidatura para: {}", request.getFullName());
 
         // 1. Validação de Idade e Responsável Legal
@@ -84,6 +98,15 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
         validateImageFile(facePhoto, "Rosto (facePhoto)");
         validateImageFile(profilePhoto, "Perfil (profilePhoto)");
         validateImageFile(fullBodyPhoto, "Corpo Inteiro (fullBodyPhoto)");
+
+        if (additionalPhotos != null && !additionalPhotos.isEmpty()) {
+            int addIdx = 4;
+            for (MultipartFile photo : additionalPhotos) {
+                if (photo != null && !photo.isEmpty()) {
+                    validateImageFile(photo, "Foto Adicional #" + (addIdx++));
+                }
+            }
+        }
 
         // 3. Sanitização de Entradas de Texto
         String sanitizedFullName = sanitizeString(request.getFullName());
@@ -102,7 +125,7 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
         // Geração de protocolo único
         String protocol = protocolGeneratorService.generateUniqueProtocol();
 
-        // 5. Upload das 3 fotos para o Storage Supabase e coleta das chaves
+        // 5. Upload das 3 fotos obrigatórias para o Storage Supabase e coleta das chaves
         String facePath = String.format("submissions/%s/face_%s", storageId, cleanFileName(facePhoto.getOriginalFilename()));
         String profilePath = String.format("submissions/%s/profile_%s", storageId, cleanFileName(profilePhoto.getOriginalFilename()));
         String fullBodyPath = String.format("submissions/%s/fullbody_%s", storageId, cleanFileName(fullBodyPhoto.getOriginalFilename()));
@@ -119,6 +142,22 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
         String faceUrl = storageService.getPublicUrl(bucket, facePath);
         String profileUrl = storageService.getPublicUrl(bucket, profilePath);
         String fullBodyUrl = storageService.getPublicUrl(bucket, fullBodyPath);
+
+        // Upload das fotos adicionais (posições 4 em diante)
+        List<String> additionalPaths = new ArrayList<>();
+        List<String> additionalUrls = new ArrayList<>();
+        if (additionalPhotos != null && !additionalPhotos.isEmpty()) {
+            int pos = 4;
+            for (MultipartFile addPhoto : additionalPhotos) {
+                if (addPhoto != null && !addPhoto.isEmpty()) {
+                    String addPath = String.format("submissions/%s/photo_%d_%s", storageId, pos++, cleanFileName(addPhoto.getOriginalFilename()));
+                    storageService.uploadFile(bucket, addPath, addPhoto);
+                    uploadedStorageKeys.add(addPath);
+                    additionalPaths.add(addPath);
+                    additionalUrls.add(storageService.getPublicUrl(bucket, addPath));
+                }
+            }
+        }
 
         // 6. Bloco de persistência relacional com transação compensatória (Subetapa 2.3)
         try {
@@ -155,15 +194,19 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
             log.info("[SUBMIT] Candidatura gravada com sucesso em 'candidate_submissions' — ID={} | Protocolo={}",
                     saved.getId(), saved.getProtocol());
 
-            // 7. Associação das fotos filhas na tabela candidate_photos apontando para candidate_submissions(id)
+            // 7. Associação de TODAS as fotos filhas na tabela candidate_photos apontando para candidate_submissions(id)
             List<CandidatePhoto> photos = new ArrayList<>();
             photos.add(criarFotoFilha(saved, facePath, faceUrl, 1));
             photos.add(criarFotoFilha(saved, profilePath, profileUrl, 2));
             photos.add(criarFotoFilha(saved, fullBodyPath, fullBodyUrl, 3));
 
+            for (int i = 0; i < additionalPaths.size(); i++) {
+                photos.add(criarFotoFilha(saved, additionalPaths.get(i), additionalUrls.get(i), i + 4));
+            }
+
             candidatePhotoRepository.saveAll(photos);
             saved.setPhotos(photos);
-            log.info("[SUBMIT][CANDIDATE_PHOTOS] 3 fotos associadas a candidate_submissions(id={})", saved.getId());
+            log.info("[SUBMIT][CANDIDATE_PHOTOS] {} fotos associadas a candidate_submissions(id={})", photos.size(), saved.getId());
 
             return CandidateSubmissionResponseDto.builder()
                     .id(saved.getId())
@@ -230,6 +273,9 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
         }
     }
 
+    public static final long MAX_PHOTO_FILE_SIZE_BYTES = 8L * 1024 * 1024; // 8 MB
+    public static final long MIN_UHD_PIXELS = 3_800_000L; // Mínimo ~4 Megapixels UHD (2560x1600 px ou superior)
+
     private static final byte[] WEBP_RIFF_MAGIC = new byte[]{'R', 'I', 'F', 'F'};
     private static final byte[] WEBP_FORMAT_SIG = new byte[]{'W', 'E', 'B', 'P'};
 
@@ -238,11 +284,9 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
             throw new BusinessException("O arquivo de foto " + photoRole + " é obrigatório e não pode estar vazio.");
         }
 
-        long maxSizeBytes = SupabaseStorageService.MAX_SIZE_CANDIDATES_UPLOADS;
-        if (file.getSize() > maxSizeBytes) {
-            long maxMb = maxSizeBytes / (1024 * 1024);
+        if (file.getSize() > MAX_PHOTO_FILE_SIZE_BYTES) {
             throw new BusinessException(String.format(
-                    "O arquivo enviado excede o limite máximo permitido de %d MB para %s.", maxMb, photoRole));
+                    "O arquivo enviado excede o limite máximo permitido de 8 MB para %s.", photoRole));
         }
 
         // Validação de integridade do cabeçalho (Magic Bytes): JPEG, PNG e WEBP
@@ -268,6 +312,27 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
         } catch (IOException e) {
             log.error("Erro ao ler cabeçalho do arquivo de foto {}", photoRole, e);
             throw new BusinessException("Falha ao processar arquivo de imagem para " + photoRole + ".");
+        }
+
+        // Validação de Definição Mínima (4 Megapixels UHD)
+        validateImageResolution(file, photoRole);
+    }
+
+    private void validateImageResolution(MultipartFile file, String photoRole) {
+        try (InputStream is = file.getInputStream()) {
+            BufferedImage image = ImageIO.read(is);
+            if (image != null) {
+                long totalPixels = (long) image.getWidth() * image.getHeight();
+                if (totalPixels < MIN_UHD_PIXELS) {
+                    throw new BusinessException(String.format(
+                            "A imagem enviada para %s possui baixa definição (%dx%d px - %.1f MP). Para garantir visualização nítida em telas de alta definição (UHD), envie fotos com resolução mínima de 4 Megapixels (aproximadamente 2560x1600 px ou superior).",
+                            photoRole, image.getWidth(), image.getHeight(), totalPixels / 1_000_000.0));
+                }
+            }
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            log.warn("Não foi possível inspecionar dimensões da imagem para {}: {}", photoRole, e.getMessage());
         }
     }
 

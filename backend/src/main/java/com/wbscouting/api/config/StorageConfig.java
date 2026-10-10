@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -28,12 +29,18 @@ public class StorageConfig {
         }
 
         String effectiveKey = supabaseProperties.getEffectiveKey();
+        String cleanedKey = (effectiveKey != null) ? effectiveKey.trim() : "";
+        if (cleanedKey.startsWith("Bearer ") || cleanedKey.startsWith("bearer ")) {
+            cleanedKey = cleanedKey.substring(7).trim();
+        }
+
+        String authHeader = StringUtils.hasText(cleanedKey) ? "Bearer " + cleanedKey : "";
 
         return RestClient.builder()
                 .baseUrl(baseUrl != null ? baseUrl : "")
                 .requestFactory(requestFactory)
-                .defaultHeader("apikey", effectiveKey)
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + effectiveKey)
+                .defaultHeader("apikey", cleanedKey)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, authHeader)
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }

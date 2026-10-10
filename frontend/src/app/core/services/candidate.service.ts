@@ -617,6 +617,10 @@ export class CandidateService {
       age: item.age,
       gender: item.gender,
       protocol: item.protocol,
+      coverPhoto: item.coverPhotoUrl || item.coverPhoto || (photos.length > 0 ? photos[0].url : undefined),
+      coverPhotoUrl: item.coverPhotoUrl || item.coverPhoto || (photos.length > 0 ? photos[0].url : undefined),
+      facePhotoUrl: item.facePhotoUrl || item.face_photo_url || (photos.length > 0 ? photos[0].url : undefined),
+      face_photo_url: item.face_photo_url || item.facePhotoUrl || (photos.length > 0 ? photos[0].url : undefined),
       reviewedBy: item.reviewedBy,
       reviewedAt: item.reviewedAt,
       convertedToModelId: item.convertedToModelId

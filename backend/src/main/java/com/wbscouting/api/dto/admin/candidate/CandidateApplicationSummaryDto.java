@@ -46,6 +46,7 @@ public class CandidateApplicationSummaryDto {
     private Integer polaroidsCount;
     private OffsetDateTime createdAt;
     private String coverPhoto;
+    private String coverPhotoUrl;
     private String facePhotoUrl;
     private String profilePhotoUrl;
     private String fullBodyPhotoUrl;
@@ -183,7 +184,8 @@ public class CandidateApplicationSummaryDto {
                 .polaroidsCount(photosArr.size())
                 .createdAt(candidate.getCreatedAt())
                 .coverPhoto(cover)
-                .facePhotoUrl(face)
+                .coverPhotoUrl(cover)
+                .facePhotoUrl(face != null ? face : cover)
                 .profilePhotoUrl(profile)
                 .fullBodyPhotoUrl(fullBody)
                 .photos(photosArr.isEmpty() ? null : photosArr)
@@ -193,15 +195,97 @@ public class CandidateApplicationSummaryDto {
 
     public static CandidateApplicationSummaryDto fromEntity(CandidateSubmission entity) {
         if (entity == null) return null;
+        return fromEntity(entity, entity.getPhotos());
+    }
 
-        String face = blankToNull(entity.getFacePhotoUrl());
-        String profile = blankToNull(entity.getProfilePhotoUrl());
-        String fullBody = blankToNull(entity.getFullBodyPhotoUrl());
+    public static CandidateApplicationSummaryDto fromEntity(CandidateSubmission entity, List<CandidatePhoto> photos) {
+        if (entity == null) return null;
 
-        int polaroids = 0;
-        if (face != null) polaroids++;
-        if (profile != null) polaroids++;
-        if (fullBody != null) polaroids++;
+        List<CandidatePhoto> photoList = (photos != null && !photos.isEmpty())
+                ? photos
+                : (entity.getPhotos() != null ? entity.getPhotos() : List.of());
+
+        String face = null;
+        String profile = null;
+        String fullBody = null;
+
+        // 1. Extração a partir da lista de fotos filhas (candidate_photos)
+        if (!photoList.isEmpty()) {
+            face = photoList.stream()
+                .filter(p -> (p.getPhotoPosition() != null && p.getPhotoPosition() == 1) || "POLAROID_ROSTO".equalsIgnoreCase(p.getType()))
+                .map(CandidatePhoto::getFileUrl)
+                .filter(u -> u != null && !u.isBlank())
+                .findFirst()
+                .orElse(null);
+
+            profile = photoList.stream()
+                .filter(p -> (p.getPhotoPosition() != null && p.getPhotoPosition() == 2) || "POLAROID_PERFIL".equalsIgnoreCase(p.getType()))
+                .map(CandidatePhoto::getFileUrl)
+                .filter(u -> u != null && !u.isBlank())
+                .findFirst()
+                .orElse(null);
+
+            fullBody = photoList.stream()
+                .filter(p -> (p.getPhotoPosition() != null && p.getPhotoPosition() == 3) || "CORPO_INTEIRO".equalsIgnoreCase(p.getType()))
+                .map(CandidatePhoto::getFileUrl)
+                .filter(u -> u != null && !u.isBlank())
+                .findFirst()
+                .orElse(null);
+
+            // Fallback: se não encontrou posição 1 ou POLAROID_ROSTO, usa a primeira foto com URL válida
+            if (face == null) {
+                face = photoList.stream()
+                    .map(CandidatePhoto::getFileUrl)
+                    .filter(u -> u != null && !u.isBlank())
+                    .findFirst()
+                    .orElse(null);
+            }
+        }
+
+        // 2. Se ainda for nulo, consulta as propriedades diretas da entidade pai
+        if (face == null) face = blankToNull(entity.getFacePhotoUrl());
+        if (profile == null) profile = blankToNull(entity.getProfilePhotoUrl());
+        if (fullBody == null) fullBody = blankToNull(entity.getFullBodyPhotoUrl());
+
+        String cover = face;
+        if (cover == null) cover = profile;
+        if (cover == null) cover = fullBody;
+        if (cover == null && !photoList.isEmpty()) {
+            cover = photoList.get(0).getFileUrl();
+        }
+
+        // 3. Monta lista de PhotoThumbDto para os thumbnails do card e detalhe
+        List<PhotoThumbDto> photosArr = new ArrayList<>();
+        if (!photoList.isEmpty()) {
+            for (CandidatePhoto p : photoList) {
+                String u = p.getFileUrl();
+                if (u == null || u.isBlank()) u = p.getFilePath();
+                if (u == null || u.isBlank()) u = p.getStoragePath();
+                if (u != null && !u.isBlank()) {
+                    int pos = p.getPhotoPosition() != null ? p.getPhotoPosition().intValue() : (p.getDisplayOrder() != null ? p.getDisplayOrder() : 1);
+                    String type = p.getType();
+                    if (type == null) {
+                        type = switch (pos) {
+                            case 1 -> "POLAROID_ROSTO";
+                            case 2 -> "POLAROID_PERFIL";
+                            case 3 -> "CORPO_INTEIRO";
+                            default -> "COMPOSITE";
+                        };
+                    }
+                    photosArr.add(PhotoThumbDto.builder()
+                        .id(p.getId() != null ? p.getId().toString() : "p-" + pos)
+                        .url(u)
+                        .type(type)
+                        .build());
+                }
+            }
+        } else {
+            if (face != null) photosArr.add(PhotoThumbDto.builder().id("face").url(face).type("POLAROID_ROSTO").build());
+            if (profile != null) photosArr.add(PhotoThumbDto.builder().id("profile").url(profile).type("POLAROID_PERFIL").build());
+            if (fullBody != null) photosArr.add(PhotoThumbDto.builder().id("fullbody").url(fullBody).type("CORPO_INTEIRO").build());
+        }
+
+        int polaroids = !photosArr.isEmpty() ? photosArr.size() : (!photoList.isEmpty() ? photoList.size() : (cover != null ? 1 : 0));
 
         Integer heightVal = null;
         if (entity.getHeight() != null) {
@@ -212,8 +296,6 @@ public class CandidateApplicationSummaryDto {
             }
         }
 
-        // ✅ TASK: NAO CHAMA entity.getAge()
-        // Calcula dinamicamente com Period.between(birthDate, hoje) + null safe + sanity check
         Integer ageCalculated = null;
         boolean minor = false;
         LocalDate bd = entity.getBirthDate();
@@ -225,27 +307,14 @@ public class CandidateApplicationSummaryDto {
             }
         }
 
-        String cover = face;
-        if (cover == null) cover = profile;
-        if (cover == null) cover = fullBody;
-
-        List<PhotoThumbDto> photosArr = null;
-        if (polaroids > 0) {
-            photosArr = new ArrayList<>();
-            if (face != null) photosArr.add(PhotoThumbDto.builder().id("face").url(face).type("POLAROID_ROSTO").build());
-            if (profile != null) photosArr.add(PhotoThumbDto.builder().id("profile").url(profile).type("POLAROID_PERFIL").build());
-            if (fullBody != null) photosArr.add(PhotoThumbDto.builder().id("fullbody").url(fullBody).type("CORPO_INTEIRO").build());
-        }
-
         String protocol = blankToNull(entity.getProtocol());
 
-        LocalDate bdForResponse = entity.getBirthDate();
         return CandidateApplicationSummaryDto.builder()
                 .id(entity.getId())
                 .fullName(entity.getFullName())
                 .email(entity.getEmail())
                 .phone(entity.getPhone())
-                .birthDate(bdForResponse)
+                .birthDate(entity.getBirthDate())
                 .age(ageCalculated)
                 .isMinor(minor)
                 .city(entity.getCity())
@@ -256,14 +325,15 @@ public class CandidateApplicationSummaryDto {
                 .hips(entity.getHips())
                 .shoes(entity.getShoeSize())
                 .status(entity.getStatus())
-                .hasPhotos(polaroids > 0)
+                .hasPhotos(cover != null || !photosArr.isEmpty())
                 .polaroidsCount(polaroids > 0 ? polaroids : 4)
                 .createdAt(entity.getCreatedAt())
                 .coverPhoto(cover)
-                .facePhotoUrl(face)
+                .coverPhotoUrl(cover)
+                .facePhotoUrl(cover)
                 .profilePhotoUrl(profile)
                 .fullBodyPhotoUrl(fullBody)
-                .photos(photosArr)
+                .photos(photosArr.isEmpty() ? null : photosArr)
                 .protocol(protocol)
                 .build();
     }
@@ -294,6 +364,7 @@ public class CandidateApplicationSummaryDto {
     public Integer getPolaroidsCount() { return polaroidsCount; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public String getCoverPhoto() { return coverPhoto; }
+    public String getCoverPhotoUrl() { return coverPhotoUrl != null ? coverPhotoUrl : coverPhoto; }
     public String getFacePhotoUrl() { return facePhotoUrl; }
     public String getProfilePhotoUrl() { return profilePhotoUrl; }
     public String getFullBodyPhotoUrl() { return fullBodyPhotoUrl; }
@@ -320,6 +391,7 @@ public class CandidateApplicationSummaryDto {
     public void setPolaroidsCount(Integer polaroidsCount) { this.polaroidsCount = polaroidsCount; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public void setCoverPhoto(String coverPhoto) { this.coverPhoto = coverPhoto; }
+    public void setCoverPhotoUrl(String coverPhotoUrl) { this.coverPhotoUrl = coverPhotoUrl; }
     public void setFacePhotoUrl(String facePhotoUrl) { this.facePhotoUrl = facePhotoUrl; }
     public void setProfilePhotoUrl(String profilePhotoUrl) { this.profilePhotoUrl = profilePhotoUrl; }
     public void setFullBodyPhotoUrl(String fullBodyPhotoUrl) { this.fullBodyPhotoUrl = fullBodyPhotoUrl; }
@@ -348,6 +420,7 @@ public class CandidateApplicationSummaryDto {
         public CandidateApplicationSummaryDtoBuilder polaroidsCount(Integer v) { d.setPolaroidsCount(v); return this; }
         public CandidateApplicationSummaryDtoBuilder createdAt(OffsetDateTime v) { d.setCreatedAt(v); return this; }
         public CandidateApplicationSummaryDtoBuilder coverPhoto(String v) { d.setCoverPhoto(v); return this; }
+        public CandidateApplicationSummaryDtoBuilder coverPhotoUrl(String v) { d.setCoverPhotoUrl(v); return this; }
         public CandidateApplicationSummaryDtoBuilder facePhotoUrl(String v) { d.setFacePhotoUrl(v); return this; }
         public CandidateApplicationSummaryDtoBuilder profilePhotoUrl(String v) { d.setProfilePhotoUrl(v); return this; }
         public CandidateApplicationSummaryDtoBuilder fullBodyPhotoUrl(String v) { d.setFullBodyPhotoUrl(v); return this; }

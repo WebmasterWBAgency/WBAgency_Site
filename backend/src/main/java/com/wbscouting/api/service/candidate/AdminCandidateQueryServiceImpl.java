@@ -138,6 +138,20 @@ public class AdminCandidateQueryServiceImpl implements AdminCandidateQueryServic
         Integer age = resolveAge(candidate.getBirthDate(), candidate.getAge());
         boolean isMinor = isMinorCheck(candidate.getBirthDate(), age);
 
+        String coverUrl = null;
+        try {
+            if (candidate.getPhotos() != null && !candidate.getPhotos().isEmpty()) {
+                coverUrl = candidate.getPhotos().stream()
+                        .filter(p -> (p.getPhotoPosition() != null && p.getPhotoPosition() == 1) || "POLAROID_ROSTO".equalsIgnoreCase(p.getType()))
+                        .map(CandidatePhoto::getFileUrl)
+                        .filter(u -> u != null && !u.isBlank())
+                        .findFirst()
+                        .orElse(candidate.getPhotos().get(0).getFileUrl());
+            }
+        } catch (Exception ex) {
+            log.debug("Fotos filhas não puderam ser acessadas para candidato ID={}: {}", candidate.getId(), ex.getMessage());
+        }
+
         return CandidateListItemAdminDto.builder()
                 .id(candidate.getId())
                 .fullName(candidate.getFullName())
@@ -153,6 +167,10 @@ public class AdminCandidateQueryServiceImpl implements AdminCandidateQueryServic
                 .status(candidate.getStatus())
                 .photoCount(photoCount)
                 .createdAt(candidate.getCreatedAt())
+                .coverPhoto(coverUrl)
+                .coverPhotoUrl(coverUrl)
+                .facePhotoUrl(coverUrl)
+                .protocol(candidate.getProtocol())
                 .build();
     }
 

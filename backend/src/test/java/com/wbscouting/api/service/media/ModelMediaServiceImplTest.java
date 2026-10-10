@@ -11,6 +11,7 @@ import com.wbscouting.api.enums.MediaType;
 import com.wbscouting.api.repository.ModelMediaRepository;
 import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.storage.StorageService;
+import com.wbscouting.api.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -69,6 +73,8 @@ class ModelMediaServiceImplTest {
         buckets = new SupabaseProperties.Buckets();
         lenient().when(supabaseProperties.getBuckets()).thenReturn(buckets);
         lenient().when(supabaseProperties.resolveBucketModelsMedia()).thenReturn("models-media");
+        lenient().when(storageService.resolvePublicUrlFromFields(any(), any(), any()))
+                .thenAnswer(inv -> inv.getArgument(2));
     }
 
     @Test
@@ -109,14 +115,14 @@ class ModelMediaServiceImplTest {
         assertThat(response.getMediaType()).isEqualTo(MediaType.BOOK);
         assertThat(response.getIsCover()).isTrue();
         assertThat(response.getDisplayOrder()).isEqualTo(3);
-        assertThat(response.getFileUrl()).isEqualTo("https://supabase.co/new-cover.jpg");
+        assertThat(response.getFileUrl()).startsWith("https://supabase.co/new-cover.jpg");
 
         // Verifica que capa antiga foi resetada para false
         assertThat(existingCover.getIsCover()).isFalse();
         verify(modelMediaRepository).save(existingCover);
 
         // Verifica sincronização do primaryPhotoUrl no Model
-        assertThat(model.getPrimaryPhotoUrl()).isEqualTo("https://supabase.co/new-cover.jpg");
+        assertThat(model.getPrimaryPhotoUrl()).startsWith("https://supabase.co/new-cover.jpg");
         verify(modelRepository).save(model);
     }
 
@@ -345,5 +351,61 @@ class ModelMediaServiceImplTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo(mediaId);
         assertThat(result.get(0).getMediaType()).isEqualTo(MediaType.BOOK);
+    }
+
+    @Test
+    @DisplayName("uploadMedia - Deve rejeitar foto BOOK com tamanho maior que 8MB")
+    void uploadMedia_BookExceeding8MB_ThrowsBusinessException() {
+        byte[] oversizedBytes = new byte[8 * 1024 * 1024 + 10];
+        MockMultipartFile largeFile = new MockMultipartFile("file", "large.jpg", "image/jpeg", oversizedBytes);
+        when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+
+        assertThatThrownBy(() -> modelMediaService.uploadMedia(modelId, MediaType.BOOK, false, largeFile))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("excede o limite máximo permitido de 8 MB");
+    }
+
+    @Test
+    @DisplayName("uploadMedia - Deve rejeitar foto POLAROID com baixa resolução (< 3.8 MP)")
+    void uploadMedia_PolaroidLowResolution_ThrowsBusinessException() throws Exception {
+        BufferedImage lowResImg = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(lowResImg, "png", baos);
+        byte[] pngBytes = baos.toByteArray();
+
+        MockMultipartFile lowResFile = new MockMultipartFile("file", "pola_low.png", "image/png", pngBytes);
+        when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+
+        assertThatThrownBy(() -> modelMediaService.uploadMedia(modelId, MediaType.POLAROID, false, lowResFile))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("possui baixa definição")
+                .hasMessageContaining("resolução mínima de 4 Megapixels");
+    }
+
+    @Test
+    @DisplayName("uploadMedia - Deve aceitar foto BOOK com resolução UHD (>= 3.8 MP)")
+    void uploadMedia_BookUhdResolution_Success() throws Exception {
+        BufferedImage uhdImg = new BufferedImage(2000, 2000, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(uhdImg, "png", baos);
+        byte[] uhdBytes = baos.toByteArray();
+
+        MockMultipartFile uhdFile = new MockMultipartFile("file", "book_uhd.png", "image/png", uhdBytes);
+        when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+        when(modelMediaRepository.findNextDisplayOrder(modelId, MediaType.BOOK)).thenReturn(1);
+        when(storageService.uploadFile(eq("models-media"), any(), eq(uhdFile))).thenReturn("models-media/book_uhd.png");
+        when(storageService.getPublicUrl(any(), any())).thenReturn("https://supabase.co/book_uhd.png");
+        when(modelMediaRepository.save(any(ModelMedia.class))).thenAnswer(invocation -> {
+            ModelMedia mm = invocation.getArgument(0);
+            mm.setId(mediaId);
+            mm.setCreatedAt(OffsetDateTime.now());
+            return mm;
+        });
+
+        MediaUploadResponseDto response = modelMediaService.uploadMedia(modelId, MediaType.BOOK, false, uhdFile);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(mediaId);
+        assertThat(response.getFileUrl()).startsWith("https://supabase.co/book_uhd.png");
     }
 }

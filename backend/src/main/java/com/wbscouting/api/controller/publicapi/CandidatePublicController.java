@@ -25,15 +25,13 @@ public class CandidatePublicController {
             @RequestPart("data") @Valid CandidateSubmissionRequestDto data,
             @RequestPart("facePhoto") MultipartFile facePhoto,
             @RequestPart("profilePhoto") MultipartFile profilePhoto,
-            @RequestPart("fullBodyPhoto") MultipartFile fullBodyPhoto
+            @RequestPart("fullBodyPhoto") MultipartFile fullBodyPhoto,
+            @RequestPart(value = "photos", required = false) java.util.List<MultipartFile> additionalPhotos
     ) {
         log.info("Recebida requisição de candidatura pública para: {}", data.getFullName());
-        CandidateSubmissionResponseDto response = submissionService.submit(
-                data,
-                facePhoto,
-                profilePhoto,
-                fullBodyPhoto
-        );
+        CandidateSubmissionResponseDto response = (additionalPhotos != null && !additionalPhotos.isEmpty())
+                ? submissionService.submit(data, facePhoto, profilePhoto, fullBodyPhoto, additionalPhotos)
+                : submissionService.submit(data, facePhoto, profilePhoto, fullBodyPhoto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

@@ -4,10 +4,12 @@ import com.wbscouting.api.dto.admin.candidate.CandidateApplicationSummaryDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDecisionRequestDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDetailResponseDto;
 import com.wbscouting.api.entity.Admin;
+import com.wbscouting.api.entity.CandidatePhoto;
 import com.wbscouting.api.entity.CandidateSubmission;
 import com.wbscouting.api.enums.SubmissionGender;
 import com.wbscouting.api.enums.SubmissionStatus;
 import com.wbscouting.api.exception.ResourceNotFoundException;
+import com.wbscouting.api.repository.CandidatePhotoRepository;
 import com.wbscouting.api.repository.CandidateSubmissionRepository;
 import com.wbscouting.api.specification.CandidateSubmissionSpecification;
 
@@ -32,8 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -44,6 +48,7 @@ public class AdminApplicationController {
 
     private final CandidateSubmissionRepository submissionRepository;
     private final CandidateSubmissionAdminService submissionAdminService;
+    private final CandidatePhotoRepository candidatePhotoRepository;
 
     @Transactional(readOnly = true)
     @GetMapping
@@ -77,8 +82,22 @@ public class AdminApplicationController {
                 search, status, gender, isMinor, null, null, null, null, includePromoted
         );
 
-        Page<CandidateApplicationSummaryDto> result = submissionRepository.findAll(spec, pageable)
-                .map(CandidateApplicationSummaryDto::fromEntity);
+        Page<CandidateSubmission> pageResult = submissionRepository.findAll(spec, pageable);
+        List<UUID> submissionIds = pageResult.getContent().stream()
+                .map(CandidateSubmission::getId)
+                .toList();
+
+        Map<UUID, List<CandidatePhoto>> photosBySubmission = Map.of();
+        if (!submissionIds.isEmpty()) {
+            List<CandidatePhoto> allPhotos = candidatePhotoRepository.findBySubmissionIdInOrderByDisplayOrderAsc(submissionIds);
+            photosBySubmission = allPhotos.stream()
+                    .filter(p -> p.getSubmission() != null && p.getSubmission().getId() != null)
+                    .collect(Collectors.groupingBy(p -> p.getSubmission().getId()));
+        }
+
+        final Map<UUID, List<CandidatePhoto>> finalPhotosMap = photosBySubmission;
+        Page<CandidateApplicationSummaryDto> result = pageResult
+                .map(s -> CandidateApplicationSummaryDto.fromEntity(s, finalPhotosMap.getOrDefault(s.getId(), List.of())));
         return ResponseEntity.ok(result);
     }
 
@@ -108,7 +127,8 @@ public class AdminApplicationController {
         log.info("Buscando detalhes da candidatura ID: {}", id);
         CandidateSubmission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidatura", "id", id));
-        return ResponseEntity.ok(CandidateDetailResponseDto.fromEntity(submission));
+        List<CandidatePhoto> photos = candidatePhotoRepository.findBySubmissionIdOrderByDisplayOrderAsc(id);
+        return ResponseEntity.ok(CandidateDetailResponseDto.fromEntity(submission, photos));
     }
 
     @Transactional
@@ -133,7 +153,8 @@ public class AdminApplicationController {
         submission.setReviewedAt(OffsetDateTime.now());
 
         CandidateSubmission savedSubmission = submissionRepository.save(submission);
-        return ResponseEntity.ok(CandidateDetailResponseDto.fromEntity(savedSubmission));
+        List<CandidatePhoto> photos = candidatePhotoRepository.findBySubmissionIdOrderByDisplayOrderAsc(id);
+        return ResponseEntity.ok(CandidateDetailResponseDto.fromEntity(savedSubmission, photos));
     }
 
     @PostMapping({"/{id}/promote", "/{id}/promote-to-model"})

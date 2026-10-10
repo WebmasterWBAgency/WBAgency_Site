@@ -26,6 +26,9 @@ export interface CandidateApplicationRow {
   hasPhotos: boolean;
   polaroidsCount: number;
   coverPhoto?: string;
+  coverPhotoUrl?: string;
+  facePhotoUrl?: string;
+  face_photo_url?: string;
   photos?: { id: string; url: string; type: string }[];
   createdAt: string;
   photoError?: boolean;
@@ -235,9 +238,15 @@ export class CandidateTableComponent implements OnInit {
 
           // 🆕 ETAPA 1: Roda busca recursiva em TUDO que o backend mandou do candidato.
           const todasFotosUrls: string[] = extrairTodasFotosRecursivamente(item);
+          // 🆕 Prioriza getCoverPhoto no item recebido do backend (foto do rosto)
+          const directCover = this.getCoverPhoto(item);
           let finalCover = '';
-          if (todasFotosUrls.length > 0) {
-            finalCover = this._resolveCandidatePhotoUrl(todasFotosUrls[0]);
+          if (directCover) {
+            finalCover = this._resolveCandidatePhotoUrl(directCover) || directCover;
+          }
+
+          if (!finalCover && todasFotosUrls.length > 0) {
+            finalCover = this._resolveCandidatePhotoUrl(todasFotosUrls[0]) || todasFotosUrls[0];
           }
 
           // Resolve safePhotos (array todo normalizado para preview hover)
@@ -248,17 +257,19 @@ export class CandidateTableComponent implements OnInit {
               const urlFotoDesta = extrairTodasFotosRecursivamente(p)[0] || (typeof p === 'string' ? p : (p?.url || p?.fileUrl || ''));
               return {
                 id: p?.id || `p-${idx}`,
-                url: this._resolveCandidatePhotoUrl(urlFotoDesta),
+                url: this._resolveCandidatePhotoUrl(urlFotoDesta) || urlFotoDesta,
                 type: p?.type || (idx === 0 ? 'POLAROID_ROSTO' : (idx === 1 ? 'POLAROID_PERFIL' : 'CORPO_INTEIRO'))
               };
             }).filter((x: any) => x.url);
           }
 
           // 🆕 ETAPA 2: Fallback seguro (caso busca recursiva nao tenha encontrado nada) → campos legados.
-          if (!finalCover && item.coverPhoto) finalCover = this._resolveCandidatePhotoUrl(item.coverPhoto);
-          if (!finalCover && item.facePhotoUrl) finalCover = this._resolveCandidatePhotoUrl(item.facePhotoUrl);
-          if (!finalCover && item.profilePhotoUrl) finalCover = this._resolveCandidatePhotoUrl(item.profilePhotoUrl);
-          if (!finalCover && item.fullBodyPhotoUrl) finalCover = this._resolveCandidatePhotoUrl(item.fullBodyPhotoUrl);
+          if (!finalCover && item.facePhotoUrl) finalCover = this._resolveCandidatePhotoUrl(item.facePhotoUrl) || item.facePhotoUrl;
+          if (!finalCover && item.face_photo_url) finalCover = this._resolveCandidatePhotoUrl(item.face_photo_url) || item.face_photo_url;
+          if (!finalCover && item.coverPhotoUrl) finalCover = this._resolveCandidatePhotoUrl(item.coverPhotoUrl) || item.coverPhotoUrl;
+          if (!finalCover && item.coverPhoto) finalCover = this._resolveCandidatePhotoUrl(item.coverPhoto) || item.coverPhoto;
+          if (!finalCover && item.profilePhotoUrl) finalCover = this._resolveCandidatePhotoUrl(item.profilePhotoUrl) || item.profilePhotoUrl;
+          if (!finalCover && item.fullBodyPhotoUrl) finalCover = this._resolveCandidatePhotoUrl(item.fullBodyPhotoUrl) || item.fullBodyPhotoUrl;
 
           // 🆕 ETAPA 3: Ultimo recurso → safePhotos[0] (se o array ja foi normalizado com sucesso, usa a 1ª).
           if (!finalCover && safePhotos && safePhotos.length > 0 && safePhotos[0].url) finalCover = safePhotos[0].url;
@@ -270,6 +281,8 @@ export class CandidateTableComponent implements OnInit {
             state: fixUtf8(item.state),
             polaroidsCount: item.photoCount ?? item.polaroidsCount ?? ((safePhotos?.length || 0) || (item.photos ? item.photos.length : 0)),
             coverPhoto: finalCover || undefined,
+            coverPhotoUrl: finalCover || undefined,
+            facePhotoUrl: finalCover || undefined,
             photos: safePhotos || item.photos,
             photoError: false,
             protocol: (item.protocol || '').toString().trim() || undefined,
@@ -284,6 +297,33 @@ export class CandidateTableComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  getCoverPhoto(candidate: any): string | null {
+    if (!candidate) return null;
+
+    // 1. Campo direto da submissão (facePhotoUrl / face_photo_url / coverPhotoUrl / coverPhoto)
+    if (candidate.facePhotoUrl) return candidate.facePhotoUrl;
+    if (candidate.face_photo_url) return candidate.face_photo_url;
+    if (candidate.coverPhotoUrl) return candidate.coverPhotoUrl;
+    if (candidate.coverPhoto) return candidate.coverPhoto;
+
+    // 2. Se as fotos vierem como array (candidate.photos)
+    if (Array.isArray(candidate.photos) && candidate.photos.length > 0) {
+      // Procura especificamente a foto do rosto
+      const facePhoto = candidate.photos.find((p: any) => 
+        p.type === 'POLAROID_ROSTO' || 
+        p.photo_position === 1 || 
+        p.photoPosition === 1
+      );
+      if (facePhoto) return facePhoto.url || facePhoto.file_url || facePhoto.fileUrl || null;
+
+      // Fallback para a primeira foto disponível da lista
+      const first = candidate.photos[0];
+      return first.url || first.file_url || first.fileUrl || null;
+    }
+
+    return null;
   }
 
   onPhotoError(candidate: CandidateApplicationRow): void {

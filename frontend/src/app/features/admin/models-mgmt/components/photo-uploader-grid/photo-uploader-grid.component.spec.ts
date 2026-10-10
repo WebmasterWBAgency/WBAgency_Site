@@ -2,10 +2,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PhotoUploaderGridComponent } from './photo-uploader-grid.component';
 import { GalleryPhoto } from '../../../../../shared/models/gallery.model';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
+import { ImageProcessingService } from '../../../../../core/services/image-processing.service';
 
 describe('PhotoUploaderGridComponent', () => {
   let component: PhotoUploaderGridComponent;
   let fixture: ComponentFixture<PhotoUploaderGridComponent>;
+  let imageProcessingSpy: jasmine.SpyObj<ImageProcessingService>;
 
   const initialPhotos: GalleryPhoto[] = [
     {
@@ -32,8 +34,14 @@ describe('PhotoUploaderGridComponent', () => {
   ];
 
   beforeEach(async () => {
+    imageProcessingSpy = jasmine.createSpyObj('ImageProcessingService', ['validateAndProcessPhoto']);
+    imageProcessingSpy.validateAndProcessPhoto.and.resolveTo({ valid: true });
+
     await TestBed.configureTestingModule({
-      imports: [PhotoUploaderGridComponent]
+      imports: [PhotoUploaderGridComponent],
+      providers: [
+        { provide: ImageProcessingService, useValue: imageProcessingSpy }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(PhotoUploaderGridComponent);
@@ -119,7 +127,7 @@ describe('PhotoUploaderGridComponent', () => {
     expect(component.photosChange.emit).toHaveBeenCalled();
   });
 
-  it('deve filtrar e validar arquivos válidos e emitir fileUploaded', () => {
+  it('deve filtrar e validar arquivos válidos e emitir fileUploaded', async () => {
     spyOn(component.fileUploaded, 'emit');
 
     const validBlob = new Blob(['sample-img'], { type: 'image/jpeg' });
@@ -128,6 +136,8 @@ describe('PhotoUploaderGridComponent', () => {
     const invalidTypeBlob = new Blob(['sample-pdf'], { type: 'application/pdf' });
     const invalidTypeFile = new File([invalidTypeBlob], 'doc.pdf', { type: 'application/pdf' });
 
+    imageProcessingSpy.validateAndProcessPhoto.and.resolveTo({ valid: true, processedFile: validFile });
+
     const fileList = {
       0: validFile,
       1: invalidTypeFile,
@@ -135,15 +145,15 @@ describe('PhotoUploaderGridComponent', () => {
       item: (i: number) => (i === 0 ? validFile : invalidTypeFile)
     } as unknown as FileList;
 
-    component.processSelectedFiles(fileList);
+    await component.processSelectedFiles(fileList);
 
     expect(component.fileUploaded.emit).toHaveBeenCalledWith([validFile]);
   });
 
-  it('deve emitir erro de validação para arquivos com mais de 10MB', () => {
+  it('deve emitir erro de validação para arquivos com mais de 8 MB', async () => {
     spyOn(component.validationError, 'emit');
 
-    const largeFile = new File([new ArrayBuffer(11 * 1024 * 1024)], 'large.jpg', {
+    const largeFile = new File([new ArrayBuffer(9 * 1024 * 1024)], 'large.jpg', {
       type: 'image/jpeg'
     });
 
@@ -153,11 +163,35 @@ describe('PhotoUploaderGridComponent', () => {
       item: () => largeFile
     } as unknown as FileList;
 
-    component.processSelectedFiles(fileList);
+    await component.processSelectedFiles(fileList);
 
     expect(component.validationError.emit).toHaveBeenCalledWith(
-      'O tamanho do arquivo excede o limite máximo permitido de 10 MB.'
+      'O arquivo "large.jpg" excede o limite máximo permitido de 8 MB.'
     );
+  });
+
+  it('deve emitir erro de validação para fotos com resolução abaixo de 4 Megapixels UHD', async () => {
+    spyOn(component.validationError, 'emit');
+
+    const lowResFile = new File([new Blob(['low-res'], { type: 'image/jpeg' })], 'lowres.jpg', {
+      type: 'image/jpeg'
+    });
+
+    const errorMsg = 'A imagem selecionada "lowres.jpg" possui baixa definição (800x600 px - 0.5 MP). Para garantir visualização nítida em telas de alta definição (UHD), envie fotos com resolução mínima de 4 Megapixels.';
+    imageProcessingSpy.validateAndProcessPhoto.and.resolveTo({
+      valid: false,
+      error: errorMsg
+    });
+
+    const fileList = {
+      0: lowResFile,
+      length: 1,
+      item: () => lowResFile
+    } as unknown as FileList;
+
+    await component.processSelectedFiles(fileList);
+
+    expect(component.validationError.emit).toHaveBeenCalledWith(errorMsg);
   });
 
   it('deve alterar o filtro de categoria selecionado', () => {

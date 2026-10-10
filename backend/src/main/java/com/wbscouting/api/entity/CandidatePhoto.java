@@ -103,6 +103,22 @@ public class CandidatePhoto {
     public UUID resolveOwnerId() { return getCandidateId(); }
     public Short getPhotoPosition() { return this.photoPosition; }
     public void setPhotoPosition(Short photoPosition) { this.photoPosition = photoPosition; }
+
+    @Transient
+    public String getType() {
+        if (this.photoPosition != null) {
+            if (this.photoPosition == 1) return "POLAROID_ROSTO";
+            if (this.photoPosition == 2) return "POLAROID_PERFIL";
+            if (this.photoPosition == 3) return "CORPO_INTEIRO";
+        }
+        return null;
+    }
+
+    public void setType(String type) {
+        if ("POLAROID_ROSTO".equalsIgnoreCase(type)) this.photoPosition = 1;
+        else if ("POLAROID_PERFIL".equalsIgnoreCase(type)) this.photoPosition = 2;
+        else if ("CORPO_INTEIRO".equalsIgnoreCase(type)) this.photoPosition = 3;
+    }
     public String getStoragePath() { return storagePath != null ? storagePath : filePath; }
     public void setStoragePath(String storagePath) { this.storagePath = storagePath; }
     public Integer getDisplayOrder() {

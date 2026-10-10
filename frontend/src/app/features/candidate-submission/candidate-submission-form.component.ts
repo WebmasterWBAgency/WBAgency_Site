@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CandidateSubmissionService } from '../../core/services/candidate-submission.service';
+import { ImageProcessingService } from '../../core/services/image-processing.service';
 import {
   CandidateSubmissionModel,
   CandidateSubmissionResponse,
@@ -27,6 +28,7 @@ interface PhotoSlot {
 export class CandidateSubmissionFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly submissionService = inject(CandidateSubmissionService);
+  private readonly imageProcessingService = inject(ImageProcessingService);
 
   readonly isSubmitting = signal<boolean>(false);
   readonly submissionSuccess = signal<CandidateSubmissionResponse | null>(null);
@@ -180,31 +182,30 @@ export class CandidateSubmissionFormComponent implements OnInit {
     event.stopPropagation();
   }
 
-  private validateAndSetPhoto(key: 'facePhoto' | 'profilePhoto' | 'fullBodyPhoto', file: File): void {
-    const validMimes = ['image/jpeg', 'image/jpg', 'image/png'];
-    const maxBytes = 5 * 1024 * 1024; // 5 MB
+  private async validateAndSetPhoto(key: 'facePhoto' | 'profilePhoto' | 'fullBodyPhoto', file: File): Promise<void> {
+    const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-    let error: string | null = null;
     if (!validMimes.includes(file.type.toLowerCase())) {
-      error = 'Formato inválido. Apenas imagens JPEG e PNG são aceitas.';
-    } else if (file.size > maxBytes) {
-      error = 'Arquivo muito grande. O limite máximo por foto é de 5 MB.';
-    }
-
-    if (error) {
-      this.updatePhotoSlot(key, { file: null, previewUrl: null, error });
+      this.updatePhotoSlot(key, { file: null, previewUrl: null, error: 'Formato inválido. Apenas imagens JPEG, PNG e WEBP são aceitas.' });
       return;
     }
 
+    const result = await this.imageProcessingService.validateAndProcessPhoto(file);
+    if (!result.valid) {
+      this.updatePhotoSlot(key, { file: null, previewUrl: null, error: result.error || 'Erro na validação da imagem.' });
+      return;
+    }
+
+    const finalFile = result.processedFile || file;
     const reader = new FileReader();
     reader.onload = () => {
       this.updatePhotoSlot(key, {
-        file,
+        file: finalFile,
         previewUrl: reader.result as string,
         error: null
       });
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(finalFile);
   }
 
   removePhoto(key: 'facePhoto' | 'profilePhoto' | 'fullBodyPhoto', event?: Event): void {
@@ -240,6 +241,14 @@ export class CandidateSubmissionFormComponent implements OnInit {
     const slots = this.photoSlots();
     if (!slots.facePhoto.file || !slots.profilePhoto.file || !slots.fullBodyPhoto.file) {
       this.submissionError.set('O envio das 3 fotografias (Rosto, Perfil e Corpo Inteiro) é obrigatório.');
+      return;
+    }
+
+    const MAX_TOTAL_SIZE = 30 * 1024 * 1024; // 30 MB
+    const totalPhotosBytes = (slots.facePhoto.file?.size || 0) + (slots.profilePhoto.file?.size || 0) + (slots.fullBodyPhoto.file?.size || 0);
+    if (totalPhotosBytes > MAX_TOTAL_SIZE) {
+      const totalMb = (totalPhotosBytes / (1024 * 1024)).toFixed(1);
+      this.submissionError.set(`O tamanho total das fotos (${totalMb} MB) excede o limite de 30 MB. Otimize ou selecione fotos mais leves.`);
       return;
     }
 

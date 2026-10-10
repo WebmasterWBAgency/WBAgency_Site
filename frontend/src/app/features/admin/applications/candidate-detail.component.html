@@ -114,23 +114,30 @@
     <div class="lg:col-span-7 bg-white border border-[#E8EBE8] p-6 shadow-sm space-y-4">
       <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-3">
         <h2 class="text-xs font-serif uppercase tracking-wider text-[#222624]">Polaroids &amp; Ensaio de Scouting</h2>
-        <span class="text-[10px] text-[#5F6661] uppercase tracking-wider">Clique na foto para inspecionar</span>
+        <span class="text-[10px] text-[#5F6661] uppercase tracking-wider font-sans font-medium">
+          {{ candidate.photos.length }} {{ (candidate.photos.length === 1) ? 'Polaroid' : 'Polaroids' }} &bull; Clique para inspecionar
+        </span>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <div 
           *ngFor="let photo of candidate.photos; let i = index" 
           (click)="openLightbox(i)"
-          class="group relative aspect-[3/4] bg-[#F4F5F4] border border-[#E8EBE8] overflow-hidden cursor-zoom-in"
+          class="aspect-[3/4] bg-[#F4F5F4] border border-[#E8EBE8] overflow-hidden group relative cursor-zoom-in shadow-xs"
         >
-          <img [src]="photo.url" [alt]="photo.type" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 polaroid-preview">
+          <img 
+            [src]="photo.url || photo.fileUrl" 
+            [alt]="'Polaroid ' + (i + 1)" 
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 polaroid-preview"
+            loading="lazy"
+          />
           <div class="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-xs p-1.5 text-center text-white text-[9px] uppercase tracking-widest">
             {{ formatPhotoType(photo.type) }}
           </div>
         </div>
       </div>
 
-      <div *ngIf="candidate.photos.length === 0" class="py-12 text-center text-xs text-[#5F6661] uppercase tracking-wider">
+      <div *ngIf="!candidate.photos || candidate.photos.length === 0" class="py-12 text-center text-xs text-[#5F6661] uppercase tracking-wider">
         Nenhuma fotografia anexada a esta candidatura.
       </div>
     </div>

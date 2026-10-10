@@ -10,6 +10,7 @@ server:
 spring:
   servlet:
     multipart:
+      enabled: true
       max-file-size: 15MB
       max-request-size: 50MB
 
@@ -114,7 +115,7 @@ app:
 
 supabase:
   url: "${SUPABASE_URL:https://dummy-project.supabase.co}"
-  key: "${SUPABASE_KEY:${SUPABASE_ANON_KEY:dummy-key}}"
+  key: "${SUPABASE_KEY:${SUPABASE_SERVICE_ROLE_KEY:dummy-key}}"
   service-role-key: "${SUPABASE_SERVICE_ROLE_KEY:dummy-key}"
   anon-key: "${SUPABASE_ANON_KEY:dummy-key}"
   storage:

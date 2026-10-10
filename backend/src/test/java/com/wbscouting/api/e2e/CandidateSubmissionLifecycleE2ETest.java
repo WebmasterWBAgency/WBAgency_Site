@@ -84,6 +84,9 @@ class CandidateSubmissionLifecycleE2ETest {
     private CandidateSubmissionRepository submissionRepository;
 
     @MockitoBean
+    private com.wbscouting.api.repository.CandidatePhotoRepository candidatePhotoRepository;
+
+    @MockitoBean
     private StorageService storageService;
 
     @MockitoBean
@@ -466,12 +469,9 @@ class CandidateSubmissionLifecycleE2ETest {
     @Test
     @DisplayName("TC-11 [Arquivo Morto / Soft Delete]: Deve arquivar candidatura com status ARCHIVED com 204 No Content")
     void shouldPurgeApplicationUnderLgpd() throws Exception {
-        when(submissionRepository.findById(candidateId)).thenReturn(Optional.of(candidateEntity));
-
         mockMvc.perform(delete("/api/v1/admin/applications/{id}", candidateId))
                 .andExpect(status().isNoContent());
 
-        verify(submissionRepository, times(1)).save(candidateEntity);
-        org.assertj.core.api.Assertions.assertThat(candidateEntity.getStatus()).isEqualTo(com.wbscouting.api.enums.SubmissionStatus.ARCHIVED);
+        verify(candidateSubmissionAdminService, times(1)).deletePermanently(eq(candidateId), any());
     }
 }

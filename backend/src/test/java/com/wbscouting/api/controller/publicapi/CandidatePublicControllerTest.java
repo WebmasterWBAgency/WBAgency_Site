@@ -165,8 +165,8 @@ class CandidatePublicControllerTest {
                 .thenThrow(new com.wbscouting.api.exception.StorageException(
                         "Falha de autenticação com Supabase Storage",
                         org.springframework.http.HttpStatus.UNAUTHORIZED,
-                        "STORAGE_AUTH_FAILED",
-                        "Falha de Autenticação com Armazenamento"
+                        "Falha de Autenticação com Armazenamento",
+                        "STORAGE_AUTH_FAILED"
                 ));
 
         mockMvc.perform(multipart("/api/v1/submissions")

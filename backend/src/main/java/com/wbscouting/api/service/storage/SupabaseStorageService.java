@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,25 @@ public class SupabaseStorageService implements StorageService {
 
     private final RestClient supabaseStorageRestClient;
     private final SupabaseProperties supabaseProperties;
+
+    @PostConstruct
+    public void init() {
+        boolean configured = supabaseProperties.isKeyConfigured();
+        boolean localFallback = supabaseProperties.getStorage() != null && supabaseProperties.getStorage().isLocalFallback();
+        if (!configured) {
+            if (localFallback) {
+                log.warn("[SUPABASE STORAGE] ATENÇÃO: Chave do Supabase (SUPABASE_SERVICE_ROLE_KEY / SUPABASE_KEY) não configurada ou dummy ('{}'). Operações de storage utilizarão fallback local.",
+                        supabaseProperties.getEffectiveKey());
+            } else {
+                log.error("[SUPABASE STORAGE] ERRO CRÍTICO: Chave administrativa do Supabase (SUPABASE_SERVICE_ROLE_KEY / SUPABASE_KEY) não configurada ou dummy ('{}'). Uploads remotos falharão até que a variável de ambiente seja definida.",
+                        supabaseProperties.getEffectiveKey());
+            }
+        } else {
+            String key = supabaseProperties.getEffectiveKey();
+            String prefix = key.length() > 10 ? key.substring(0, 10) + "..." : "***";
+            log.info("[SUPABASE STORAGE] Serviço inicializado com sucesso. Chave administrativa ativa: [prefixo={}]", prefix);
+        }
+    }
 
     public SupabaseProperties getProperties() {
         return supabaseProperties;
@@ -93,8 +113,17 @@ public class SupabaseStorageService implements StorageService {
             byte[] fileBytes = file.getBytes();
             String endpointPath = "/storage/v1/object/" + bucket + "/" + normalizedPath;
 
+            String effectiveKey = supabaseProperties.getEffectiveKey();
+            String rawKey = (effectiveKey != null) ? effectiveKey.trim() : "";
+            if (rawKey.startsWith("Bearer ") || rawKey.startsWith("bearer ")) {
+                rawKey = rawKey.substring(7).trim();
+            }
+            String authHeader = StringUtils.hasText(rawKey) ? "Bearer " + rawKey : "";
+
             supabaseStorageRestClient.post()
                     .uri(uriBuilder -> uriBuilder.path(endpointPath).build())
+                    .header("apikey", rawKey)
+                    .header(HttpHeaders.AUTHORIZATION, authHeader)
                     .header(HttpHeaders.CONTENT_TYPE, contentType)
                     .header("x-upsert", "true")
                     .body(fileBytes)
@@ -167,8 +196,17 @@ public class SupabaseStorageService implements StorageService {
         try {
             Map<String, Object> payload = Map.of("prefixes", List.of(normalizedPath));
 
+            String effectiveKey = supabaseProperties.getEffectiveKey();
+            String rawKey = (effectiveKey != null) ? effectiveKey.trim() : "";
+            if (rawKey.startsWith("Bearer ") || rawKey.startsWith("bearer ")) {
+                rawKey = rawKey.substring(7).trim();
+            }
+            String authHeader = StringUtils.hasText(rawKey) ? "Bearer " + rawKey : "";
+
             supabaseStorageRestClient.method(org.springframework.http.HttpMethod.DELETE)
                     .uri("/storage/v1/object/{bucket}", bucket)
+                    .header("apikey", rawKey)
+                    .header(HttpHeaders.AUTHORIZATION, authHeader)
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .body(payload)
                     .retrieve()
@@ -291,8 +329,17 @@ public class SupabaseStorageService implements StorageService {
             Map<String, Object> payload = Map.of("expiresIn", expiresInSeconds);
             String endpointPath = "/storage/v1/object/sign/" + bucket + "/" + normalizedPath;
 
+            String effectiveKey = supabaseProperties.getEffectiveKey();
+            String rawKey = (effectiveKey != null) ? effectiveKey.trim() : "";
+            if (rawKey.startsWith("Bearer ") || rawKey.startsWith("bearer ")) {
+                rawKey = rawKey.substring(7).trim();
+            }
+            String authHeader = StringUtils.hasText(rawKey) ? "Bearer " + rawKey : "";
+
             SignedUrlResponse response = supabaseStorageRestClient.post()
                     .uri(uriBuilder -> uriBuilder.path(endpointPath).build())
+                    .header("apikey", rawKey)
+                    .header(HttpHeaders.AUTHORIZATION, authHeader)
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .body(payload)
                     .retrieve()

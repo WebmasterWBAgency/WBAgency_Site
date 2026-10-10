@@ -36,6 +36,13 @@ public class StorageException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    public StorageException(String message, HttpStatus status, String errorCode) {
+        super(message);
+        this.status = status;
+        this.title = errorCode;
+        this.errorCode = errorCode;
+    }
+
     public StorageException(String message, Throwable cause) {
         super(message, cause);
         this.status = HttpStatus.INTERNAL_SERVER_ERROR;

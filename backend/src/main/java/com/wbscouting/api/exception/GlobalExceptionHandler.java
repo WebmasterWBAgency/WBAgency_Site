@@ -116,7 +116,12 @@ public class GlobalExceptionHandler {
         HttpStatus status = ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_GATEWAY;
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, ex.getMessage());
         problemDetail.setTitle(ex.getTitle() != null ? ex.getTitle() : "Erro de Integração com Armazenamento");
-        String typeSlug = ex.getErrorCode() != null ? ex.getErrorCode().toLowerCase().replace('_', '-') : "storage-error";
+        String typeSlug = "storage-error";
+        if (ex.getErrorCode() != null) {
+            typeSlug = ex.getErrorCode().toLowerCase()
+                    .replaceAll("[^a-z0-9_-]", "-")
+                    .replaceAll("-+", "-");
+        }
         problemDetail.setType(URI.create("https://wbscouting.com/errors/" + typeSlug));
         problemDetail.setProperty("timestamp", Instant.now());
         if (ex.getErrorCode() != null) {
@@ -125,11 +130,53 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
-    public ProblemDetail handleMaxUploadSizeExceededException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "O arquivo enviado excede o limite máximo permitido pelo servidor.");
+    @ExceptionHandler({
+            org.springframework.web.multipart.MaxUploadSizeExceededException.class,
+            org.apache.tomcat.util.http.fileupload.impl.SizeLimitExceededException.class,
+            org.apache.tomcat.util.http.fileupload.impl.FileSizeLimitExceededException.class
+    })
+    public ProblemDetail handleMaxUploadSizeExceededException(Exception ex) {
+        HttpStatus status = HttpStatus.PAYLOAD_TOO_LARGE;
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                status,
+                "O arquivo enviado ou o tamanho total da requisição excede o limite máximo permitido pelo servidor."
+        );
         problemDetail.setTitle("Tamanho Máximo de Requisição Excedido");
         problemDetail.setType(URI.create("https://wbscouting.com/errors/max-upload-size"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        if (ex instanceof org.springframework.web.multipart.MaxUploadSizeExceededException maxEx) {
+            problemDetail.setProperty("maxUploadSize", maxEx.getMaxUploadSize());
+        }
+        return problemDetail;
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
+    public ProblemDetail handleMultipartException(org.springframework.web.multipart.MultipartException ex) {
+        Throwable rootCause = ex.getRootCause();
+        if (rootCause instanceof org.apache.tomcat.util.http.fileupload.impl.SizeLimitExceededException
+                || rootCause instanceof org.apache.tomcat.util.http.fileupload.impl.FileSizeLimitExceededException
+                || (rootCause != null && rootCause.getMessage() != null && rootCause.getMessage().contains("SizeLimitExceededException"))) {
+            return handleMaxUploadSizeExceededException((Exception) (rootCause != null ? rootCause : ex));
+        }
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Falha ao processar a requisição multipart: " + (ex.getMessage() != null ? ex.getMessage() : "formato inválido.")
+        );
+        problemDetail.setTitle("Falha no Upload Multipart");
+        problemDetail.setType(URI.create("https://wbscouting.com/errors/multipart-failure"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ProblemDetail handleHttpMessageNotReadableException(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        String msg = "Corpo da requisição inválido ou mal formatado.";
+        if (ex.getMessage() != null && ex.getMessage().contains("JSON parse error")) {
+            msg = "Erro na desserialização dos dados enviados (JSON inválido ou incompatibilidade de tipos de campo).";
+        }
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg);
+        problemDetail.setTitle("Requisição Malformatada");
+        problemDetail.setType(URI.create("https://wbscouting.com/errors/bad-request-payload"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }

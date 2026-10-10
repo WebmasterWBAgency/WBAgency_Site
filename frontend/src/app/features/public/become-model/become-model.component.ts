@@ -21,6 +21,7 @@ export interface PhotoSlot {
 
 import { TranslatePipe } from '../../../shared/pipes/translate.pipe';
 import { TranslationService } from '../../../core/services/translation.service';
+import { ImageProcessingService } from '../../../core/services/image-processing.service';
 
 @Component({
   selector: 'app-become-model',
@@ -35,6 +36,7 @@ export class BecomeModelComponent implements OnInit {
   private faqService = inject(ApplyFaqService);
   private readonly contentSvc = inject(PublicContentService);
   readonly translationService = inject(TranslationService);
+  private readonly imageProcessingService = inject(ImageProcessingService);
 
   form!: FormGroup;
   isSubmitting = false;
@@ -584,20 +586,10 @@ export class BecomeModelComponent implements OnInit {
     this.form.get('guardianCpf')?.setValue(input.value, { emitEvent: false });
   }
 
-  onFileSelected(index: number, event: Event): void {
+  async onFileSelected(index: number, event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
-      const maxSizeBytes = 10 * 1024 * 1024; // 10 MB
-      if (file.size > maxSizeBytes) {
-        const errorMsg = this.translationService.currentLang() === 'en'
-          ? `The photo "${file.name}" exceeds the maximum allowed size of 10 MB.`
-          : `A foto "${file.name}" excede o tamanho máximo permitido de 10 MB.`;
-        this.submitError = errorMsg;
-        alert(errorMsg);
-        input.value = '';
-        return;
-      }
 
       const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validMimes.includes(file.type.toLowerCase())) {
@@ -610,12 +602,34 @@ export class BecomeModelComponent implements OnInit {
         return;
       }
 
+      const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB
+      if (file.size > MAX_FILE_SIZE) {
+        const isEn = this.translationService.currentLang() === 'en';
+        const errorMsg = isEn
+          ? `The photo "${file.name}" exceeds the maximum allowed limit of 8 MB.`
+          : `A foto "${file.name}" excede o limite máximo permitido de 8 MB.`;
+        this.submitError = errorMsg;
+        alert(errorMsg);
+        input.value = '';
+        return;
+      }
+
+      const result = await this.imageProcessingService.validateAndProcessPhoto(file);
+      if (!result.valid) {
+        this.submitError = result.error || 'Erro na validação da imagem.';
+        alert(this.submitError);
+        input.value = '';
+        return;
+      }
+
+      this.submitError = null;
+      const finalFile = result.processedFile || file;
       const reader = new FileReader();
       reader.onload = (e) => {
-        this.photoSlots[index].file = file;
+        this.photoSlots[index].file = finalFile;
         this.photoSlots[index].previewUrl = e.target?.result as string;
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(finalFile);
     }
   }
 
@@ -715,13 +729,26 @@ export class BecomeModelComponent implements OnInit {
 
     formData.append('data', new Blob([JSON.stringify(candidateData)], { type: 'application/json' }));
 
-    // Anexo de compatibilidade com controllers específicos
+    // Validação de payload total das fotos (< 30 MB antes da transmissão)
+    const MAX_TOTAL_SIZE = 30 * 1024 * 1024; // 30 MB
+    const totalPhotosBytes = this.photoSlots.reduce((acc, slot) => acc + (slot.file?.size || 0), 0);
+    if (totalPhotosBytes > MAX_TOTAL_SIZE) {
+      const isEn = this.translationService.currentLang() === 'en';
+      const totalMb = (totalPhotosBytes / (1024 * 1024)).toFixed(1);
+      this.isSubmitting = false;
+      this.submitError = isEn
+        ? `The total size of the photos (${totalMb} MB) exceeds the 30 MB limit. Please optimize or choose lighter images.`
+        : `O tamanho total das fotos (${totalMb} MB) excede o limite de 30 MB. Otimize ou selecione fotos mais leves.`;
+      return;
+    }
+
+    // Anexo das 3 fotos obrigatórias aos campos específicos esperados pelo backend
     if (this.photoSlots[0]?.file) formData.append('facePhoto', this.photoSlots[0].file);
     if (this.photoSlots[1]?.file) formData.append('profilePhoto', this.photoSlots[1].file);
     if (this.photoSlots[2]?.file) formData.append('fullBodyPhoto', this.photoSlots[2].file);
 
-    // Anexo de todas as fotos presentes (de 3 a 8 arquivos)
-    this.photoSlots.forEach((slot) => {
+    // Anexo de fotos adicionais (slots 3 a 7) sem duplicar os 3 primeiros arquivos obrigatórios
+    this.photoSlots.slice(3).forEach((slot) => {
       if (slot.file) {
         formData.append('photos', slot.file);
       }

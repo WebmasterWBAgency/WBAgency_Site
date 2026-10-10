@@ -107,32 +107,28 @@
       >
         <div class="w-full">
           <!-- Moldura da Foto Vertical (3:4) com Altura Mínima Garantida -->
-          <div class="card-photo-wrapper">
+          <div class="card-photo-wrapper relative aspect-[3/4] bg-[#F4F5F4] border border-[#E8EBE8] overflow-hidden">
             
-            <!-- Foto de Capa (quando presente e válida) -->
-            <img 
-              *ngIf="candidate.coverPhoto && !candidate.photoError"
-              [src]="candidate.coverPhoto" 
-              alt=""
-              role="presentation"
-              (error)="onPhotoError(candidate)"
-              class="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300 block"
-            />
+            <!-- Foto de Capa (prioridade foto do rosto) -->
+            <ng-container *ngIf="(!candidate.photoError && (candidate.coverPhoto || candidate.coverPhotoUrl || candidate.facePhotoUrl || candidate.photos?.[0]?.url || getCoverPhoto(candidate))) as coverUrl; else noPhotoFallback">
+              <img 
+                [src]="coverUrl" 
+                [alt]="candidate.fullName" 
+                (error)="onPhotoError(candidate)"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 block"
+                loading="lazy"
+              />
+            </ng-container>
 
-            <!-- Placeholder Editorial Elegante (quando sem foto ou erro de imagem) -->
-            <div 
-              *ngIf="!candidate.coverPhoto || candidate.photoError"
-              class="photo-placeholder"
-            >
-              <div class="placeholder-icon-circle">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
+            <!-- Fallback exibido apenas se não houver NENHUMA foto cadastrada ou erro de carregamento -->
+            <ng-template #noPhotoFallback>
+              <div class="w-full h-full flex flex-col items-center justify-center p-4 text-center text-[#5F6661] bg-[#FBFBF9]">
+                <svg class="w-8 h-8 text-[#9CA3AF] mb-2 stroke-[1.2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </svg>
+                <span class="text-[10px] uppercase tracking-wider text-[#5F6661]">Sem Foto</span>
               </div>
-              <span class="placeholder-brand">WB Agency</span>
-              <span class="placeholder-hint">Aguardando Polaroids</span>
-            </div>
+            </ng-template>
 
             <!-- Badges no topo -->
             <div class="absolute top-2.5 inset-x-2.5 flex items-center justify-between pointer-events-none z-10">

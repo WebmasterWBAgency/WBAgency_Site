@@ -1,5 +1,6 @@
 package com.wbscouting.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.wbscouting.api.enums.SubmissionGender;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CandidateSubmissionRequestDto {
 
     @NotBlank(message = "O nome completo é obrigatório")
@@ -112,5 +114,19 @@ public class CandidateSubmissionRequestDto {
 
     public void setInstagramHandle(String instagramHandle) {
         this.instagramHandle = (instagramHandle != null && !instagramHandle.trim().isEmpty()) ? instagramHandle.trim() : null;
+    }
+
+    public void setInstagram(String instagram) {
+        if (this.instagramHandle == null) {
+            setInstagramHandle(instagram);
+        }
+    }
+
+    public void setShoes(Object shoes) {
+        if (this.shoeSize == null && shoes != null) {
+            try {
+                this.shoeSize = Integer.parseInt(shoes.toString().replaceAll("\\D", ""));
+            } catch (Exception ignored) {}
+        }
     }
 }

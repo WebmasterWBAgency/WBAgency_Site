@@ -1,9 +1,10 @@
 export interface CandidateMedia {
   id: string;
   url: string;
-  type: 'POLAROID_ROSTO' | 'POLAROID_PERFIL' | 'CORPO_INTEIRO' | 'COMPOSITE';
-  fileName: string;
-  fileSizeBytes: number;
+  fileUrl?: string;
+  type: string;
+  fileName?: string;
+  fileSizeBytes?: number;
 }
 
 export interface CandidateDetail {

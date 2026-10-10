@@ -79,25 +79,25 @@ class SupabaseStorageServiceTest {
     }
 
     @Test
-    @DisplayName("Deve rejeitar arquivo que excede 8MB no bucket models-media")
+    @DisplayName("Deve rejeitar arquivo que excede 30MB no bucket models-media")
     void shouldRejectModelsMediaFileExceeding8MB() {
         byte[] largeBytes = new byte[(int) (SupabaseStorageService.MAX_SIZE_MODELS_MEDIA + 1024)];
         MockMultipartFile largeFile = new MockMultipartFile("file", "model.png", "image/png", largeBytes);
 
         assertThatThrownBy(() -> storageService.uploadFile("models-media", "mod-1/photo.png", largeFile))
                 .isInstanceOf(FileSizeExceededException.class)
-                .hasMessageContaining("8 MB");
+                .hasMessageContaining("30 MB");
     }
 
     @Test
-    @DisplayName("Deve rejeitar arquivo que excede 25MB no bucket site-assets")
+    @DisplayName("Deve rejeitar arquivo que excede 30MB no bucket site-assets")
     void shouldRejectSiteAssetFileExceeding25MB() {
         byte[] largeBytes = new byte[(int) (SupabaseStorageService.MAX_SIZE_SITE_ASSETS + 1024)];
         MockMultipartFile largeFile = new MockMultipartFile("file", "video.mp4", "video/mp4", largeBytes);
 
         assertThatThrownBy(() -> storageService.uploadFile("site-assets", "videos/promo.mp4", largeFile))
                 .isInstanceOf(FileSizeExceededException.class)
-                .hasMessageContaining("25 MB");
+                .hasMessageContaining("30 MB");
     }
 
     @Test
@@ -127,11 +127,11 @@ class SupabaseStorageServiceTest {
     }
 
     @Test
-    @DisplayName("Deve rejeitar arquivo com tipo MIME não suportado (ex: PDF)")
+    @DisplayName("Deve rejeitar arquivo com tipo MIME não suportado (ex: ZIP)")
     void shouldRejectUnsupportedMimeType() {
-        MockMultipartFile pdfFile = new MockMultipartFile("file", "doc.pdf", "application/pdf", "fake-pdf".getBytes());
+        MockMultipartFile zipFile = new MockMultipartFile("file", "archive.zip", "application/zip", "fake-zip".getBytes());
 
-        assertThatThrownBy(() -> storageService.uploadFile("site-assets", "docs/file.pdf", pdfFile))
+        assertThatThrownBy(() -> storageService.uploadFile("site-assets", "docs/file.zip", zipFile))
                 .isInstanceOf(InvalidFileException.class)
                 .hasMessageContaining("não permitido");
     }

@@ -7,6 +7,7 @@ import com.wbscouting.api.dto.media.MediaUploadResponseDto;
 import com.wbscouting.api.entity.Model;
 import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.MediaType;
+import com.wbscouting.api.exception.BusinessException;
 import com.wbscouting.api.exception.ResourceNotFoundException;
 import com.wbscouting.api.repository.ModelMediaRepository;
 import com.wbscouting.api.repository.ModelRepository;
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +37,9 @@ public class ModelMediaServiceImpl implements ModelMediaService {
     private final StorageService storageService;
     private final SupabaseProperties supabaseProperties;
 
+    public static final long MAX_PHOTO_FILE_SIZE_BYTES = 8L * 1024 * 1024; // 8 MB
+    public static final long MIN_UHD_PIXELS = 3_800_000L; // Mínimo ~4 Megapixels UHD (2560x1600 px ou superior)
+
     @Override
     @Transactional
     public MediaUploadResponseDto uploadMedia(UUID modelId, MediaType mediaType, boolean isCover, MultipartFile file) {
@@ -43,6 +50,14 @@ public class ModelMediaServiceImpl implements ModelMediaService {
 
         if (isCover && mediaType != MediaType.BOOK) {
             throw new IllegalArgumentException("Apenas mídias do tipo BOOK podem ser marcadas como capa.");
+        }
+
+        // Validação estrita para fotos (BOOK e POLAROID): teto 8 MB e mínimo 4 MP UHD
+        if (file != null && (mediaType == MediaType.BOOK || mediaType == MediaType.POLAROID)) {
+            if (file.getSize() > MAX_PHOTO_FILE_SIZE_BYTES) {
+                throw new BusinessException("O arquivo excede o limite máximo permitido de 8 MB.");
+            }
+            validatePhotoResolution(file, mediaType.name());
         }
 
         String bucket = supabaseProperties.resolveBucketModelsMedia();
@@ -625,5 +640,23 @@ public class ModelMediaServiceImpl implements ModelMediaService {
                 .isCover(media.getIsCover())
                 .createdAt(media.getCreatedAt())
                 .build();
+    }
+
+    private void validatePhotoResolution(MultipartFile file, String mediaTypeName) {
+        try (InputStream is = file.getInputStream()) {
+            BufferedImage image = ImageIO.read(is);
+            if (image != null) {
+                long totalPixels = (long) image.getWidth() * image.getHeight();
+                if (totalPixels < MIN_UHD_PIXELS) {
+                    throw new BusinessException(String.format(
+                            "A imagem enviada para %s possui baixa definição (%dx%d px - %.1f MP). Para garantir visualização nítida em telas de alta definição (UHD), envie fotos com resolução mínima de 4 Megapixels (aproximadamente 2560x1600 px ou superior).",
+                            mediaTypeName, image.getWidth(), image.getHeight(), totalPixels / 1_000_000.0));
+                }
+            }
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            log.warn("Não foi possível inspecionar dimensões da foto {}: {}", mediaTypeName, e.getMessage());
+        }
     }
 }

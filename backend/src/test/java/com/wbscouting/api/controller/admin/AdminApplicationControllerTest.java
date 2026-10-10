@@ -57,6 +57,9 @@ class AdminApplicationControllerTest {
     private CandidateSubmissionRepository submissionRepository;
 
     @MockitoBean
+    private com.wbscouting.api.repository.CandidatePhotoRepository candidatePhotoRepository;
+
+    @MockitoBean
     private CandidateSubmissionAdminService candidateSubmissionAdminService;
 
     @MockitoBean

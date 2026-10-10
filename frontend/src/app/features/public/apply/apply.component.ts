@@ -5,6 +5,7 @@ import { ApiService } from '../../../core/services/api.service';
 import { TranslationService } from '../../../core/services/translation.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { CandidateApplicationRequest, CandidatePhotoUpload } from '../../../shared/models/candidate.interface';
+import { ImageProcessingService } from '../../../core/services/image-processing.service';
 
 @Component({
   selector: 'app-apply',
@@ -17,6 +18,7 @@ export class ApplyComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(ApiService);
   public readonly translate = inject(TranslationService);
+  private readonly imageProcessingService = inject(ImageProcessingService);
 
   faqItems: Array<{ question: string; answer: string }> = [];
   expandedFaqIndex: number | null = null;
@@ -99,10 +101,20 @@ export class ApplyComponent implements OnInit {
     this.currentStep.update(s => Math.max(s - 1, 1));
   }
 
-  onPhotoSelected(event: Event, position: number): void {
+  async onPhotoSelected(event: Event, position: number): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
+      const result = await this.imageProcessingService.validateAndProcessPhoto(file);
+      if (!result.valid) {
+        this.submissionError.set(result.error || 'Erro na validação da imagem.');
+        alert(result.error);
+        input.value = '';
+        return;
+      }
+
+      this.submissionError.set(null);
+      const finalFile = result.processedFile || file;
       const reader = new FileReader();
 
       reader.onload = () => {
@@ -119,7 +131,7 @@ export class ApplyComponent implements OnInit {
         });
       };
 
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(finalFile);
     }
   }
 

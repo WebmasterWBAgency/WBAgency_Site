@@ -1,7 +1,8 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { GalleryPhoto, PhotoCategory } from '../../../../../shared/models/gallery.model';
+import { ImageProcessingService } from '../../../../../core/services/image-processing.service';
 
 @Component({
   selector: 'app-photo-uploader-grid',
@@ -11,6 +12,8 @@ import { GalleryPhoto, PhotoCategory } from '../../../../../shared/models/galler
   styleUrls: ['./photo-uploader-grid.component.scss']
 })
 export class PhotoUploaderGridComponent {
+  private readonly imageProcessingService = inject(ImageProcessingService);
+
   @Input() photos: GalleryPhoto[] = [];
   @Output() photosChange = new EventEmitter<GalleryPhoto[]>();
   @Output() fileUploaded = new EventEmitter<File[]>();
@@ -28,7 +31,7 @@ export class PhotoUploaderGridComponent {
   selectedCategoryFilter: 'ALL' | 'BOOK' | 'POLAROID' = 'ALL';
 
   readonly maxPhotos = 15;
-  readonly maxSizeBytes = 10 * 1024 * 1024; // 10MB
+  readonly maxSizeBytes = 8 * 1024 * 1024; // 8MB
   readonly allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
   get bookPhotosCount(): number {
@@ -57,7 +60,7 @@ export class PhotoUploaderGridComponent {
     return Math.max(0, this.maxPhotos - targetCount);
   }
 
-  onDropFiles(event: DragEvent): void {
+  async onDropFiles(event: DragEvent): Promise<void> {
     event.preventDefault();
     this.isDraggingOverZone = false;
     if (this.isUploadDisabled) {
@@ -65,7 +68,7 @@ export class PhotoUploaderGridComponent {
       return;
     }
     if (event.dataTransfer?.files) {
-      this.processSelectedFiles(event.dataTransfer.files);
+      await this.processSelectedFiles(event.dataTransfer.files);
     }
   }
 
@@ -81,15 +84,15 @@ export class PhotoUploaderGridComponent {
     this.isDraggingOverZone = false;
   }
 
-  onFileInputChange(event: Event): void {
+  async onFileInputChange(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (input.files) {
-      this.processSelectedFiles(input.files);
+      await this.processSelectedFiles(input.files);
       input.value = ''; // Reseta input para permitir mesmo arquivo se necessário
     }
   }
 
-  processSelectedFiles(fileList: FileList): void {
+  async processSelectedFiles(fileList: FileList): Promise<void> {
     const targetCat = this.currentTargetCategory;
     const catLabel = targetCat === 'POLAROID' ? 'Polaroids Técnicas' : 'Book Editorial';
     const currentCount = targetCat === 'POLAROID' ? this.polaroidPhotosCount : this.bookPhotosCount;
@@ -108,29 +111,27 @@ export class PhotoUploaderGridComponent {
     }
 
     const validFiles: File[] = [];
-    let hasInvalidType = false;
-    let hasOversized = false;
 
     for (const file of filesArray) {
       if (validFiles.length >= availableSlots) {
         break;
       }
       if (!this.allowedTypes.includes(file.type)) {
-        hasInvalidType = true;
+        this.validationError.emit('Formato de arquivo não suportado. Apenas JPG, PNG ou WebP são permitidos.');
         continue;
       }
       if (file.size > this.maxSizeBytes) {
-        hasOversized = true;
+        this.validationError.emit(`O arquivo "${file.name}" excede o limite máximo permitido de 8 MB.`);
         continue;
       }
-      validFiles.push(file);
-    }
 
-    if (hasInvalidType) {
-      this.validationError.emit('Formato de arquivo não suportado. Apenas JPG, PNG ou WebP são permitidos.');
-    }
-    if (hasOversized) {
-      this.validationError.emit('O tamanho do arquivo excede o limite máximo permitido de 10 MB.');
+      const result = await this.imageProcessingService.validateAndProcessPhoto(file);
+      if (!result.valid) {
+        this.validationError.emit(result.error || 'Erro na validação da imagem.');
+        continue;
+      }
+
+      validFiles.push(result.processedFile || file);
     }
 
     if (validFiles.length > 0) {

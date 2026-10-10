@@ -33,6 +33,10 @@ export interface Candidate {
   age?: number;
   gender?: string;
   protocol?: string;
+  coverPhoto?: string;
+  coverPhotoUrl?: string;
+  facePhotoUrl?: string;
+  face_photo_url?: string;
   reviewedBy?: string;
   reviewedAt?: string;
   convertedToModelId?: string;
