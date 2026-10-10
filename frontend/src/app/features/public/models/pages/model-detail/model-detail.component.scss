@@ -1,0 +1,706 @@
+@import '../../../../../../styles/variables';
+
+.model-detail-page {
+  min-height: calc(100vh - var(--header-height));
+  padding-top: calc(var(--header-height) + 2rem);
+  padding-bottom: 6rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+// -------------------------------------------------------------
+// Breadcrumbs Navegacionais
+// -------------------------------------------------------------
+.detail-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 1.75rem;
+
+  .breadcrumb-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+
+    &:hover {
+      color: var(--gold-light);
+    }
+  }
+
+  .breadcrumb-separator {
+    color: var(--border-medium);
+  }
+
+  .breadcrumb-current {
+    color: var(--gold-primary);
+  }
+}
+
+// -------------------------------------------------------------
+// Layout Principal em Duas Colunas
+// -------------------------------------------------------------
+.detail-layout,
+.skeleton-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+
+  @include lg {
+    grid-template-columns: 360px 1fr;
+    gap: 3.5rem;
+    align-items: start;
+  }
+
+  @include xl {
+    grid-template-columns: 380px 1fr;
+    gap: 4rem;
+  }
+}
+
+// -------------------------------------------------------------
+// Coluna Lateral Sticky
+// -------------------------------------------------------------
+.sidebar-col {
+  @include lg {
+    position: sticky;
+    top: calc(var(--header-height) + 1.5rem);
+  }
+
+  .sticky-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .profile-cover-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: #141722;
+    margin: 0;
+
+    .profile-cover-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+
+    .star-badge {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      background: rgba(7, 8, 11, 0.75);
+      border: 1px solid var(--gold-primary);
+      border-radius: var(--radius-sm);
+      color: var(--gold-light);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+  }
+
+  .profile-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    .profile-name {
+      font-family: var(--font-serif);
+      font-size: clamp(1.85rem, 2.5vw, 2.25rem);
+      font-weight: 400;
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .demographics-wrap {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 0.15rem;
+
+      .demo-dot {
+        color: var(--gold-primary);
+        font-size: 0.45rem;
+        opacity: 0.7;
+      }
+    }
+
+    .instagram-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      width: fit-content;
+      margin-top: 0.35rem;
+      padding: 0.28rem 0.65rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(197, 160, 89, 0.25);
+      border-radius: 0;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: all var(--transition-fast);
+      backdrop-filter: blur(8px);
+
+      .instagram-icon {
+        color: var(--gold-primary);
+        transition: transform var(--transition-fast);
+      }
+
+      .instagram-handle {
+        color: var(--gold-light);
+        font-family: var(--font-mono, monospace);
+        font-size: 0.6875rem;
+      }
+
+      .arrow {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        transition: transform var(--transition-fast), color var(--transition-fast);
+      }
+
+      &:hover {
+        background: rgba(197, 160, 89, 0.12);
+        border-color: var(--gold-primary);
+        box-shadow: 0 4px 15px rgba(197, 160, 89, 0.18);
+        transform: translateY(-1px);
+
+        .instagram-icon {
+          transform: scale(1.1);
+        }
+
+        .arrow {
+          color: var(--gold-light);
+          transform: translate(2px, -2px);
+        }
+      }
+    }
+  }
+
+  .profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+
+    .btn-booking {
+      width: 100%;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border-radius: 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    .composite-actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .btn-composite-view,
+    .btn-composite-download {
+      width: 100%;
+      min-height: 38px;
+      padding: 0.45rem 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 0;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+
+      svg {
+        flex-shrink: 0;
+      }
+    }
+
+    .btn-composite-view {
+      border: 1px solid rgba(197, 160, 89, 0.35);
+      color: var(--gold-light);
+      background: rgba(197, 160, 89, 0.05);
+
+      &:hover {
+        background: rgba(197, 160, 89, 0.15);
+        border-color: var(--gold-primary);
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(197, 160, 89, 0.2);
+      }
+    }
+
+    .btn-composite-download {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-secondary);
+
+      &:hover:not(:disabled) {
+        border-color: var(--gold-primary);
+        color: var(--gold-light);
+        background: rgba(197, 160, 89, 0.08);
+        transform: translateY(-1px);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+
+      .spinner-inline {
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-top-color: var(--gold-light);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        flex-shrink: 0;
+      }
+    }
+
+    .composite-fallback-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: 0;
+      color: var(--text-muted);
+      font-size: 0.6875rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: not-allowed;
+      user-select: none;
+
+      svg {
+        opacity: 0.6;
+        flex-shrink: 0;
+      }
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// Área Principal: Galerias de Book e Polaroids
+// -------------------------------------------------------------
+.gallery-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  .gallery-tabs-bar {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.25rem;
+
+    .tab-btn {
+      position: relative;
+      background: transparent;
+      border: none;
+      padding: 0.65rem 0.25rem 0.85rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--text-muted);
+      transition: color var(--transition-fast);
+
+      .tab-label {
+        font-family: var(--font-sans);
+        font-size: 0.78125rem;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .tab-count {
+        font-size: 0.71875rem;
+        font-weight: 500;
+        opacity: 0.65;
+        font-family: var(--font-mono, monospace);
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: transparent;
+        transition: background-color var(--transition-fast);
+      }
+
+      &:hover {
+        color: var(--text-primary);
+      }
+
+      &.active {
+        color: var(--gold-light);
+
+        &::after {
+          background: var(--gold-primary);
+        }
+      }
+    }
+  }
+
+  // ==============================================================================
+  // GALERIA EDITORIAL AUTO-AJUSTÁVEL — WB AGENCY
+  // ==============================================================================
+  .editorial-gallery-grid,
+  .gallery-grid {
+    display: grid;
+    gap: 1.5rem;
+    width: 100%;
+    
+    // Mobile / Telas pequenas: 1 a 2 colunas
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+
+    @media (min-width: 640px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+
+      // Se houver número ímpar, o último item expande para fechar a linha
+      .gallery-photo-item:last-child:nth-child(odd),
+      .photo-card:last-child:nth-child(odd) {
+        grid-column: span 2;
+        
+        .photo-frame,
+        .photo-wrap {
+          max-height: 580px;
+          aspect-ratio: 16 / 10;
+        }
+      }
+    }
+
+    // Desktop: 6 colunas balanceadas para suportar divisão perfeita de 1, 2 ou 3 colunas
+    @media (min-width: 1024px) {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+
+      // Padrão: cada foto ocupa 2 colunas (totalizando 3 fotos por linha)
+      .gallery-photo-item,
+      .photo-card {
+        grid-column: span 2;
+
+        .photo-frame,
+        .photo-wrap {
+          max-height: none;
+          aspect-ratio: 3 / 4;
+        }
+      }
+
+      // Caso 1: Sobra 1 foto isolada na última linha (3n + 1, ex: 1, 4, 7, 10, 13 fotos)
+      // O último item expande nas 6 colunas completas (destaque editorial panorâmico)
+      .gallery-photo-item:last-child:nth-child(3n + 1),
+      .photo-card:last-child:nth-child(3n + 1) {
+        grid-column: span 6;
+
+        .photo-frame,
+        .photo-wrap {
+          max-height: 640px;
+          aspect-ratio: 16 / 9;
+        }
+      }
+
+      // Caso 2: Sobram 2 fotos na última linha (3n + 2, ex: 2, 5, 8, 11, 14 fotos)
+      // A penúltima e a última foto expandem ocupando 3 colunas cada (50% cada da linha)
+      .gallery-photo-item:nth-last-child(2):nth-child(3n + 1),
+      .photo-card:nth-last-child(2):nth-child(3n + 1),
+      .gallery-photo-item:last-child:nth-child(3n + 2),
+      .photo-card:last-child:nth-child(3n + 2) {
+        grid-column: span 3;
+
+        .photo-frame,
+        .photo-wrap {
+          max-height: 620px;
+          aspect-ratio: 4 / 3;
+        }
+      }
+    }
+  }
+
+  // ESTRUTURA DO CARD DE FOTO
+  .gallery-photo-item,
+  .photo-card {
+    position: relative;
+    width: 100%;
+    border-radius: 0;
+    overflow: hidden;
+    cursor: pointer;
+    background-color: #FBFBF9;
+    border: 1px solid #E8EBE8;
+    outline: none;
+    transition: transform 0.3s ease, border-color 0.2s ease, box-shadow 0.3s ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: #4B584E;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+      .photo-frame img,
+      .photo-wrap img {
+        transform: scale(1.03);
+      }
+
+      .photo-overlay {
+        opacity: 1;
+
+        .zoom-indicator {
+          transform: scale(1);
+        }
+      }
+    }
+
+    .photo-frame,
+    .photo-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 4; // Proporção editorial padrão (vertical de moda)
+      overflow: hidden;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #F4F5F4;
+
+      .photo-img,
+      img {
+        width: 100%;
+        height: 100%;
+        // Garante que a foto preencha com proporção preservada (sem esticar nem deformar)
+        object-fit: cover;
+        object-position: center top;
+        display: block;
+        transition: transform 0.4s ease;
+      }
+
+      .photo-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(34, 38, 36, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity var(--transition-normal);
+
+        .zoom-indicator {
+          color: #FFFFFF;
+          font-size: 1.5rem;
+          transform: scale(0.8);
+          transition: transform var(--transition-fast);
+        }
+      }
+    }
+  }
+
+  .empty-gallery {
+    padding: 4rem 2rem;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px dashed var(--border-medium);
+    border-radius: var(--radius-md);
+
+    .empty-gallery-text {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin: 0;
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// Skeletons Monocromáticos (Zero CLS)
+// -------------------------------------------------------------
+.skeleton-sidebar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .skeleton-image-wrap {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: #141722;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .skeleton-line {
+    border-radius: var(--radius-sm);
+    background: #1c2030;
+    animation: skeletonPulse 1.8s infinite ease-in-out;
+
+    &.title {
+      height: 24px;
+      width: 70%;
+    }
+
+    &.subtitle {
+      height: 14px;
+      width: 45%;
+    }
+
+    &.row {
+      height: 14px;
+      width: 100%;
+    }
+  }
+
+  .skeleton-measurements {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 0;
+  }
+
+  .skeleton-btn {
+    height: 44px;
+    border-radius: var(--radius-sm);
+    background: #1c2030;
+    animation: skeletonPulse 1.8s infinite ease-in-out;
+  }
+}
+
+.skeleton-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  .skeleton-tabs {
+    display: flex;
+    gap: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+
+    .skeleton-tab {
+      width: 140px;
+      height: 20px;
+      border-radius: var(--radius-sm);
+      background: #1c2030;
+    }
+  }
+
+  .skeleton-photo-card {
+    aspect-ratio: 3 / 4;
+    background: #141722;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+}
+
+.skeleton-pulse {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(25, 28, 42, 0) 0%,
+    rgba(35, 40, 60, 0.4) 50%,
+    rgba(25, 28, 42, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s infinite ease-in-out;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+// -------------------------------------------------------------
+// Estado 404 (Não Encontrado)
+// -------------------------------------------------------------
+.not-found-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 1.5rem;
+  text-align: center;
+  gap: 1.5rem;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  margin-top: 2rem;
+
+  .not-found-title {
+    font-size: 2.25rem;
+    font-weight: 300;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .not-found-desc {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    max-width: 480px;
+    line-height: 1.6;
+    margin: 0;
+  }
+}

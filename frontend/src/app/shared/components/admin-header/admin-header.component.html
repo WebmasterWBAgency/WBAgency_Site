@@ -1,0 +1,304 @@
+<header class="w-full bg-white border-b border-neutral-200 sticky top-0 z-50 select-none">
+  <div class="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    
+    <!-- 1. LADO ESQUERDO: LOGO + SELO ADMIN -->
+    <div class="flex items-center gap-3">
+      <a routerLink="/admin/dashboard" class="brand-logo flex items-center" aria-label="WB Agency Admin">
+        <img 
+          src="assets/images/logo-wb-agency.png" 
+          alt="WB Agency" 
+          width="765"
+          height="507"
+          class="brand-logo-img brand-logo-header h-8 md:h-10 w-auto object-contain block rounded-none"
+          style="height: 48px; max-height: 48px;"
+        />
+      </a>
+      <span class="admin-badge inline-block bg-neutral-900 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-none select-none">
+        {{ userRole }}
+      </span>
+    </div>
+
+    <!-- 2. CENTRO: LINKS DE NAVEGAÇÃO DOS MÓDULOS (PADRÃO SITE PRINCIPAL) -->
+    <nav class="desktop-nav hidden md:flex items-center gap-6 lg:gap-8">
+      <a 
+        routerLink="/admin/dashboard" 
+        routerLinkActive="text-neutral-900 border-b-2 border-neutral-900 font-medium active" 
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="text-xs uppercase tracking-widest text-neutral-500 hover:text-neutral-900 transition-colors py-2 rounded-none whitespace-nowrap">
+        Dashboard
+      </a>
+
+      <a 
+        routerLink="/admin/candidaturas" 
+        routerLinkActive="text-neutral-900 border-b-2 border-neutral-900 font-medium active" 
+        class="text-xs uppercase tracking-widest text-neutral-500 hover:text-neutral-900 transition-colors py-2 flex items-center gap-1.5 rounded-none whitespace-nowrap">
+        <span>Candidaturas</span>
+        <span class="sr-only">Scouting Desk</span>
+        <span *ngIf="pendingCandidatesCount > 0" class="badge-pending text-[9px] font-mono text-[#4B584E] bg-[#F4F5F4] border border-[#E8EBE8] px-1.5 py-0.2">
+          {{ pendingCandidatesCount }}
+        </span>
+      </a>
+
+      <a 
+        routerLink="/admin/models" 
+        routerLinkActive="text-neutral-900 border-b-2 border-neutral-900 font-medium active" 
+        class="text-xs uppercase tracking-widest text-neutral-500 hover:text-neutral-900 transition-colors py-2 rounded-none whitespace-nowrap">
+        Modelos
+      </a>
+
+      <div class="relative group">
+        <a 
+          routerLink="/admin/conteudo" 
+          routerLinkActive="text-neutral-900 border-b-2 border-neutral-900 font-medium active" 
+          class="text-xs uppercase tracking-widest text-neutral-500 hover:text-neutral-900 transition-colors py-2 rounded-none whitespace-nowrap flex items-center gap-1">
+          <span>Conteúdo</span>
+          <svg class="w-3 h-3 text-neutral-400 group-hover:text-neutral-900 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </a>
+        <div class="absolute left-0 top-full hidden group-hover:block bg-white border border-[#E8EBE8] shadow-lg py-2 min-w-[220px] z-50 rounded-none">
+          <a routerLink="/admin/institucional/home" class="block px-4 py-2 text-xs uppercase tracking-wider text-neutral-600 hover:text-neutral-900 hover:bg-[#FBFBF9]">
+            Home Pública
+          </a>
+          <a routerLink="/admin/institucional/sobre" class="block px-4 py-2 text-xs uppercase tracking-wider text-[#4B584E] font-semibold hover:bg-[#FBFBF9]">
+            Sobre Nós &bull; Manifesto
+          </a>
+          <a routerLink="/admin/institucional/quero-ser-modelo" class="block px-4 py-2 text-xs uppercase tracking-wider text-[#4B584E] font-semibold hover:bg-[#FBFBF9]">
+            Quero Ser Modelo &bull; FAQ
+          </a>
+          <a routerLink="/admin/institucional/contatos" class="block px-4 py-2 text-xs uppercase tracking-wider text-neutral-600 hover:text-neutral-900 hover:bg-[#FBFBF9]">
+            Canais de Contato
+          </a>
+          <a routerLink="/admin/institucional/idiomas" class="block px-4 py-2 text-xs uppercase tracking-wider text-neutral-600 hover:text-neutral-900 hover:bg-[#FBFBF9]">
+            Sobre Nós &bull; Bilíngue (PT/EN)
+          </a>
+        </div>
+      </div>
+
+      <!-- Gestão de Usuários e Auditoria (Apenas WEBMASTER e SUPER_ADMIN) -->
+      @if (isWebmasterOrSuperAdmin) {
+        <a 
+          routerLink="/admin/usuarios" 
+          routerLinkActive="text-neutral-900 border-b-2 border-neutral-900 font-medium active" 
+          class="text-xs uppercase tracking-widest text-[#4B584E] hover:text-neutral-900 transition-colors py-2 rounded-none whitespace-nowrap font-semibold">
+          Usuários
+        </a>
+        <a 
+          routerLink="/admin/auditoria" 
+          routerLinkActive="text-neutral-900 border-b-2 border-neutral-900 font-medium active" 
+          class="text-xs uppercase tracking-widest text-[#4B584E] hover:text-neutral-900 transition-colors py-2 rounded-none whitespace-nowrap font-semibold">
+          Auditoria
+        </a>
+      }
+
+      <a 
+        routerLink="/" 
+        target="_blank"
+        class="text-xs uppercase tracking-widest text-neutral-400 hover:text-neutral-900 transition-colors py-2 flex items-center gap-1 rounded-none whitespace-nowrap"
+        title="Abrir o site público em nova aba">
+        <span>Ver Site</span>
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+        </svg>
+      </a>
+    </nav>
+
+    <!-- 3. LADO DIREITO: PERFIL E LOGOUT -->
+    <div class="flex items-center gap-4 shrink-0 whitespace-nowrap">
+      <a 
+        routerLink="/admin/perfil"
+        class="hidden sm:flex flex-col text-right hover:opacity-80 transition-opacity cursor-pointer group"
+        title="Meu Perfil e Segurança">
+        <span class="text-xs font-medium text-neutral-900 leading-tight group-hover:text-[#4B584E] transition-colors">
+          {{ userName }}
+        </span>
+        <span class="text-[10px] text-neutral-500 leading-tight font-sans">{{ userEmail }}</span>
+      </a>
+      <button 
+        type="button"
+        (click)="logout()" 
+        class="text-xs uppercase tracking-wider text-neutral-600 hover:text-red-600 border border-neutral-300 hover:border-red-600 px-3 py-1.5 transition-colors cursor-pointer rounded-none">
+        Sair
+      </button>
+
+      <!-- Botão Menu Mobile -->
+      <button 
+        type="button" 
+        (click)="toggleMobileMenu()" 
+        class="md:hidden p-1.5 border border-neutral-200 text-neutral-700 hover:text-neutral-900 cursor-pointer rounded-none"
+        aria-label="Menu administrativo"
+      >
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- BARRA PERMANENTE: SETORES (ACIMA) & MÓDULOS (EMBAIXO) -->
+  <div class="sub-nav-bar w-full bg-[#FBFBF9] border-t border-neutral-200 px-4 sm:px-6 lg:px-8 py-1.5 overflow-x-auto select-none">
+    <div class="container max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4 lg:gap-6 text-xs whitespace-nowrap">
+
+      <!-- 1. Scouting: Candidaturas -->
+      <a routerLink="/admin/candidaturas" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0">
+        <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-[#4B584E] leading-tight mb-0.5">Scouting</span>
+        <div class="flex items-center gap-1.5 leading-tight">
+          <span class="sub-module-title font-semibold text-xs uppercase tracking-wider text-[#222624]">Candidaturas</span>
+          @if (pendingCandidatesCount > 0) {
+            <span class="badge-pending text-[9px] font-mono">{{ pendingCandidatesCount }}</span>
+          }
+        </div>
+      </a>
+
+      <!-- 2. Casting: Elenco & Stars -->
+      <a routerLink="/admin/models" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0">
+        <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-[#4B584E] leading-tight mb-0.5">Casting</span>
+        <span class="sub-module-title font-semibold text-xs uppercase tracking-wider text-[#222624] leading-tight">Elenco &amp; Stars</span>
+      </a>
+
+      <!-- 3. Institucional: Canais de Contato -->
+      <a routerLink="/admin/institucional/contatos" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0">
+        <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-[#4B584E] leading-tight mb-0.5">Institucional</span>
+        <span class="sub-module-title font-semibold text-xs uppercase tracking-wider text-[#222624] leading-tight">Canais de Contato</span>
+      </a>
+
+      <!-- 4. SOBRE NÓS: Bilíngue (PT/EN) -->
+      <a routerLink="/admin/institucional/idiomas" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0">
+        <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-[#4B584E] leading-tight mb-0.5">SOBRE NÓS</span>
+        <span class="sub-module-title font-semibold text-xs uppercase tracking-wider text-[#222624] leading-tight">Bilíngue (PT/EN)</span>
+      </a>
+
+      <!-- 5. Hero Media: Página Inicial -->
+      <a routerLink="/admin/institucional/home" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0">
+        <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-[#4B584E] leading-tight mb-0.5">Hero Media</span>
+        <span class="sub-module-title font-semibold text-xs uppercase tracking-wider text-[#222624] leading-tight">Página Inicial</span>
+      </a>
+
+      <!-- 6. Curadoria: Destaques da Vitrine -->
+      <a routerLink="/admin/destaques-home" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0">
+        <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-[#4B584E] leading-tight mb-0.5">Curadoria</span>
+        <span class="sub-module-title font-semibold text-xs uppercase tracking-wider text-[#222624] leading-tight">Destaques da Vitrine</span>
+      </a>
+
+      <!-- 7. Segurança: Gestão de Administradores & Auditoria (Exclusivo Webmaster) -->
+      @if (isWebmasterOrSuperAdmin) {
+        <a routerLink="/admin/usuarios" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0 border-l border-[#E8EBE8]">
+          <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-neutral-900 font-bold leading-tight mb-0.5">Segurança &bull; Master</span>
+          <span class="sub-module-title font-bold text-xs uppercase tracking-wider text-neutral-900 leading-tight">Gestão de Admins</span>
+        </a>
+        <a routerLink="/admin/auditoria" routerLinkActive="active-sub-link" class="sub-nav-item flex flex-col justify-center py-1 px-2.5 rounded-none hover:bg-white transition-all shrink-0 border-l border-[#E8EBE8]">
+          <span class="sub-sector-label text-[9px] font-mono uppercase tracking-widest text-neutral-900 font-bold leading-tight mb-0.5">Auditoria &bull; Logs</span>
+          <span class="sub-module-title font-bold text-xs uppercase tracking-wider text-neutral-900 leading-tight">Trilha de Ações</span>
+        </a>
+      }
+    </div>
+  </div>
+
+  <!-- Menu Mobile Desdobrável -->
+  @if (isMobileMenuOpen()) {
+    <div class="mobile-dropdown md:hidden border-t border-neutral-200 bg-white px-6 py-4 space-y-3">
+      <a routerLink="/admin/dashboard" (click)="closeMobileMenu()" class="mobile-nav-link" routerLinkActive="active">Dashboard</a>
+
+      <!-- Bloco Atalhos Mobile: Setores (acima) e Módulos (embaixo) -->
+      <div class="border-t border-neutral-100 pt-2 pb-1 space-y-2">
+        <a routerLink="/admin/candidaturas" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1" routerLinkActive="active">
+          <span class="text-[#4B584E] font-mono text-[9px] uppercase tracking-widest leading-none mb-0.5">Scouting</span>
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-xs uppercase tracking-wider text-[#222624]">Candidaturas</span>
+            @if (pendingCandidatesCount > 0) {
+              <span class="badge-pending text-[9px] font-mono">{{ pendingCandidatesCount }}</span>
+            }
+          </div>
+        </a>
+        <a routerLink="/admin/models" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1" routerLinkActive="active">
+          <span class="text-[#4B584E] font-mono text-[9px] uppercase tracking-widest leading-none mb-0.5">Casting</span>
+          <span class="font-semibold text-xs uppercase tracking-wider text-[#222624]">Elenco &amp; Stars</span>
+        </a>
+        <a routerLink="/admin/institucional/contatos" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1" routerLinkActive="active">
+          <span class="text-[#4B584E] font-mono text-[9px] uppercase tracking-widest leading-none mb-0.5">Institucional</span>
+          <span class="font-semibold text-xs uppercase tracking-wider text-[#222624]">Canais de Contato</span>
+        </a>
+        <a routerLink="/admin/institucional/idiomas" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1" routerLinkActive="active">
+          <span class="text-[#4B584E] font-mono text-[9px] uppercase tracking-widest leading-none mb-0.5">SOBRE NÓS</span>
+          <span class="font-semibold text-xs uppercase tracking-wider text-[#222624]">Bilíngue (PT/EN)</span>
+        </a>
+        <a routerLink="/admin/institucional/home" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1" routerLinkActive="active">
+          <span class="text-[#4B584E] font-mono text-[9px] uppercase tracking-widest leading-none mb-0.5">Hero Media</span>
+          <span class="font-semibold text-xs uppercase tracking-wider text-[#222624]">Página Inicial</span>
+        </a>
+        <a routerLink="/admin/destaques-home" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1" routerLinkActive="active">
+          <span class="text-[#4B584E] font-mono text-[9px] uppercase tracking-widest leading-none mb-0.5">Curadoria</span>
+          <span class="font-semibold text-xs uppercase tracking-wider text-[#222624]">Destaques da Vitrine</span>
+        </a>
+        @if (isWebmasterOrSuperAdmin) {
+          <a routerLink="/admin/usuarios" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1 text-neutral-900 font-semibold" routerLinkActive="active">
+            <span class="font-mono text-[9px] text-neutral-900 font-bold uppercase tracking-widest leading-none mb-0.5">Segurança &bull; Master</span>
+            <span class="font-semibold text-xs uppercase tracking-wider text-neutral-900">Gestão de Administradores</span>
+          </a>
+          <a routerLink="/admin/auditoria" (click)="closeMobileMenu()" class="mobile-nav-link flex flex-col py-1 text-neutral-900 font-semibold" routerLinkActive="active">
+            <span class="font-mono text-[9px] text-neutral-900 font-bold uppercase tracking-widest leading-none mb-0.5">Auditoria &bull; Logs</span>
+            <span class="font-semibold text-xs uppercase tracking-wider text-neutral-900">Trilha de Ações</span>
+          </a>
+        }
+      </div>
+
+      <a routerLink="/admin/candidaturas" (click)="closeMobileMenu()" class="mobile-nav-link" routerLinkActive="active">Candidaturas</a>
+      <a routerLink="/admin/models" (click)="closeMobileMenu()" class="mobile-nav-link" routerLinkActive="active">Modelos</a>
+      <a routerLink="/admin/conteudo" (click)="closeMobileMenu()" class="mobile-nav-link" routerLinkActive="active">Conteúdo</a>
+      <a routerLink="/admin/institucional/sobre" (click)="closeMobileMenu()" class="mobile-nav-link pl-3 text-[#4B584E]" routerLinkActive="active">↳ Sobre Nós (Manifesto)</a>
+      <a routerLink="/admin/institucional/quero-ser-modelo" (click)="closeMobileMenu()" class="mobile-nav-link pl-3 text-[#4B584E]" routerLinkActive="active">↳ Quero Ser Modelo (FAQ)</a>
+      @if (isWebmasterOrSuperAdmin) {
+        <a routerLink="/admin/usuarios" (click)="closeMobileMenu()" class="mobile-nav-link text-[#4B584E] font-semibold" routerLinkActive="active">↳ Gestão de Usuários</a>
+        <a routerLink="/admin/auditoria" (click)="closeMobileMenu()" class="mobile-nav-link text-[#4B584E] font-semibold" routerLinkActive="active">↳ Trilha de Auditoria</a>
+      }
+      <a routerLink="/admin/perfil" (click)="closeMobileMenu()" class="mobile-nav-link" routerLinkActive="active">Meu Perfil & Segurança</a>
+      <div class="border-t border-neutral-200 pt-2">
+        <a routerLink="/" target="_blank" (click)="closeMobileMenu()" class="mobile-nav-link flex items-center justify-between">
+          <span>Ver Site</span>
+          <svg class="w-3.5 h-3.5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  }
+</header>
+
+<!-- Modal de Confirmação Rápida de Saída Segura -->
+@if (showConfirmModal()) {
+  <div class="modal-backdrop fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white border border-neutral-200 p-6 max-w-sm w-full shadow-lg rounded-none">
+      <div class="flex items-center gap-3 mb-4 text-[#222624]">
+        <div class="p-2 bg-red-50 border border-red-200 text-red-700">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-[#222624]">Encerrar Sessão</h3>
+          <p class="text-xs text-[#5F6661] mt-0.5">Deseja realmente sair do painel?</p>
+        </div>
+      </div>
+      <p class="text-xs text-[#5F6661] leading-relaxed mb-6">
+        Todas as credenciais locais serão destruídas e a sessão será revogada no servidor com segurança defensiva.
+      </p>
+      <div class="flex justify-end gap-3 text-xs uppercase tracking-wider">
+        <button
+          type="button"
+          (click)="cancelLogout()"
+          class="px-4 py-2 border border-neutral-200 text-[#5F6661] hover:bg-[#FBFBF9] transition-all cursor-pointer rounded-none"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          (click)="executeLogout()"
+          class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white transition-all cursor-pointer rounded-none border-0"
+        >
+          Sair com Segurança
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,203 @@
+<footer class="w-full bg-[#FFFFFF] border-t border-[#E8EBE8] text-[#222624] select-none rounded-none">
+  <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-16 pb-12">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-16 items-start">
+      
+      <!-- COLUNA 1: LOGOTIPO CENTRALIZADO VERTICAL E HORIZONTALMENTE (5 Colunas) -->
+      <div class="md:col-span-5 self-stretch flex items-center justify-center py-4">
+        <a routerLink="/" class="inline-flex items-center justify-center group">
+          <img 
+            src="assets/images/logo-wb-agency.jpeg" 
+            alt="WB Agency" 
+            class="h-28 sm:h-32 md:h-36 lg:h-40 w-auto max-w-full object-contain transition-opacity group-hover:opacity-85"
+          />
+        </a>
+      </div>
+
+      <!-- COLUNA 2: NAVEGAÇÃO REESTRUTURADA (4 Colunas) -->
+      <div class="md:col-span-4 space-y-4">
+        <h4 class="text-xs font-sans uppercase tracking-[0.25em] text-[#222624] font-semibold border-b border-[#E8EBE8] pb-2">
+          {{ 'footer.navigation_title' | translate }}
+        </h4>
+        <ul class="space-y-2.5 text-xs tracking-wide text-[#5F6661]">
+          <li>
+            <a routerLink="/models/female" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'footer.nav_female' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/models/male" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'footer.nav_male' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/models/stars" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'footer.nav_stars' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/sobre" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'footer.nav_about' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/contact" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'footer.nav_contact' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/apply" class="hover:text-[#4B584E] transition-colors block py-0.5 font-medium text-[#222624]">
+              {{ 'footer.nav_apply' | translate }}
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Coluna de Contato Real -->
+      <div class="md:col-span-3 space-y-4">
+        <h4 class="text-xs font-sans uppercase tracking-[0.25em] text-[#222624] font-semibold border-b border-[#E8EBE8] pb-2">
+          {{ 'footer.contact_title' | translate }}
+        </h4>
+        <ul class="space-y-3 text-xs tracking-wide text-[#5F6661]">
+          
+          <!-- E-mail Real (Aparece somente se configurado no Admin) -->
+          <li *ngIf="contactData?.primaryEmail">
+            <a 
+              [href]="'mailto:' + contactData.primaryEmail" 
+              class="hover:text-[#4B584E] transition-colors block py-0.5 break-all"
+            >
+              {{ contactData.primaryEmail }}
+            </a>
+          </li>
+
+          <!-- WhatsApp Real (Aparece somente se configurado no Admin) -->
+          <li *ngIf="contactData?.whatsapp">
+            <a 
+              [href]="'https://wa.me/' + cleanWhatsAppNumber(contactData.whatsapp)" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="hover:text-[#4B584E] transition-colors block py-0.5 font-mono"
+            >
+              {{ contactData.whatsapp }}
+            </a>
+          </li>
+
+          <!-- Telefone Fixo (Aparece somente se diferente do WhatsApp e preenchido) -->
+          <li *ngIf="contactData?.phone && contactData.phone !== contactData.whatsapp">
+            <a 
+              [href]="'tel:' + cleanWhatsAppNumber(contactData.phone)" 
+              class="hover:text-[#4B584E] transition-colors block py-0.5 font-mono"
+            >
+              {{ contactData.phone }}
+            </a>
+          </li>
+
+          <!-- Redes Sociais Reais cadastradas no Admin -->
+          <li *ngIf="(contactData.socialMediaList?.length || 0) > 0" class="pt-2">
+            <span class="block text-[10px] uppercase tracking-[0.2em] text-[#222624] font-medium mb-2">
+              {{ 'footer.social_title' | translate }}
+            </span>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+              <a 
+                *ngFor="let social of contactData.socialMediaList || []" 
+                [href]="social.url" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="text-[#5F6661] hover:text-[#4B584E] transition-colors uppercase tracking-widest text-[11px]"
+              >
+                {{ social.name }}
+              </a>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- SUB-FOOTER: LINHA DIVISÓRIA E COPYRIGHT -->
+    <div class="border-t border-[#E8EBE8] mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#5F6661] tracking-wide">
+      <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+        <p>
+          &copy; {{ currentYear }} WB Agency. {{ 'footer.rights_reserved' | translate }}
+        </p>
+        <span class="hidden sm:inline text-[#D0D4D0]">&bull;</span>
+        <p class="credits">
+          <a 
+            href="https://www.rvivacguild.com.br" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="credits-link hover:text-[#4B584E] transition-colors"
+          >
+            Design &amp; Desenvolvimento &middot; 2026 Rvivac Guild
+          </a>
+        </p>
+      </div>
+      <div class="flex items-center gap-6 text-[10px] uppercase tracking-[0.15em]">
+        <button 
+          type="button" 
+          (click)="openInstitutionalModal('TERMS')" 
+          class="hover:text-[#4B584E] transition-colors cursor-pointer bg-transparent border-0 p-0 text-[10px] uppercase tracking-[0.15em]"
+        >
+          {{ 'footer.terms_of_use' | translate }}
+        </button>
+        <span>&bull;</span>
+        <button 
+          type="button" 
+          (click)="openInstitutionalModal('PRIVACY')" 
+          class="hover:text-[#4B584E] transition-colors cursor-pointer bg-transparent border-0 p-0 text-[10px] uppercase tracking-[0.15em]"
+        >
+          {{ 'footer.privacy_policy' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL HARMÔNICO EDITORIAL (LIGHT MINIMALIST / DEEP SAGE) -->
+  <div 
+    *ngIf="isModalOpen()" 
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-xs select-none"
+    (click)="closeModal()"
+  >
+    <div 
+      class="w-full max-w-3xl max-h-[85vh] bg-[#FFFFFF] border border-[#E8EBE8] shadow-2xl flex flex-col rounded-none animate-fade-in"
+      (click)="$event.stopPropagation()"
+    >
+      
+      <!-- Cabeçalho do Modal -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-[#E8EBE8]">
+        <h3 class="text-xs font-serif uppercase tracking-[0.25em] text-[#222624] font-semibold">
+          {{ modalTitle() }}
+        </h3>
+        <button 
+          type="button" 
+          (click)="closeModal()" 
+          class="text-xs uppercase tracking-wider text-[#5F6661] hover:text-[#222624] px-2 py-1 transition-colors cursor-pointer"
+          [attr.aria-label]="isCurrentLangEn() ? 'Close' : 'Fechar'"
+        >
+          ✕ {{ isCurrentLangEn() ? 'Close' : 'Fechar' }}
+        </button>
+      </div>
+
+      <!-- Conteúdo Textual com Rolagem Delicada -->
+      <div class="p-6 sm:p-8 overflow-y-auto text-xs leading-relaxed text-[#222624] font-sans whitespace-pre-line space-y-4">
+        <div *ngIf="isLoadingContent()" class="py-12 text-center text-[#5F6661] uppercase tracking-widest font-mono text-[11px]">
+          Carregando informações institucionais...
+        </div>
+        <div *ngIf="!isLoadingContent()">
+          {{ modalContent() }}
+        </div>
+      </div>
+
+      <!-- Rodapé do Modal -->
+      <div class="px-6 py-3 border-t border-[#E8EBE8] bg-[#FBFBF9] flex justify-end">
+        <button 
+          type="button" 
+          (click)="closeModal()" 
+          class="px-5 py-2 bg-[#4B584E] hover:bg-[#38433B] text-white text-[10px] uppercase tracking-[0.2em] font-sans rounded-none transition-colors cursor-pointer"
+        >
+          Entendido
+        </button>
+      </div>
+
+    </div>
+  </div>
+</footer>

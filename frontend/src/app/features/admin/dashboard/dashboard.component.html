@@ -1,0 +1,263 @@
+<div class="admin-layout">
+
+  <main class="container admin-main">
+    <div class="page-title-area">
+      <h1 class="font-serif page-title">Painel de Controle</h1>
+      <p class="text-secondary page-subtitle">Visão geral do sistema de inteligência e prospecção de casting.</p>
+    </div>
+
+    <!-- Tabela Editorial de Módulos de Gestão & Conteúdo -->
+    <div class="modules-section mb-10 card-editorial p-6 sm:p-8 bg-white border border-[#E8EBE8] shadow-xs rounded-none">
+      <div class="table-responsive">
+        <table class="modules-table">
+          <thead>
+            <tr>
+              <th class="w-1/3">Módulo &amp; Setor</th>
+              <th class="w-1/2">Escopo Operacional &amp; Curadoria</th>
+              <th class="text-right w-1/6">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <!-- 1. Scouting: Candidaturas -->
+            <tr class="hover:bg-[#FBFBF9] transition-colors group">
+              <td class="align-top">
+                <span class="sector-badge">
+                  Scouting
+                </span>
+                <div class="module-name group-hover:text-[#4B584E] transition-colors">
+                  <a routerLink="/admin/candidaturas" class="hover:underline">Candidaturas</a>
+                </div>
+              </td>
+              <td class="align-middle">
+                <p class="module-desc">
+                  Triagem de novos talentos e inspeção técnica de polaroids.
+                </p>
+              </td>
+              <td class="align-middle text-right">
+                <a routerLink="/admin/candidaturas" class="module-action">
+                  <span>Acessar</span>
+                  <span class="arrow">&rarr;</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- 2. Casting: Elenco & Stars -->
+            <tr class="hover:bg-[#FBFBF9] transition-colors group">
+              <td class="align-top">
+                <span class="sector-badge">
+                  Casting
+                </span>
+                <div class="module-name group-hover:text-[#4B584E] transition-colors">
+                  <a routerLink="/admin/modelos" class="hover:underline">Elenco &amp; Stars</a>
+                </div>
+              </td>
+              <td class="align-middle">
+                <p class="module-desc">
+                  Cadastro de biometria, composites e destaques da vitrine.
+                </p>
+              </td>
+              <td class="align-middle text-right">
+                <a routerLink="/admin/modelos" class="module-action">
+                  <span>Acessar</span>
+                  <span class="arrow">&rarr;</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- 3. Institucional: Canais de Contato -->
+            <tr class="hover:bg-[#FBFBF9] transition-colors group">
+              <td class="align-top">
+                <span class="sector-badge">
+                  Institucional
+                </span>
+                <div class="module-name group-hover:text-[#4B584E] transition-colors">
+                  <a routerLink="/admin/institucional/contatos" class="hover:underline">Canais de Contato</a>
+                </div>
+              </td>
+              <td class="align-middle">
+                <p class="module-desc">
+                  Atualização granular de WhatsApp, e-mails corporativos e redes sociais.
+                </p>
+              </td>
+              <td class="align-middle text-right">
+                <a routerLink="/admin/institucional/contatos" class="module-action">
+                  <span>Acessar</span>
+                  <span class="arrow">&rarr;</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- 4. SOBRE NÓS: Bilíngue (PT/EN) -->
+            <tr class="hover:bg-[#FBFBF9] transition-colors group">
+              <td class="align-top">
+                <span class="sector-badge">
+                  SOBRE NÓS
+                </span>
+                <div class="module-name group-hover:text-[#4B584E] transition-colors">
+                  <a routerLink="/admin/institucional/idiomas" class="hover:underline">Bilíngue (PT/EN)</a>
+                </div>
+              </td>
+              <td class="align-middle">
+                <p class="module-desc">
+                  Edição modular e sincronizada de manifestos e diretrizes.
+                </p>
+              </td>
+              <td class="align-middle text-right">
+                <a routerLink="/admin/institucional/idiomas" class="module-action">
+                  <span>Acessar</span>
+                  <span class="arrow">&rarr;</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- 5. Hero Media: Página Inicial -->
+            <tr class="hover:bg-[#FBFBF9] transition-colors group">
+              <td class="align-top">
+                <span class="sector-badge">
+                  Hero Media
+                </span>
+                <div class="module-name group-hover:text-[#4B584E] transition-colors">
+                  <a routerLink="/admin/institucional/home" class="hover:underline">Página Inicial</a>
+                </div>
+              </td>
+              <td class="align-middle">
+                <p class="module-desc">
+                  Substituição do vídeo de abertura e imagem de capa de contingência.
+                </p>
+              </td>
+              <td class="align-middle text-right">
+                <a routerLink="/admin/institucional/home" class="module-action">
+                  <span>Acessar</span>
+                  <span class="arrow">&rarr;</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- 6. Curadoria: Destaques da Vitrine -->
+            <tr class="hover:bg-[#FBFBF9] transition-colors group">
+              <td class="align-top">
+                <span class="sector-badge">
+                  Curadoria
+                </span>
+                <div class="module-name group-hover:text-[#4B584E] transition-colors">
+                  <a routerLink="/admin/destaques-home" class="hover:underline">Destaques da Vitrine</a>
+                </div>
+              </td>
+              <td class="align-middle">
+                <p class="module-desc">
+                  Ordenação e promoção dos modelos em destaque na Home.
+                </p>
+              </td>
+              <td class="align-middle text-right">
+                <a routerLink="/admin/destaques-home" class="module-action">
+                  <span>Acessar</span>
+                  <span class="arrow">&rarr;</span>
+                </a>
+              </td>
+            </tr>
+
+            <!-- 7. Segurança: Gestão de Usuários & Administradores (Exclusivo Webmaster) -->
+            @if (isWebmasterOrSuperAdmin) {
+              <tr class="hover:bg-[#FBFBF9] transition-colors group">
+                <td class="align-top">
+                  <span class="sector-badge" style="background: #222624; color: #FFFFFF; border-color: #222624;">
+                    Segurança &bull; Master
+                  </span>
+                  <div class="module-name group-hover:text-[#4B584E] transition-colors">
+                    <a routerLink="/admin/usuarios" class="hover:underline">Gestão de Administradores</a>
+                  </div>
+                </td>
+                <td class="align-middle">
+                  <p class="module-desc">
+                    Controle exclusivo de contas, permissões, ativação, desativação e privilégios da equipe.
+                  </p>
+                </td>
+                <td class="align-middle text-right">
+                  <a routerLink="/admin/usuarios" class="module-action font-semibold">
+                    <span>Gerenciar</span>
+                    <span class="arrow">&rarr;</span>
+                  </a>
+                </td>
+              </tr>
+            }
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Cards de Métricas -->
+    <div class="stats-grid">
+      @for (stat of stats(); track stat.label) {
+        <div class="stat-card card-editorial">
+          <span class="stat-label tracking-editorial">{{ stat.label }}</span>
+          <div class="stat-value font-serif">{{ stat.value }}</div>
+          <span class="stat-change text-gold">{{ stat.change }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- Seção de Ações Rápidas & Candidaturas Recentes -->
+    <div class="dashboard-grid">
+      <div class="recent-card card-editorial">
+        <div class="card-top">
+          <h3 class="font-serif">Novas Candidaturas Recebidas</h3>
+          <a routerLink="/admin/candidates" class="text-gold text-sm font-semibold">Ver Todas &rarr;</a>
+        </div>
+
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Candidato</th>
+                <th>Idade</th>
+                <th>Altura</th>
+                <th>Cidade</th>
+                <th>Data</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (cand of recentCandidates(); track cand.name) {
+                <tr>
+                  <td><strong>{{ cand.name }}</strong></td>
+                  <td>{{ cand.age }} anos</td>
+                  <td>{{ cand.height }}</td>
+                  <td>{{ cand.city }}</td>
+                  <td>{{ cand.date }}</td>
+                  <td>
+                    <span class="badge-status" [class.badge-new]="cand.status === 'NOVO'">
+                      {{ cand.status }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Ações Rápidas -->
+      <div class="actions-card card-editorial">
+        <h3 class="font-serif mb-4">Ações Rápidas</h3>
+        <div class="action-buttons">
+          <a routerLink="/admin/models" class="btn btn-gold w-full text-center">
+            + Cadastrar Novo Modelo
+          </a>
+          <a routerLink="/admin/candidates" class="btn btn-outline w-full text-center">
+            Triar Fichas de Inscritos
+          </a>
+          <a routerLink="/admin/content" class="btn btn-ghost w-full text-center">
+            Atualizar Vídeo Institucional
+          </a>
+          @if (isWebmasterOrSuperAdmin) {
+            <a routerLink="/admin/usuarios" class="btn btn-outline w-full text-center" style="border-color: #222624; color: #222624;">
+              Gestão de Administradores
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

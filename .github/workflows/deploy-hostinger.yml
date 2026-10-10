@@ -1,0 +1,139 @@
+# WB Agency - Pipeline de Deploy Hostinger (Angular 18 build -> public_html)
+# Suporta DUAS vias simultâneas:
+# 1. FTP Automático (LFTP espelha exclusivamente dist/frontend/browser -> public_html)
+# 2. Branch hostinger-deploy (commit automático apenas do build para uso no Git do hPanel)
+name: Deploy Frontend para Hostinger
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-hostinger.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostinger
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    name: Build Angular & Deploy Hostinger
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar Dependências
+        run: npm ci
+
+      - name: Compilar Angular em Produção
+        run: npm run build -- --configuration production
+
+      - name: Garantir fallback SPA (404.html e .htaccess)
+        run: |
+          DIST_DIR="dist/frontend/browser"
+          if [ ! -d "$DIST_DIR" ]; then
+            # Fallback caso a versão do Angular gere em dist/browser diretamente
+            DIST_DIR="dist/browser"
+          fi
+          
+          if [ ! -d "$DIST_DIR" ]; then
+            echo "ERRO CRÍTICO: Pasta de build não encontrada!"
+            exit 1
+          fi
+
+          # Fallback para rotas SPA caso o servidor busque 404.html
+          cp "$DIST_DIR/index.html" "$DIST_DIR/404.html"
+
+          # Garante que o .htaccess de public/ esteja presente no diretório de build
+          if [ -f "public/.htaccess" ]; then
+            cp "public/.htaccess" "$DIST_DIR/.htaccess"
+          elif [ -f "src/.htaccess" ]; then
+            cp "src/.htaccess" "$DIST_DIR/.htaccess"
+          else
+            # Cria .htaccess defensivo se não existir
+            cat << 'EOF' > "$DIST_DIR/.htaccess"
+DirectoryIndex index.html index.php
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+EOF
+          fi
+
+          echo "--- Verificando .htaccess no pacote de build ---"
+          ls -la "$DIST_DIR/.htaccess" && cat "$DIST_DIR/.htaccess"
+
+      - name: Validar Integridade dos Arquivos de Build
+        run: |
+          DIST_DIR="dist/frontend/browser"
+          if [ ! -d "$DIST_DIR" ]; then
+            DIST_DIR="dist/browser"
+          fi
+
+          echo "=== Verificando arquivos resultantes do build em $DIST_DIR ==="
+          ls -la "$DIST_DIR"
+          
+          if [ ! -f "$DIST_DIR/index.html" ]; then
+            echo "ERRO CRÍTICO: index.html não encontrado em $DIST_DIR!"
+            exit 1
+          fi
+
+          if [ ! -d "$DIST_DIR/assets" ]; then
+            echo "AVISO: Pasta assets não encontrada na raiz de $DIST_DIR (verifique se foi incorporada no bundle)."
+          fi
+
+      # =========================================================================
+      # VIA 1: DEPLOY DIRETO VIA FTP PARA public_html NA HOSTINGER
+      # Espelha EXCLUSIVAMENTE os arquivos compilados para public_html/
+      # =========================================================================
+      - name: Deploy Frontend via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        env:
+          TARGET_DIR: ${{ secrets.FTP_SERVER_DIR != '' && secrets.FTP_SERVER_DIR || 'domains/wbagency.com.br/public_html/' }}
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          timeout: 300000
+          local-dir: ./frontend/dist/frontend/browser/
+          server-dir: ${{ env.TARGET_DIR }}
+          dangerous-clean-slate: false
+        continue-on-error: true
+
+      # =========================================================================
+      # VIA 2: PUBLICAR ARQUIVOS DE BUILD NA BRANCH hostinger-deploy
+      # Cria/atualiza automaticamente a branch 'hostinger-deploy' contendo APENAS
+      # os arquivos compilados (index.html, assets, .htaccess) na raiz.
+      # =========================================================================
+      - name: Publicar arquivos de build na branch hostinger-deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: frontend/dist/frontend/browser
+          branch: hostinger-deploy
+          clean: true
+          commit-message: 'deploy: arquivos compilados de producao (Hostinger) [skip ci]'

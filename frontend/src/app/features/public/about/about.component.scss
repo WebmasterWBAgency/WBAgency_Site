@@ -1,0 +1,16 @@
+@import '../../../../styles/variables';
+
+.about-page {
+  background-color: #FFFFFF;
+  color: #222624;
+}
+
+.page-title {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif) !important;
+}
+
+.hero-quote-box {
+  blockquote {
+    font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif) !important;
+  }
+}

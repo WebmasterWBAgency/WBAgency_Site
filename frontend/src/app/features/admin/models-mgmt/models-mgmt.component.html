@@ -1,0 +1,346 @@
+<div class="mgmt-page">
+  <div class="mgmt-inner space-y-8">
+  <!-- Toast de Notificação -->
+  @if (toast()) {
+    <div class="toast-alert" [class.toast-success]="toast()?.type === 'success'" [class.toast-error]="toast()?.type === 'error'">
+      <span class="toast-icon">&check;</span>
+      <span>{{ toast()?.message }}</span>
+    </div>
+  }
+
+  <!-- Cabeçalho de Gestão (Harmonizado com a diagramação editorial da Triagem) -->
+  <div class="mgmt-top">
+    <div>
+      <h1 class="font-serif mgmt-title">Casting & Stars</h1>
+      <p class="text-secondary">Cadastro, edição de medidas biométricas, classificação Stars e status dos modelos da WB Agency.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <a routerLink="/admin/destaques-home" class="btn btn-outline">
+        ★ Curadoria Home
+      </a>
+      <button class="btn btn-gold" (click)="openCreateForm()">
+        + Novo Modelo
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros e Busca -->
+  <div class="filters-bar card-editorial">
+    <div class="filter-group">
+      <span class="filter-label">Gênero:</span>
+      <div class="pill-group">
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="filterGender() === 'ALL'"
+          (click)="setGenderFilter('ALL')"
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="filterGender() === 'FEMALE'"
+          (click)="setGenderFilter('FEMALE')"
+        >
+          Feminino
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="filterGender() === 'MALE'"
+          (click)="setGenderFilter('MALE')"
+        >
+          Masculino
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Classificação:</span>
+      <div class="pill-group">
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="filterStar() === null"
+          (click)="setStarFilter(null)"
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          class="pill-btn pill-gold"
+          [class.active]="filterStar() === true"
+          (click)="setStarFilter(true)"
+        >
+          &starf; Apenas Stars
+        </button>
+      </div>
+    </div>
+
+    <div class="search-input-wrapper">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (keyup.enter)="loadModels()"
+        placeholder="Buscar por nome ou cidade..."
+        class="form-control search-input"
+      />
+      <button type="button" class="search-btn" (click)="loadModels()">
+        Buscar
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabela de Modelos -->
+  <div class="mgmt-card card-editorial">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando elenco de modelos...</p>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Modelo</th>
+              <th>Gênero</th>
+              <th>Stars</th>
+              <th>Altura / Medidas</th>
+              <th>Localização</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (model of models(); track model.id) {
+              <tr>
+                <!-- Coluna: Modelo (Foto + Nome) -->
+                <td class="model-profile-cell">
+                  <div class="model-thumb">
+                    @if (model.primaryPhotoUrl && !hasBrokenThumb(model.id)) {
+                      <img
+                        [src]="model.primaryPhotoUrl"
+                        [alt]="'Miniatura do modelo ' + model.stageName"
+                        loading="lazy"
+                        decoding="async"
+                        (error)="onThumbError(model.id)"
+                      />
+                    } @else {
+                      <div class="thumb-fallback" [title]="model.primaryPhotoUrl ? 'Foto indisponivel. Clique em Editar para re-enviar.' : 'Sem foto cadastrada. Clique em Editar para enviar.'">
+                        WB
+                      </div>
+                    }
+                  </div>
+                  <div>
+                    <strong class="model-name">{{ model.stageName }}</strong>
+                    @if (model.instagramUrl) {
+                      <span class="instagram-sub">{{ model.instagramUrl }}</span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Coluna: Gênero -->
+                <td>
+                  <span class="badge-cat" [class.badge-male]="model.gender === 'MALE'">
+                    {{ model.gender === 'MALE' ? 'Masculino' : 'Feminino' }}
+                  </span>
+                </td>
+
+                <!-- Coluna: Switch / Tag Stars -->
+                <td>
+                  <button
+                    type="button"
+                    class="star-toggle-btn"
+                    [class.is-star]="model.isStar"
+                    (click)="toggleStar(model)"
+                    [title]="model.isStar ? 'Remover de Stars' : 'Classificar como Star'"
+                  >
+                    <span class="star-glyph">&starf;</span>
+                    {{ model.isStar ? 'STAR' : 'Normal' }}
+                  </button>
+                </td>
+
+                <!-- Coluna: Medidas -->
+                <td>
+                  <div class="measurements-cell">
+                    <span class="height-highlight">{{ model.heightCm ? model.heightCm + ' cm' : '--' }}</span>
+                    @if (model.bustChestCm || model.waistCm || model.hipsCm) {
+                      <span class="bwh-line">
+                        {{ model.bustChestCm || '--' }} / {{ model.waistCm || '--' }} / {{ model.hipsCm || '--' }}
+                      </span>
+                    }
+                  </div>
+                </td>
+
+                <!-- Coluna: Localização -->
+                <td>
+                  <span class="city-text">{{ model.city || model.nationality || '--' }}</span>
+                </td>
+
+                <!-- Coluna: Status Ativo/Inativo -->
+                <td>
+                  <span class="status-pill" [class.status-active]="model.isActive">
+                    {{ model.isActive ? 'Ativo' : 'Inativo' }}
+                  </span>
+                </td>
+
+                <!-- Coluna: Ações -->
+                <td class="action-cell">
+                  <button class="action-btn text-gold" (click)="openEditForm(model)">
+                    Editar
+                  </button>
+                  <button class="action-btn" (click)="toggleStatus(model)">
+                    {{ model.isActive ? 'Desativar' : 'Ativar' }}
+                  </button>
+                  <!-- ============================================================
+                       🗑️ BOTÃO APAGAR MODELO (abre modal de confirmação)
+                       ============================================================ -->
+                  <button
+                    type="button"
+                    class="action-btn action-btn-danger"
+                    title="Mover este modelo para o Arquivo Morto"
+                    (click)="confirmDelete(model)"
+                  >
+                    Apagar
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="empty-state">
+                  Nenhum modelo encontrado com os filtros selecionados.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+  }
+  </div>
+  </div>
+
+  <!-- Drawer Lateral / Modal do Formulário de Modelo (4.2.2) -->
+  @if (isFormOpen()) {
+    <div class="drawer-backdrop" (click)="closeForm()">
+      <div class="drawer-panel" (click)="$event.stopPropagation()">
+        <button type="button" class="drawer-close-btn" (click)="closeForm()" title="Fechar">
+          &times;
+        </button>
+        <app-model-form
+          [modelIdInput]="editingModelId()"
+          (saved)="onModelSaved($event)"
+          (cancelled)="closeForm()"
+        ></app-model-form>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================
+       📦 MODAL DE CONFIRMAÇÃO: ARQUIVAR MODELO (ARQUIVO MORTO)
+       ============================================================ -->
+  @if (isConfirmDeleteOpen() && pendingDeleteModel()) {
+    <div class="drawer-backdrop confirm-delete-backdrop" (click)="cancelDelete()">
+      <div class="confirm-delete-dialog" (click)="$event.stopPropagation()" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title">
+
+        <!-- Cabecalho do modal -->
+        <div class="confirm-delete-header">
+          <div class="confirm-delete-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="21 8 21 21 3 21 3 8"></polyline>
+              <rect x="1" y="3" width="22" height="5"></rect>
+              <line x1="10" y1="12" x2="14" y2="12"></line>
+            </svg>
+          </div>
+          <div class="confirm-delete-header-text">
+            <h3 id="confirm-delete-title" class="confirm-delete-title font-serif">
+              Mover para o Arquivo Morto?
+            </h3>
+            <p class="confirm-delete-subtitle">
+              Gestão de Casting &bull; WB Agency
+            </p>
+          </div>
+          <button type="button" class="drawer-close-btn" (click)="cancelDelete()" title="Cancelar" aria-label="Cancelar">
+            &times;
+          </button>
+        </div>
+
+        <!-- Corpo do modal: Texto explicativo e dados do modelo -->
+        <div class="confirm-delete-body">
+          <p class="confirm-delete-description">
+            Tem certeza de que deseja arquivar este modelo? As informações e o histórico serão transferidos para o <strong>Arquivo Morto</strong> em <code>/admin/models</code>, deixando de ser exibidos na vitrine pública do site.
+          </p>
+
+          <!-- Card miniatura do modelo -->
+          <div class="confirm-delete-model-card">
+            <div class="confirm-delete-model-photo">
+              @if (pendingDeleteModel()?.primaryPhotoUrl && !hasBrokenThumb(pendingDeleteModel()!.id)) {
+                <img
+                  [src]="pendingDeleteModel()!.primaryPhotoUrl"
+                  [alt]="pendingDeleteModel()!.stageName"
+                  loading="eager"
+                  (error)="onThumbError(pendingDeleteModel()!.id)"
+                />
+              } @else {
+                <div class="photo-placeholder-mini" aria-hidden="true">
+                  <span>WB</span>
+                </div>
+              }
+            </div>
+            <div class="confirm-delete-model-info">
+              <div class="confirm-delete-model-name">
+                {{ pendingDeleteModel()?.stageName || 'Modelo sem nome artístico' }}
+              </div>
+              <div class="confirm-delete-model-meta">
+                @if (pendingDeleteModel()?.heightCm) {
+                  <span class="meta-item">{{ pendingDeleteModel()!.heightCm }} cm</span>
+                }
+                @if (pendingDeleteModel()?.gender) {
+                  <span class="meta-item">{{ pendingDeleteModel()!.gender === 'MALE' ? 'Masculino' : 'Feminino' }}</span>
+                }
+                @if (pendingDeleteModel()?.city) {
+                  <span class="meta-item">{{ pendingDeleteModel()!.city }}</span>
+                }
+                @if (pendingDeleteModel()?.isStar) {
+                  <span class="meta-badge meta-badge-star" title="Categoria Stars">
+                    &starf; STAR
+                  </span>
+                }
+                @if (!pendingDeleteModel()?.isActive) {
+                  <span class="meta-badge meta-badge-inactive">Inativo</span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rodapé do modal: Botões alinhados à direita -->
+        <div class="confirm-delete-footer">
+          <button
+            type="button"
+            class="btn-modal-cancel"
+            (click)="cancelDelete()"
+            [disabled]="isDeleting()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-modal-confirm"
+            (click)="executeDelete()"
+            [disabled]="isDeleting()"
+          >
+            @if (isDeleting()) {
+              <span class="spinner-inline"></span>
+              <span>Arquivando...</span>
+            } @else {
+              <span>Sim, Arquivar Modelo</span>
+            }
+          </button>
+        </div>
+
+      </div>
+    </div>
+  }
+</div>

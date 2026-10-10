@@ -1,0 +1,88 @@
+<div class="hero-container relative h-screen w-full overflow-hidden flex items-center justify-center select-none">
+  <!-- Vídeo Background em Loop -->
+  <video
+    #heroVideo
+    autoplay
+    loop
+    muted
+    [muted]="isMuted()"
+    playsinline
+    preload="metadata"
+    class="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+    [poster]="posterUrl || 'assets/images/hero-poster.jpg'"
+  >
+    <source [src]="videoUrl || 'assets/videos/wb-presentation.mp4'" type="video/mp4">
+  </video>
+
+  <!-- Overlay Leve Editorial -->
+  <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#FBFBF9]/80 z-10 pointer-events-none"></div>
+
+  <!-- CONTAINER CENTRAL: APENAS O SPLASH TEMPORIZADO (SEM BOTÕES) -->
+  <div class="relative z-20 flex items-center justify-center w-full h-full pointer-events-none px-6">
+    <div 
+      *ngIf="showSplashLogo()"
+      class="animate-fade-splash flex items-center justify-center"
+    >
+      <!-- Logo com fundo transparente, proporcional à tela (sem esticar ou cortar) -->
+      <img 
+        src="assets/images/logo-wb-agency-light.png" 
+        alt="WB Agency" 
+        class="w-auto h-auto max-h-[22vh] max-w-[70vw] sm:max-h-[26vh] sm:max-w-[60vw] md:max-h-[32vh] md:max-w-[50vw] object-contain drop-shadow-md bg-transparent"
+      />
+    </div>
+  </div>
+
+  <!-- Controlo de Áudio Editorial (Mute/Unmute) -->
+  <button
+    type="button"
+    class="audio-toggle-btn"
+    (click)="toggleAudio()"
+    [attr.aria-label]="isMuted() ? 'Ativar som' : 'Desativar som'"
+    [attr.aria-pressed]="!isMuted()"
+  >
+    <span class="audio-icon-wrapper" aria-hidden="true">
+      @if (isMuted()) {
+        <svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      } @else {
+        <svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+      }
+    </span>
+    <span class="audio-label tracking-editorial">{{ isMuted() ? 'SOUND OFF' : 'SOUND ON' }}</span>
+  </button>
+
+  <!-- Indicador de Rolagem Elegante -->
+  <button 
+    type="button" 
+    class="scroll-down-btn" 
+    (click)="scrollToContent()" 
+    aria-label="Rolar para os destaques">
+    <span class="mouse-icon">
+      <span class="mouse-wheel"></span>
+    </span>
+    <span class="scroll-text tracking-editorial">SCROLL</span>
+  </button>
+
+  <!-- Janela Flutuante do Disclaimer (Aviso Opcional) -->
+  <div *ngIf="content?.disclaimerActive && showDisclaimerModal && content?.disclaimerText" 
+       class="fixed bottom-8 right-6 md:right-10 z-50 max-w-md bg-[#1B1E1C]/95 text-white p-5 border-l-4 border-[#C2A87E] shadow-2xl backdrop-blur-md rounded-none">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h4 *ngIf="content?.disclaimerTitle" class="font-serif text-sm tracking-wider uppercase text-[#C2A87E]">{{ content?.disclaimerTitle }}</h4>
+        <p class="text-xs text-neutral-300 mt-1 leading-relaxed">{{ content?.disclaimerText }}</p>
+        <a *ngIf="content?.disclaimerLinkUrl" [href]="content?.disclaimerLinkUrl" 
+           class="inline-block mt-3 text-[10px] tracking-[0.2em] uppercase text-white underline hover:text-[#C2A87E]">
+          {{ content?.disclaimerLinkLabel || 'Acessar' }} →
+        </a>
+      </div>
+      <button (click)="showDisclaimerModal = false" class="text-neutral-400 hover:text-white text-xs cursor-pointer" aria-label="Fechar Aviso">✕</button>
+    </div>
+  </div>
+</div>
