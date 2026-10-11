@@ -141,6 +141,7 @@ export class FeaturedModelsManagerComponent implements OnInit {
   }
 
   addToFeatured(model: FeaturedModelSummary): void {
+    if (this.featuredList.length >= 8) return;
     if (!this.featuredList.some(m => m.id === model.id)) {
       this.featuredList.push({
         ...model,

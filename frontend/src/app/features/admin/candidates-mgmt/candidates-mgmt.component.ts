@@ -8,7 +8,7 @@ import { AdminCandidateService } from '../../../core/services/admin-candidate.se
 import {
   CandidateSubmissionResponse,
   SubmissionStatus
-} from '../../../shared/models/candidate-submission.interface';
+} from '../../../shared/models/candidate.model';
 
 @Component({
   selector: 'app-candidates-mgmt',

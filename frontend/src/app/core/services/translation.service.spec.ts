@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import { environment } from '../../../environments/environment';
 import { TranslationService } from './translation.service';
 
 describe('TranslationService', () => {
@@ -59,6 +60,10 @@ describe('TranslationService', () => {
     const req = httpTesting.expectOne(request => request.url.includes('assets/i18n/en.json'));
     expect(req.request.method).toBe('GET');
     req.flush({ nav: { home: 'Home' } });
+
+    const dbReq = httpTesting.expectOne(`${environment.apiUrl}/translations?lang=en`);
+    expect(dbReq.request.method).toBe('GET');
+    dbReq.flush({});
 
     expect(service.translate('nav.home')).toBe('Home');
   });

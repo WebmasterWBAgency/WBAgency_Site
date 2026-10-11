@@ -167,7 +167,7 @@ export class CandidateDetailComponent implements OnInit {
   }
 
   executeSecureDelete(): void {
-    if (!this.candidate || this.isDeleting) return;
+    if (!this.candidate || this.isDeleting || this.deleteConfirmInput !== 'EXCLUIR') return;
     this.isDeleting = true;
 
     const url = `${environment.apiUrl}/admin/applications/${this.candidate.id}`;

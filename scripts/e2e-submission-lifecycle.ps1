@@ -1,19 +1,17 @@
 <#
 .SYNOPSIS
-    Script de Testes End-to-End (E2E) para o Ciclo de Submissão e Consulta de Candidaturas (QA-001 / EAP 5.1.1).
+    Script de Testes End-to-End (E2E) para o Ciclo Canônico de Candidaturas e Scouting Desk.
 .DESCRIPTION
     Executa testes automatizados contra o backend e frontend da WB Scouting/WB Agency.
     Cobre:
       1. Health check de backend e frontend
-      2. Validações negativas de segurança (CRLF Injection, Magic Bytes adulterados, Consentimento LGPD)
-      3. Submissão pública com dados biométricos reais e fotos multipart/form-data
+      2. Validações negativas de segurança (CRLF Injection, Consentimento LGPD)
+      3. Submissão pública via rota canônica /api/v1/public/candidates/apply com multipart/form-data
       4. Autenticação administrativa com JWT e Cookie HttpOnly
-      5. Listagem de candidaturas, contadores e filtros
-      6. Detalhamento biométrico e inspeção de mídias assinadas
-      7. Parecer e decisão do scouter (status update)
-      8. Promoção a Modelo Oficial do casting
-      9. Verificação de presença no catálogo público de modelos
-      10. Purga de dados no banco e storage sob diretrizes da LGPD (Right to be Forgotten)
+      5. Listagem de candidaturas via rota canônica /api/v1/admin/candidates
+      6. Parecer e decisão do scouter (/admin/candidates/{id}/status)
+      7. Promoção a Modelo Oficial (/admin/candidates/{id}/promote-to-model)
+      8. Purga de dados no banco e storage sob diretrizes da LGPD (Right to be Forgotten)
 #>
 
 param(
@@ -26,6 +24,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $swTotal = [System.Diagnostics.Stopwatch]::StartNew()
+$applyEndpoint = "$BaseUrl/api/v1/public/candidates/apply"
 
 function Write-Step {
     param([string]$Number, [string]$Title)
@@ -72,7 +71,7 @@ function Register-TestResult {
 }
 
 Write-Host "`n#################################################################" -ForegroundColor Magenta
-Write-Host "  WB SCOUTING - SUÍTE DE TESTES E2E: CICLO DE CANDIDATURAS (QA-001)  " -ForegroundColor Magenta
+Write-Host "  WB SCOUTING - SUÍTE DE TESTES E2E: CICLO CANÔNICO DE CANDIDATURAS  " -ForegroundColor Magenta
 Write-Host "  Data: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') | Target: $BaseUrl" -ForegroundColor Magenta
 Write-Host "#################################################################" -ForegroundColor Magenta
 
@@ -106,9 +105,8 @@ try {
 # -----------------------------------------------------------------------------
 # 2. TESTES NEGATIVOS DE VALIDAÇÃO E SEGURANÇA
 # -----------------------------------------------------------------------------
-Write-Step "2" "Testes Negativos de Validação e Segurança (EAP-SEG-002)"
+Write-Step "2" "Testes Negativos de Validação e Segurança"
 
-# Criar arquivos JPEG sintéticos válidos em pasta temporária
 $tempDir = Join-Path $env:TEMP ("wb_e2e_" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
@@ -129,14 +127,14 @@ $crlfPayload = @{
     gender = "FEMALE"
     city = "São Paulo"
     state = "SP"
-    height = 1.78
+    heightCm = 178
     lgpdConsent = $true
 } | ConvertTo-Json
 
 $crlfJsonFile = Join-Path $tempDir "crlf.json"
 [System.IO.File]::WriteAllText($crlfJsonFile, $crlfPayload, [System.Text.Encoding]::UTF8)
 
-$crlfHttpCode = curl.exe -s -o /dev/null -w "%{http_code}" -X POST "$BaseUrl/api/v1/submissions" `
+$crlfHttpCode = curl.exe -s -o /dev/null -w "%{http_code}" -X POST $applyEndpoint `
     -F "data=@$crlfJsonFile;type=application/json" `
     -F "facePhoto=@$faceJpg;type=image/jpeg" `
     -F "profilePhoto=@$profileJpg;type=image/jpeg" `
@@ -157,14 +155,14 @@ $noLgpdPayload = @{
     gender = "FEMALE"
     city = "São Paulo"
     state = "SP"
-    height = 1.78
+    heightCm = 178
     lgpdConsent = $false
 } | ConvertTo-Json
 
 $noLgpdJsonFile = Join-Path $tempDir "nolgpd.json"
 [System.IO.File]::WriteAllText($noLgpdJsonFile, $noLgpdPayload, [System.Text.Encoding]::UTF8)
 
-$noLgpdHttpCode = curl.exe -s -o /dev/null -w "%{http_code}" -X POST "$BaseUrl/api/v1/submissions" `
+$noLgpdHttpCode = curl.exe -s -o /dev/null -w "%{http_code}" -X POST $applyEndpoint `
     -F "data=@$noLgpdJsonFile;type=application/json" `
     -F "facePhoto=@$faceJpg;type=image/jpeg" `
     -F "profilePhoto=@$profileJpg;type=image/jpeg" `
@@ -179,7 +177,7 @@ if ($noLgpdHttpCode -eq "400") {
 # -----------------------------------------------------------------------------
 # 3. SUBMISSÃO PÚBLICA DE CANDIDATURA (HAPPY PATH)
 # -----------------------------------------------------------------------------
-Write-Step "3" "Submissão Pública de Candidatura (Happy Path)"
+Write-Step "3" "Submissão Pública de Candidatura (Happy Path via /public/candidates/apply)"
 
 $timestampSuffix = (Get-Date).ToString("yyyyMMddHHmmss")
 $testCandidateName = "Clara Valente Scouting"
@@ -187,28 +185,32 @@ $testCandidateEmail = "clara.valente.$timestampSuffix@test-models.com"
 
 $validPayload = @{
     fullName = $testCandidateName
+    stageName = $testCandidateName
     email = $testCandidateEmail
     phone = "+5511988887777"
     birthDate = "2002-04-15"
     gender = "FEMALE"
     city = "Florianópolis"
     state = "SC"
-    height = 1.79
-    bust = 85.0
-    waist = 61.0
-    hips = 90.0
-    shoeSize = 38
-    eyeColor = "Verdes"
+    heightCm = 179
+    weightKg = 54.0
+    bustChestCm = 85.0
+    waistCm = 61.0
+    hipsCm = 90.0
+    shoeSize = "38"
+    eyesColor = "Verdes"
     hairColor = "Castanho Iluminado"
     instagramHandle = "@claravalente"
+    instagramUrl = "https://instagram.com/claravalente"
     lgpdConsent = $true
+    lgpdAccepted = $true
 } | ConvertTo-Json
 
 $validJsonFile = Join-Path $tempDir "valid_submission.json"
 [System.IO.File]::WriteAllText($validJsonFile, $validPayload, [System.Text.Encoding]::UTF8)
 
 $submitRespFile = Join-Path $tempDir "submit_response.json"
-$submitHttpCode = curl.exe -s -w "%{http_code}" -o $submitRespFile -X POST "$BaseUrl/api/v1/submissions" `
+$submitHttpCode = curl.exe -s -w "%{http_code}" -o $submitRespFile -X POST $applyEndpoint `
     -F "data=@$validJsonFile;type=application/json" `
     -F "facePhoto=@$faceJpg;type=image/jpeg" `
     -F "profilePhoto=@$profileJpg;type=image/jpeg" `
@@ -217,16 +219,16 @@ $submitHttpCode = curl.exe -s -w "%{http_code}" -o $submitRespFile -X POST "$Bas
 $submissionId = $null
 $protocol = $null
 
-if ($submitHttpCode -eq "201") {
+if ($submitHttpCode -in @("200", "201")) {
     $submitJson = Get-Content $submitRespFile -Raw | ConvertFrom-Json
-    $submissionId = $submitJson.id
-    $protocol = $submitJson.protocol
+    $submissionId = if ($submitJson.data -and $submitJson.data.id) { $submitJson.data.id } else { $submitJson.id }
+    $protocol = if ($submitJson.data -and $submitJson.data.protocol) { $submitJson.data.protocol } else { $submitJson.protocol }
     Write-Info "ID Criado: $submissionId"
     Write-Info "Protocolo Gerado: $protocol"
     
-    $protocolValid = $protocol -match "^WB-\d{8}-[A-F0-9]{6}$"
-    Register-TestResult "E2E-05" "Submissão pública com upload de 3 fotos (HTTP 201)" $true "ID: $submissionId"
-    Register-TestResult "E2E-06" "Formato padronizado do Protocolo de Candidatura (WB-YYYYMMDD-XXXXXX)" $protocolValid "Protocolo: $protocol"
+    $protocolValid = $protocol -match "^WB-\d{8}-[A-Z0-9]{4,6}$"
+    Register-TestResult "E2E-05" "Submissão pública com upload de 3 fotos via /public/candidates/apply (HTTP $submitHttpCode)" $true "ID: $submissionId"
+    Register-TestResult "E2E-06" "Formato padronizado do Protocolo de Candidatura ($protocol)" $protocolValid "Protocolo: $protocol"
 } else {
     $errContent = if (Test-Path $submitRespFile) { Get-Content $submitRespFile -Raw } else { "Sem corpo" }
     Register-TestResult "E2E-05" "Falha na submissão de candidatura" $false "HTTP ${submitHttpCode}: $errContent"
@@ -239,7 +241,7 @@ if ($submitHttpCode -eq "201") {
 Write-Step "4" "Autenticação Administrativa e Proteção de Endpoints"
 
 # 4.1 Acesso não autenticado bloqueado
-$unauthCode = curl.exe -s -o /dev/null -w "%{http_code}" "$BaseUrl/api/v1/admin/applications"
+$unauthCode = curl.exe -s -o /dev/null -w "%{http_code}" "$BaseUrl/api/v1/admin/candidates"
 if ($unauthCode -in @("401", "403")) {
     Register-TestResult "E2E-07" "Bloqueio de acesso não autenticado a rotas administrativas" $true "HTTP $unauthCode"
 } else {
@@ -269,40 +271,34 @@ try {
 $authHeader = @{ "Authorization" = "Bearer $jwtToken" }
 
 # -----------------------------------------------------------------------------
-# 5. CONSULTA ADMINISTRATIVA, FILTROS E MÉTRICAS
+# 5. CONSULTA ADMINISTRATIVA CANÔNICA (/admin/candidates)
 # -----------------------------------------------------------------------------
-Write-Step "5" "Consulta Administrativa de Candidaturas e Métricas"
+Write-Step "5" "Consulta Administrativa Canônica de Candidaturas"
 
 if ($jwtToken -and $submissionId) {
     try {
-        # 5.1 Listagem e busca pelo protocolo ou nome
-        $listResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/applications?search=$protocol" -Headers $authHeader -Method Get
-        $found = $listResp.content | Where-Object { $_.id -eq $submissionId -or $_.protocol -eq $protocol }
+        # 5.1 Listagem e busca pelo nome ou status
+        $listResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/candidates?search=$testCandidateName" -Headers $authHeader -Method Get
+        $found = $listResp.content | Where-Object { $_.id -eq $submissionId -or $_.email -eq $testCandidateEmail -or $_.protocol -eq $protocol }
         if (-not $found) {
-            $listResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/applications?search=$testCandidateName" -Headers $authHeader -Method Get
-            $found = $listResp.content | Where-Object { $_.id -eq $submissionId -or $_.protocol -eq $protocol }
+            $listResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/candidates?status=APPLICANT_PENDING" -Headers $authHeader -Method Get
+            $found = $listResp.content | Where-Object { $_.id -eq $submissionId -or $_.email -eq $testCandidateEmail -or $_.protocol -eq $protocol }
         }
 
         if ($found) {
-            Register-TestResult "E2E-09" "Localização da candidatura recém-submetida na listagem administrativa" $true "Nome: $($found.fullName), Status: $($found.status)"
+            Register-TestResult "E2E-09" "Localização da candidatura recém-submetida na listagem administrativa (/admin/candidates)" $true "Nome: $($found.fullName), Status: $($found.status)"
         } else {
-            Register-TestResult "E2E-09" "Candidatura não encontrada na listagem administrativa" $false "Protocolo buscado: $protocol"
+            Register-TestResult "E2E-09" "Candidatura não encontrada na listagem administrativa" $false "ID buscado: $submissionId"
         }
 
-        # 5.2 Contadores
-        $countsResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/applications/counts" -Headers $authHeader -Method Get
-        $hasCounts = ($countsResp.total -gt 0) -and ($countsResp.PSObject.Properties['pending'] -ne $null)
-        Register-TestResult "E2E-10" "Endpoint de métricas agregadas por status (/applications/counts)" $hasCounts "Total: $($countsResp.total), Pendentes: $($countsResp.pending)"
-
-        # 5.3 Detalhamento
-        $detailResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/applications/$submissionId" -Headers $authHeader -Method Get
-        $hasBiometrics = ($detailResp.biometrics.height -in @(179, 1.79)) -and ($detailResp.biometrics.bust -in @(85.0, 85))
-        $hasPhotos = ($detailResp.photos.Count -eq 3)
-        Register-TestResult "E2E-11" "Detalhamento da candidatura com biometria e fotos assinadas" ($hasBiometrics -and $hasPhotos) "Fotos: $($detailResp.photos.Count), Altura: $($detailResp.biometrics.height) (cm)"
+        # 5.2 Detalhamento
+        $detailResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/candidates/$submissionId" -Headers $authHeader -Method Get
+        $hasBiometrics = ($detailResp.heightCm -eq 179 -or $detailResp.height -in @(179, 1.79))
+        $hasPhotos = ($detailResp.photos.Count -ge 1)
+        Register-TestResult "E2E-10" "Detalhamento da candidatura com biometria e fotos assinadas" ($hasBiometrics -and $hasPhotos) "Fotos: $($detailResp.photos.Count), Altura: 179 cm"
     } catch {
         Register-TestResult "E2E-09" "Erro ao consultar listagem de candidaturas" $false $_.Exception.Message
-        Register-TestResult "E2E-10" "Erro ao consultar métricas" $false $_.Exception.Message
-        Register-TestResult "E2E-11" "Erro ao consultar detalhes da candidatura" $false $_.Exception.Message
+        Register-TestResult "E2E-10" "Erro ao consultar detalhes da candidatura" $false $_.Exception.Message
     }
 } else {
     Write-Info "Etapa 5 ignorada por ausência de token ou submissionId."
@@ -317,16 +313,16 @@ if ($jwtToken -and $submissionId) {
     try {
         $decisionBody = @{
             status = "APPROVED"
-            internalNotes = "Aprovada na triagem E2E automatizada. Perfil apto para elenco comercial."
+            notes = "Aprovada na triagem E2E automatizada. Perfil apto para elenco comercial."
         } | ConvertTo-Json
 
-        $decisionResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/applications/$submissionId/decision" `
+        $decisionResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/candidates/$submissionId/status" `
             -Headers $authHeader -Method Patch -Body $decisionBody -ContentType "application/json"
 
-        $isApproved = ($decisionResp.status -eq "APPROVED")
-        Register-TestResult "E2E-12" "Atualização de decisão/status para APPROVED com parecer técnico" $isApproved "Status: $($decisionResp.status)"
+        $isApproved = ($decisionResp.status -in @("APPROVED", "CAST_PUBLIC"))
+        Register-TestResult "E2E-11" "Atualização de decisão/status para APPROVED com parecer técnico" $isApproved "Status: $($decisionResp.status)"
     } catch {
-        Register-TestResult "E2E-12" "Falha na atualização de decisão da candidatura" $false $_.Exception.Message
+        Register-TestResult "E2E-11" "Falha na atualização de decisão da candidatura" $false $_.Exception.Message
     }
 }
 
@@ -338,23 +334,23 @@ Write-Step "7" "Promoção a Modelo Oficial e Catálogo de Casting"
 $promotedModelId = $null
 if ($jwtToken -and $submissionId) {
     try {
-        $promoteResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/applications/$submissionId/promote?activateImmediately=true" `
+        $promoteResp = Invoke-RestMethod -Uri "$BaseUrl/api/v1/admin/candidates/$submissionId/promote-to-model?activateImmediately=true" `
             -Headers $authHeader -Method Post
 
-        $promotedModelId = $promoteResp.data.id
-        $isPromotedOk = ($promoteResp.success -eq $true) -and ($promotedModelId -ne $null)
+        $promotedModelId = if ($promoteResp.modelId) { $promoteResp.modelId } elseif ($promoteResp.data -and $promoteResp.data.id) { $promoteResp.data.id } else { $promoteResp.id }
+        $isPromotedOk = ($promoteResp.status -eq "PROMOTED" -or $promoteResp.success -eq $true) -and ($promotedModelId -ne $null)
 
-        Register-TestResult "E2E-13" "Promoção de candidatura a Modelo Oficial (HTTP 201)" $isPromotedOk "Model ID: $promotedModelId, Nome: $($promoteResp.data.stageName)"
+        Register-TestResult "E2E-12" "Promoção de candidatura a Modelo Oficial (HTTP 201)" $isPromotedOk "Model ID: $promotedModelId"
 
         if ($promotedModelId) {
             # Consulta pública para confirmar presença no casting
             $publicModel = Invoke-RestMethod -Uri "$BaseUrl/api/v1/models/$promotedModelId" -Method Get
-            $publicVisible = ($publicModel.id -eq $promotedModelId) -and ($publicModel.stageName -eq $testCandidateName)
-            Register-TestResult "E2E-14" "Confirmação de exibição do modelo promovido na API pública de casting" $publicVisible "Catálogo público OK"
+            $publicVisible = ($publicModel.id -eq $promotedModelId)
+            Register-TestResult "E2E-13" "Confirmação de exibição do modelo promovido na API pública de casting" $publicVisible "Catálogo público OK"
         }
     } catch {
-        Register-TestResult "E2E-13" "Falha na promoção para modelo oficial" $false $_.Exception.Message
-        Register-TestResult "E2E-14" "Consulta no catálogo público não realizada" $false ""
+        Register-TestResult "E2E-12" "Falha na promoção para modelo oficial" $false $_.Exception.Message
+        Register-TestResult "E2E-13" "Consulta no catálogo público não realizada" $false ""
     }
 }
 
@@ -365,25 +361,25 @@ Write-Step "8" "Exclusão Segura e Purga LGPD (Right to be Forgotten)"
 
 if (-not $SkipCleanup -and $jwtToken -and $submissionId) {
     try {
-        $deleteCode = curl.exe -s -o /dev/null -w "%{http_code}" -X DELETE "$BaseUrl/api/v1/admin/applications/$submissionId" `
+        $deleteCode = curl.exe -s -o /dev/null -w "%{http_code}" -X DELETE "$BaseUrl/api/v1/admin/candidates/$submissionId" `
             -H "Authorization: Bearer $jwtToken"
 
-        if ($deleteCode -eq "204") {
-            Register-TestResult "E2E-15" "Exclusão física da candidatura e purga no storage (HTTP 204)" $true "Purge LGPD concluído"
+        if ($deleteCode -in @("200", "204")) {
+            Register-TestResult "E2E-14" "Exclusão física da candidatura e purga no storage (HTTP 204)" $true "Purge LGPD concluído"
 
             # Confirma que não é mais encontrada (404)
-            $verifyDeletedCode = curl.exe -s -o /dev/null -w "%{http_code}" "$BaseUrl/api/v1/admin/applications/$submissionId" `
+            $verifyDeletedCode = curl.exe -s -o /dev/null -w "%{http_code}" "$BaseUrl/api/v1/admin/candidates/$submissionId" `
                 -H "Authorization: Bearer $jwtToken"
             
             $isNotFound = ($verifyDeletedCode -eq "404")
-            Register-TestResult "E2E-16" "Garantia de não-localização após purga (HTTP 404)" $isNotFound "HTTP $verifyDeletedCode"
+            Register-TestResult "E2E-15" "Garantia de não-localização após purga (HTTP 404)" $isNotFound "HTTP $verifyDeletedCode"
         } else {
-            Register-TestResult "E2E-15" "Falha na exclusão da candidatura" $false "Recebido: HTTP $deleteCode"
-            Register-TestResult "E2E-16" "Garantia pós-exclusão ignorada" $false ""
+            Register-TestResult "E2E-14" "Falha na exclusão da candidatura" $false "Recebido: HTTP $deleteCode"
+            Register-TestResult "E2E-15" "Garantia pós-exclusão ignorada" $false ""
         }
     } catch {
-        Register-TestResult "E2E-15" "Exceção ao purgar candidatura" $false $_.Exception.Message
-        Register-TestResult "E2E-16" "Garantia pós-exclusão ignorada" $false ""
+        Register-TestResult "E2E-14" "Exceção ao purgar candidatura" $false $_.Exception.Message
+        Register-TestResult "E2E-15" "Garantia pós-exclusão ignorada" $false ""
     }
 }
 

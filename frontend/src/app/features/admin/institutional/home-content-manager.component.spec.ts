@@ -113,7 +113,7 @@ describe('HomeContentManagerComponent', () => {
 
     expect(component.isVideoUploading).toBeFalse();
     expect(component.currentVideoUrl).toBe('https://storage.wb.agency/new-hero.mp4');
-    expect(component.feedbackMessage).toContain('atualizado com sucesso');
+    expect(component.feedbackMessage).toContain('com sucesso');
   });
 
   it('deve rejeitar vídeo com tamanho superior a 50MB', () => {

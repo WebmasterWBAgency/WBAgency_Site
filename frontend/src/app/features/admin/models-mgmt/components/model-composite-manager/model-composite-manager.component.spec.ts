@@ -63,23 +63,21 @@ describe('ModelCompositeManagerComponent', () => {
     expect(component.formatBytes(4512300)).toBe('4.3 MB');
   });
 
-  it('deve rejeitar arquivo com mais de 25MB', () => {
-    spyOn(window, 'alert');
+  it('deve rejeitar arquivo com mais de 30MB', () => {
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/models/${mockModelId}/composite`).flush(null);
 
     const oversizedBlob = new Blob(['a'.repeat(100)], { type: 'application/pdf' });
     const file = new File([oversizedBlob], 'large.pdf', { type: 'application/pdf' });
-    Object.defineProperty(file, 'size', { value: 26 * 1024 * 1024 });
+    Object.defineProperty(file, 'size', { value: 31 * 1024 * 1024 });
 
     component.uploadComposite(file);
 
-    expect(window.alert).toHaveBeenCalledWith('O arquivo selecionado excede o limite máximo permitido de 25MB.');
+    expect(component.errorMessage).toContain('muito grande');
     expect(component.isUploading).toBeFalse();
   });
 
   it('deve rejeitar arquivo com formato inválido', () => {
-    spyOn(window, 'alert');
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/models/${mockModelId}/composite`).flush(null);
 
@@ -88,7 +86,7 @@ describe('ModelCompositeManagerComponent', () => {
 
     component.uploadComposite(file);
 
-    expect(window.alert).toHaveBeenCalledWith('Formato de arquivo inválido. Formatos permitidos: PDF, JPG, PNG e WEBP.');
+    expect(component.errorMessage).toContain('inválido');
     expect(component.isUploading).toBeFalse();
   });
 

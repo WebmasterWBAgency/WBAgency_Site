@@ -73,11 +73,6 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
-    path: 'candidate-submission',
-    redirectTo: 'apply',
-    pathMatch: 'full'
-  },
-  {
     path: 'contact',
     loadComponent: () => import('./features/public/contact/contact.component').then(m => m.ContactComponent),
     title: 'Contato & Casting Comercial | WB Agency'

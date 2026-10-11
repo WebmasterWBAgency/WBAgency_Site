@@ -687,6 +687,7 @@ export class BecomeModelComponent implements OnInit {
     const formVal = this.form.value;
     const heightVal = Number(formVal.height);
     // Backend espera altura em metros (1.20 a 2.30)
+    const heightInCm = heightVal <= 3 ? Math.round(heightVal * 100) : Math.round(heightVal);
     const heightInMeters = heightVal > 3 ? +(heightVal / 100).toFixed(2) : +heightVal.toFixed(2);
     const shoeSizeVal = parseInt(String(formVal.shoes).replace(/\D/g, ''), 10) || 38;
 
@@ -697,7 +698,7 @@ export class BecomeModelComponent implements OnInit {
 
     const stateVal = (formVal.state || '').trim().toUpperCase();
 
-    // Payload rigorosamente tipado e compatível com CandidateSubmissionRequestDto
+    // Payload canônico compatível com CandidateApplyRequestDto
     const candidateData = {
       fullName: formVal.fullName ? String(formVal.fullName).trim() : '',
       email: formVal.email ? String(formVal.email).trim() : '',
@@ -706,22 +707,29 @@ export class BecomeModelComponent implements OnInit {
       gender: formVal.gender || 'FEMALE',
       city: formVal.city ? String(formVal.city).trim() : '',
       state: stateVal,
+      heightCm: heightInCm,
       height: heightInMeters,
       bust: formVal.bust ? Number(formVal.bust) : null,
+      bustChestCm: formVal.bust ? Number(formVal.bust) : null,
       waist: formVal.waist ? Number(formVal.waist) : null,
+      waistCm: formVal.waist ? Number(formVal.waist) : null,
       hips: formVal.hips ? Number(formVal.hips) : null,
+      hipsCm: formVal.hips ? Number(formVal.hips) : null,
       shoes: shoeSizeVal,
-      shoeSize: shoeSizeVal,
+      shoeSize: String(shoeSizeVal),
       eyes: formVal.eyes || null,
+      eyesColor: formVal.eyes || null,
       eyeColor: formVal.eyes || null,
       hair: formVal.hair || null,
       hairColor: formVal.hair || null,
       instagram: instagram || null,
       instagramHandle: instagram || null,
       guardianName: this.isMinor ? (formVal.guardianName?.trim() || null) : null,
+      legalGuardianName: this.isMinor ? (formVal.guardianName?.trim() || null) : null,
       guardianCpf: this.isMinor ? (formVal.guardianCpf?.trim() || null) : null,
       guardianPhone: this.isMinor ? (formVal.guardianPhone?.trim() || null) : null,
       guardianEmail: this.isMinor ? (formVal.guardianEmail?.trim() || null) : null,
+      legalGuardianContact: this.isMinor ? (formVal.guardianPhone?.trim() || formVal.guardianEmail?.trim() || null) : null,
       lgpdConsent: !!formVal.lgpdConsent,
       age: this.calculatedAge,
       isMinor: this.isMinor
@@ -754,11 +762,12 @@ export class BecomeModelComponent implements OnInit {
       }
     });
 
-    this.http.post<any>(`${environment.apiUrl}/submissions`, formData).subscribe({
+    this.http.post<any>(`${environment.apiUrl}/public/candidates/apply`, formData).subscribe({
       next: (res) => {
         this.isSubmitting = false;
         this.submitSuccess = true;
-        this.submissionProtocol = res?.protocol || (`WB-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`);
+        const resData = res?.data || res;
+        this.submissionProtocol = resData?.protocol || res?.protocol || (`WB-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`);
         this.form.reset();
         this.photoSlots.forEach(s => { s.file = null; s.previewUrl = null; });
         window.scrollTo({ top: 0, behavior: 'smooth' });

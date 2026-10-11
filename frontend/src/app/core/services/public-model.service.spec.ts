@@ -29,7 +29,7 @@ describe('PublicModelService', () => {
     expect(service).toBeTruthy();
   });
 
-  it('should get featured models when stars exist', () => {
+  it('should get featured models from /featured-models', () => {
     service.getFeaturedModels(8).subscribe(response => {
       expect(response).toBeTruthy();
       expect(response.content.length).toBe(1);
@@ -37,78 +37,38 @@ describe('PublicModelService', () => {
       expect(response.content[0].isStar).toBeTrue();
     });
 
-    const req = httpTesting.expectOne(`${environment.apiUrl}/public/models?isStar=true&size=8&page=0`);
+    const req = httpTesting.expectOne(`${environment.apiUrl}/featured-models`);
     expect(req.request.method).toBe('GET');
-    req.flush({
-      content: [{
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        stageName: 'Isabella Martins',
-        gender: 'FEMALE',
-        coverImageUrl: 'https://images.unsplash.com/photo-1.jpg',
-        heightCm: 179,
-        city: 'São Paulo',
-        isStar: true
-      }],
-      pageNumber: 0,
-      pageSize: 8,
-      totalElements: 1,
-      totalPages: 1,
-      isLast: true
-    });
+    req.flush([{
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      stageName: 'Isabella Martins',
+      gender: 'FEMALE',
+      coverImageUrl: 'https://images.unsplash.com/photo-1.jpg',
+      heightCm: 179,
+      city: 'São Paulo',
+      isStar: true,
+      displayOrder: 1
+    }]);
   });
 
-  it('should fallback to active models when stars query returns empty', () => {
-    service.getFeaturedModels(8).subscribe(response => {
-      expect(response).toBeTruthy();
-      expect(response.content.length).toBe(1);
-      expect(response.content[0].stageName).toBe('Gabriel Alencar');
+  it('should propagate HTTP error in getFeaturedModels', () => {
+    service.getFeaturedModels(8).subscribe({
+      next: () => fail('should have failed with HTTP error'),
+      error: (err) => {
+        expect(err).toBeTruthy();
+      }
     });
 
-    const req1 = httpTesting.expectOne(`${environment.apiUrl}/public/models?isStar=true&size=8&page=0`);
-    req1.flush({
-      content: [],
-      pageNumber: 0,
-      pageSize: 8,
-      totalElements: 0,
-      totalPages: 0,
-      isLast: true
-    });
-
-    const req2 = httpTesting.expectOne(`${environment.apiUrl}/public/models?size=8&page=0`);
-    req2.flush({
-      content: [{
-        id: '223e4567-e89b-12d3-a456-426614174001',
-        stageName: 'Gabriel Alencar',
-        gender: 'MALE',
-        coverImageUrl: 'https://images.unsplash.com/photo-2.jpg',
-        heightCm: 188,
-        city: 'Rio de Janeiro',
-        isStar: false
-      }],
-      pageNumber: 0,
-      pageSize: 8,
-      totalElements: 1,
-      totalPages: 1,
-      isLast: true
-    });
+    const req = httpTesting.expectOne(`${environment.apiUrl}/featured-models`);
+    req.error(new ProgressEvent('error'));
   });
 
-  it('should return mock fallback models gracefully on HTTP error in getFeaturedModels', () => {
-    service.getFeaturedModels(8).subscribe(response => {
-      expect(response).toBeTruthy();
-      expect(response.content.length).toBeGreaterThanOrEqual(4);
-      expect(response.content.every(m => m.isStar)).toBeTrue();
-    });
-
-    const req1 = httpTesting.expectOne(`${environment.apiUrl}/public/models?isStar=true&size=8&page=0`);
-    req1.error(new ProgressEvent('error'));
-  });
-
-  it('should return mock fallback models gracefully on HTTP error in getModels', () => {
-    service.getModels({ gender: 'FEMALE' }).subscribe(response => {
-      expect(response).toBeTruthy();
-      expect(response.content.length).toBe(4);
-      expect(response.content.every(m => m.gender === 'FEMALE')).toBeTrue();
+  it('should propagate HTTP error in getModels', () => {
+    service.getModels({ gender: 'FEMALE' }).subscribe({
+      next: () => fail('should have failed with HTTP error'),
+      error: (err) => {
+        expect(err).toBeTruthy();
+      }
     });
 
     const req = httpTesting.expectOne(`${environment.apiUrl}/public/models?gender=FEMALE`);
@@ -170,12 +130,12 @@ describe('PublicModelService', () => {
     });
   });
 
-  it('should return mock model details gracefully on HTTP error in getModelById', () => {
-    service.getModelById('f1a2b3c4-1111-4000-8000-000000000001').subscribe(model => {
-      expect(model).toBeTruthy();
-      expect(model.stageName).toBe('Helena Rostova');
-      expect(model.gender).toBe('FEMALE');
-      expect(model.heightCm).toBe(179);
+  it('should propagate HTTP error in getModelById', () => {
+    service.getModelById('f1a2b3c4-1111-4000-8000-000000000001').subscribe({
+      next: () => fail('should have failed with HTTP error'),
+      error: (err) => {
+        expect(err).toBeTruthy();
+      }
     });
 
     const req = httpTesting.expectOne(`${environment.apiUrl}/public/models/f1a2b3c4-1111-4000-8000-000000000001`);

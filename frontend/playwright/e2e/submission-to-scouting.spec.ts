@@ -72,15 +72,16 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
     // Aceite do termo LGPD
     await page.check('input[formControlName="lgpdConsent"]');
 
-    // Intercepta a requisição de API pública de submissão
+    // Intercepta a requisição de API pública canônica de submissão
     const submissionPromise = page.waitForResponse(response => 
-      (response.url().includes('/api/v1/submissions') || response.url().includes('/submissions')) &&
+      (response.url().includes('/public/candidates/apply') || response.url().includes('/candidates/apply')) &&
       (response.status() === 200 || response.status() === 201)
     );
 
     // Submissão do formulário
     await page.click('button[type="submit"]:has-text("Submeter Candidatura")');
-    await submissionPromise;
+    const submitResponse = await submissionPromise;
+    expect(submitResponse.status()).toBeLessThanOrEqual(201);
 
     // Confirmação de interface
     await expect(page.locator('text=Candidatura enviada com sucesso')).toBeVisible({ timeout: 10000 });
@@ -131,12 +132,13 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
     await page.check('input[formControlName="lgpdConsent"]');
 
     const submissionPromise = page.waitForResponse(response => 
-      (response.url().includes('/api/v1/submissions') || response.url().includes('/submissions')) &&
+      (response.url().includes('/public/candidates/apply') || response.url().includes('/candidates/apply')) &&
       (response.status() === 200 || response.status() === 201)
     );
 
     await page.click('button[type="submit"]:has-text("Submeter Candidatura")');
-    await submissionPromise;
+    const submitResponse = await submissionPromise;
+    expect(submitResponse.status()).toBeLessThanOrEqual(201);
 
     await expect(page.locator('text=Candidatura enviada com sucesso')).toBeVisible({ timeout: 10000 });
   });
@@ -207,6 +209,95 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
     await expect(adminPage.locator(`text=${testCandidateName}`)).toBeVisible({ timeout: 10000 });
 
     await adminContext.close();
+  });
+
+  test('4. Ciclo Canônico Direto: APIRequestContext /apply → Admin Scouting → Decisão de Status', async ({ request }) => {
+    const apiCandidateName = `Modelo Canônico ${Date.now()}`;
+    const apiCandidateEmail = `canonical_${Date.now()}@teste.com`;
+    const jpgBuffer = createValidImageBuffer('jpg');
+
+    // Etapa 1: Inscrição Pública via rota canônica /api/v1/public/candidates/apply
+    const candidateData = {
+      fullName: apiCandidateName,
+      email: apiCandidateEmail,
+      phone: '+55 (11) 98888-9999',
+      birthDate: '2001-08-20',
+      gender: 'FEMALE',
+      city: 'Curitiba',
+      state: 'PR',
+      heightCm: 178,
+      bustChestCm: 84.0,
+      waistCm: 60.0,
+      hipsCm: 90.0,
+      shoeSize: '38',
+      eyesColor: 'Castanhos',
+      hairColor: 'Castanho',
+      instagramHandle: '@canonical.model',
+      lgpdConsent: true
+    };
+
+    const applyResp = await request.post(`http://localhost:8080/api/v1/public/candidates/apply`, {
+      multipart: {
+        data: {
+          name: 'data.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(JSON.stringify(candidateData))
+        },
+        facePhoto: {
+          name: 'face.jpg',
+          mimeType: 'image/jpeg',
+          buffer: jpgBuffer
+        },
+        profilePhoto: {
+          name: 'profile.jpg',
+          mimeType: 'image/jpeg',
+          buffer: jpgBuffer
+        },
+        fullBodyPhoto: {
+          name: 'body.jpg',
+          mimeType: 'image/jpeg',
+          buffer: jpgBuffer
+        }
+      }
+    });
+
+    expect([200, 201]).toContain(applyResp.status());
+    const applyJson = await applyResp.json();
+    const candidateId = applyJson.data?.id || applyJson.id;
+    const protocol = applyJson.data?.protocol || applyJson.protocol;
+    expect(protocol).toBeTruthy();
+    expect(candidateId).toBeTruthy();
+
+    // Etapa 2: Triagem Administrativa - Login e listagem
+    const loginResp = await request.post(`http://localhost:8080/api/v1/auth/login`, {
+      data: {
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD
+      }
+    });
+    expect(loginResp.ok()).toBeTruthy();
+    const loginJson = await loginResp.json();
+    const token = loginJson.accessToken;
+
+    const listResp = await request.get(`http://localhost:8080/api/v1/admin/candidates?status=APPLICANT_PENDING`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    expect(listResp.ok()).toBeTruthy();
+    const listJson = await listResp.json();
+    const found = listJson.content?.find((c: any) => c.id === candidateId || c.email === apiCandidateEmail);
+    expect(found).toBeTruthy();
+
+    // Etapa 3: Decisão do Scout via status update canônico
+    const statusResp = await request.patch(`http://localhost:8080/api/v1/admin/candidates/${candidateId}/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        status: 'CAST_PUBLIC',
+        notes: 'Aprovada no fluxo canônico E2E'
+      }
+    });
+    expect(statusResp.ok()).toBeTruthy();
+    const updatedCandidate = await statusResp.json();
+    expect(['CAST_PUBLIC', 'APPROVED']).toContain(updatedCandidate.status);
   });
 
 });

@@ -109,6 +109,10 @@ describe('CandidateDetailComponent', () => {
     });
     patchReq.flush({ ...mockCandidate, status: 'APPROVED' });
 
+    // Component recarrega o candidato apos o patch
+    const reloadReq = httpTesting.expectOne(`${environment.apiUrl}/admin/applications/test-123`);
+    reloadReq.flush({ ...mockCandidate, status: 'APPROVED' });
+
     expect(component.candidate?.status).toBe('APPROVED');
     expect(component.isProcessing).toBeFalse();
   });
@@ -168,7 +172,7 @@ describe('CandidateDetailComponent', () => {
 
   it('não deve executar exclusão se o texto digitado for diferente de EXCLUIR', () => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${environment.apiUrl}/admin/applications/test-123`).flush(mockCandidate);
+    httpTesting.expectOne(`${environment.apiUrl}/admin/applications/test-123`).flush({ ...mockCandidate, status: 'REJECTED' });
 
     component.openDeleteConfirmation();
     expect(component.isDeleteModalOpen).toBeTrue();
@@ -181,8 +185,9 @@ describe('CandidateDetailComponent', () => {
   });
 
   it('deve executar exclusão permanente LGPD quando digitado EXCLUIR e navegar para /admin/candidaturas', () => {
+    jasmine.clock().install();
     fixture.detectChanges();
-    httpTesting.expectOne(`${environment.apiUrl}/admin/applications/test-123`).flush(mockCandidate);
+    httpTesting.expectOne(`${environment.apiUrl}/admin/applications/test-123`).flush({ ...mockCandidate, status: 'REJECTED' });
 
     component.openDeleteConfirmation();
     component.deleteConfirmInput = 'EXCLUIR';
@@ -196,7 +201,9 @@ describe('CandidateDetailComponent', () => {
 
     expect(component.isDeleting).toBeFalse();
     expect(component.isDeleteModalOpen).toBeFalse();
+    jasmine.clock().tick(501);
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/admin/candidaturas']);
+    jasmine.clock().uninstall();
   });
 
   it('deve sanitizar telefone e instagram e mapear legendas das fotos', () => {

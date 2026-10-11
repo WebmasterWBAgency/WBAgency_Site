@@ -174,7 +174,7 @@ describe('BecomeModelComponent', () => {
     expect(component.form.touched).toBeTrue();
   });
 
-  it('deve submeter FormData com sucesso para o endpoint /submissions', () => {
+  it('deve submeter FormData com sucesso para o endpoint /public/candidates/apply', () => {
     // Preenche dados válidos de adulto
     component.form.patchValue({
       fullName: 'Larissa Manoela',
@@ -201,11 +201,11 @@ describe('BecomeModelComponent', () => {
     component.onSubmit();
     expect(component.isSubmitting).toBeTrue();
 
-    const req = httpTesting.expectOne(`${environment.apiUrl}/submissions`);
+    const req = httpTesting.expectOne(`${environment.apiUrl}/public/candidates/apply`);
     expect(req.request.method).toBe('POST');
     expect(req.request.body instanceof FormData).toBeTrue();
 
-    req.flush({ success: true, message: 'Candidatura enviada' });
+    req.flush({ success: true, message: 'Candidatura enviada', data: { protocol: 'WB-20261010-ABCD' } });
 
     expect(component.isSubmitting).toBeFalse();
     expect(component.submitSuccess).toBeTrue();

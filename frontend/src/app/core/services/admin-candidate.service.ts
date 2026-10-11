@@ -7,7 +7,7 @@ import {
   CandidateSubmissionFilters,
   CandidateSubmissionResponse,
   PageResponse
-} from '../../shared/models/candidate-submission.interface';
+} from '../../shared/models/candidate.model';
 
 @Injectable({
   providedIn: 'root'
@@ -17,7 +17,7 @@ export class AdminCandidateService {
   private readonly baseUrl = environment.apiUrl;
 
   /**
-   * Consulta paginada com filtros dinâmicos no endpoint administrativo de candidaturas.
+   * Consulta paginada com filtros dinâmicos no endpoint administrativo canônico de candidaturas (/admin/candidates).
    */
   getSubmissions(filters: CandidateSubmissionFilters): Observable<PageResponse<CandidateSubmissionResponse>> {
     let params = new HttpParams()
@@ -49,26 +49,30 @@ export class AdminCandidateService {
       params = params.set('endDate', filters.endDate);
     }
 
-    return this.http.get<PageResponse<CandidateSubmissionResponse>>(`${this.baseUrl}/admin/submissions`, { params });
+    return this.http.get<PageResponse<CandidateSubmissionResponse>>(`${this.baseUrl}/admin/candidates`, { params });
   }
 
   /**
    * Obtém o dossiê completo de uma candidatura pelo UUID.
    */
   getSubmissionById(id: string): Observable<CandidateSubmissionResponse> {
-    return this.http.get<CandidateSubmissionResponse>(`${this.baseUrl}/admin/submissions/${id}`);
+    return this.http.get<CandidateSubmissionResponse>(`${this.baseUrl}/admin/candidates/${id}`);
   }
 
   /**
-   * Atualiza o status operacional (PENDING, REVIEWING, APPROVED, REJECTED, CONTACTED, ARCHIVED) com notas de feedback do Booker.
+   * Atualiza o status operacional com notas de feedback do Booker.
    * Suporta chamada com objeto CandidateStatusUpdate ou com parâmetros (status, adminNotes).
    */
   updateStatus(id: string, payloadOrStatus: CandidateStatusUpdate | string, adminNotes?: string): Observable<CandidateSubmissionResponse> {
     const body = typeof payloadOrStatus === 'string'
-      ? { status: payloadOrStatus, adminNotes: adminNotes ?? '' }
-      : { status: payloadOrStatus.status, adminNotes: payloadOrStatus.adminNotes ?? payloadOrStatus.feedbackNotes ?? '' };
+      ? { status: payloadOrStatus, notes: adminNotes ?? '', adminNotes: adminNotes ?? '' }
+      : {
+          status: payloadOrStatus.status,
+          notes: payloadOrStatus.notes ?? payloadOrStatus.adminNotes ?? payloadOrStatus.feedbackNotes ?? '',
+          adminNotes: payloadOrStatus.adminNotes ?? payloadOrStatus.feedbackNotes ?? payloadOrStatus.notes ?? ''
+        };
 
-    return this.http.patch<CandidateSubmissionResponse>(`${this.baseUrl}/admin/submissions/${id}/status`, body);
+    return this.http.patch<CandidateSubmissionResponse>(`${this.baseUrl}/admin/candidates/${id}/status`, body);
   }
 
   /**
@@ -79,13 +83,13 @@ export class AdminCandidateService {
     if (activateImmediately) {
       params = params.set('activateImmediately', 'true');
     }
-    return this.http.post<CandidateSubmissionResponse>(`${this.baseUrl}/admin/submissions/${id}/promote-to-model`, null, { params });
+    return this.http.post<CandidateSubmissionResponse>(`${this.baseUrl}/admin/candidates/${id}/promote-to-model`, null, { params });
   }
 
   /**
    * Converte uma candidatura aprovada para o elenco oficial de Modelos (alias).
    */
   convertToModel(id: string): Observable<CandidateSubmissionResponse> {
-    return this.http.post<CandidateSubmissionResponse>(`${this.baseUrl}/admin/submissions/${id}/convert-to-model`, {});
+    return this.http.post<CandidateSubmissionResponse>(`${this.baseUrl}/admin/candidates/${id}/promote-to-model`, {});
   }
 }

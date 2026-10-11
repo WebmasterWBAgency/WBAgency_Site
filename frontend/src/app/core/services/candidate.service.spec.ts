@@ -56,7 +56,7 @@ describe('CandidateService', () => {
       expect(res.content[0].status).toBe('PENDING');
     });
 
-    const req = httpMock.expectOne(`${baseUrl}/api/v1/admin/candidates?page=0&size=12&status=PENDING`);
+    const req = httpMock.expectOne(`${baseUrl}/admin/candidates?page=0&size=12&status=PENDING`);
     expect(req.request.method).toBe('GET');
     req.flush(mockApiResponse);
   });
@@ -69,7 +69,7 @@ describe('CandidateService', () => {
       expect(res.content[0].isMinor).toBeTrue();
     });
 
-    const req = httpMock.expectOne(`${baseUrl}/api/v1/admin/candidates?page=0&size=12`);
+    const req = httpMock.expectOne(`${baseUrl}/admin/candidates?page=0&size=12`);
     req.error(new ProgressEvent('Network error'), { status: 0, statusText: 'Unknown Error' });
   });
 
@@ -78,7 +78,7 @@ describe('CandidateService', () => {
       expect(res.content.every(c => c.status === 'APPROVED')).toBeTrue();
     });
 
-    const req = httpMock.expectOne(`${baseUrl}/api/v1/admin/candidates?page=0&size=12&status=APPROVED`);
+    const req = httpMock.expectOne(`${baseUrl}/admin/candidates?page=0&size=12&status=APPROVED`);
     req.error(new ProgressEvent('Not Found'), { status: 404, statusText: 'Not Found' });
   });
 
@@ -87,7 +87,7 @@ describe('CandidateService', () => {
       expect(res.status).toBe('APPROVED');
     });
 
-    const req = httpMock.expectOne(`${baseUrl}/api/v1/admin/candidates/cand-1/status`);
+    const req = httpMock.expectOne(`${baseUrl}/admin/candidates/cand-1/status`);
     expect(req.request.method).toBe('PATCH');
     expect(req.request.body.status).toBe('APPROVED');
     req.flush({
@@ -103,7 +103,7 @@ describe('CandidateService', () => {
       expect(res.convertedToModelId).toBe('model-123');
     });
 
-    const req = httpMock.expectOne(`${baseUrl}/api/v1/admin/candidates/cand-1/promote-to-model?activateImmediately=true`);
+    const req = httpMock.expectOne(`${baseUrl}/admin/candidates/cand-1/promote-to-model?activateImmediately=true`);
     expect(req.request.method).toBe('POST');
     req.flush({
       id: 'cand-1',

@@ -65,7 +65,7 @@ describe('PublicContentService', () => {
       expect(data.whatsappNumber).toBe('5511987654321');
     });
 
-    const req = httpTesting.expectOne(`${environment.apiUrl}/public/contact-channels?lang=pt`);
+    const req = httpTesting.expectOne(`${environment.apiUrl}/contact-channels`);
     expect(req.request.method).toBe('GET');
     req.flush({
       email: 'contato@wbagency.com.br',
@@ -84,8 +84,11 @@ describe('PublicContentService', () => {
       expect(data.whatsappNumber).toBe('');
     });
 
-    const req = httpTesting.expectOne(`${environment.apiUrl}/public/contact-channels?lang=pt`);
-    req.error(new ProgressEvent('error'));
+    const req1 = httpTesting.expectOne(`${environment.apiUrl}/contact-channels`);
+    req1.error(new ProgressEvent('error'));
+
+    const req2 = httpTesting.expectOne(`${environment.apiUrl}/public/contact-channels?lang=pt`);
+    req2.error(new ProgressEvent('error'));
   });
 });
 

@@ -47,7 +47,7 @@ describe('FeaturedModelsManagerComponent', () => {
     expect(reqFeatured.request.method).toBe('GET');
     reqFeatured.flush(mockFeatured);
 
-    const reqAvailable = httpMock.expectOne(`${environment.apiUrl}/admin/models?status=ACTIVE&size=100`);
+    const reqAvailable = httpMock.expectOne(req => req.url.includes('/admin/models') && req.params.get('status') === 'ACTIVE');
     expect(reqAvailable.request.method).toBe('GET');
     reqAvailable.flush(mockAvailable);
 
@@ -59,7 +59,7 @@ describe('FeaturedModelsManagerComponent', () => {
   it('deve filtrar modelos disponíveis excluindo os já destacados e respeitando busca', () => {
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/featured-models`).flush(mockFeatured);
-    httpMock.expectOne(`${environment.apiUrl}/admin/models?status=ACTIVE&size=100`).flush(mockAvailable);
+    httpMock.expectOne(req => req.url.includes('/admin/models') && req.params.get('status') === 'ACTIVE').flush(mockAvailable);
 
     // Sem busca: modelos 5 e 6 disponíveis
     expect(component.filteredAvailableModels.length).toBe(2);
@@ -74,7 +74,7 @@ describe('FeaturedModelsManagerComponent', () => {
   it('deve adicionar modelo à lista de destaques respeitando limite máximo de 8', () => {
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/featured-models`).flush(mockFeatured);
-    httpMock.expectOne(`${environment.apiUrl}/admin/models?status=ACTIVE&size=100`).flush(mockAvailable);
+    httpMock.expectOne(req => req.url.includes('/admin/models') && req.params.get('status') === 'ACTIVE').flush(mockAvailable);
 
     const newModel: FeaturedModelSummary = {
       id: '5',
@@ -103,7 +103,7 @@ describe('FeaturedModelsManagerComponent', () => {
   it('deve remover modelo da lista de destaques', () => {
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/featured-models`).flush(mockFeatured);
-    httpMock.expectOne(`${environment.apiUrl}/admin/models?status=ACTIVE&size=100`).flush(mockAvailable);
+    httpMock.expectOne(req => req.url.includes('/admin/models') && req.params.get('status') === 'ACTIVE').flush(mockAvailable);
 
     component.removeFromFeatured('2');
     expect(component.featuredList.length).toBe(3);
@@ -114,7 +114,7 @@ describe('FeaturedModelsManagerComponent', () => {
     spyOn(window, 'alert');
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/featured-models`).flush(mockFeatured.slice(0, 2));
-    httpMock.expectOne(`${environment.apiUrl}/admin/models?status=ACTIVE&size=100`).flush(mockAvailable);
+    httpMock.expectOne(req => req.url.includes('/admin/models') && req.params.get('status') === 'ACTIVE').flush(mockAvailable);
 
     component.saveChanges();
     expect(component.isSubmitting).toBeTrue();
@@ -132,7 +132,7 @@ describe('FeaturedModelsManagerComponent', () => {
     spyOn(window, 'alert');
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/featured-models`).flush(mockFeatured);
-    httpMock.expectOne(`${environment.apiUrl}/admin/models?status=ACTIVE&size=100`).flush(mockAvailable);
+    httpMock.expectOne(req => req.url.includes('/admin/models') && req.params.get('status') === 'ACTIVE').flush(mockAvailable);
 
     component.saveChanges();
 
