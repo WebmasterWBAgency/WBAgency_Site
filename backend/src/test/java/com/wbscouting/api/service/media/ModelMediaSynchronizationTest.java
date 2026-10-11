@@ -1,7 +1,10 @@
 package com.wbscouting.api.service.media;
 
+import com.wbscouting.api.WbScoutingApiApplication;
 import com.wbscouting.api.entity.Model;
 import com.wbscouting.api.entity.ModelMedia;
+import com.wbscouting.api.enums.GenderType;
+import com.wbscouting.api.enums.MediaType;
 import com.wbscouting.api.repository.ModelMediaRepository;
 import com.wbscouting.api.repository.ModelRepository;
 import org.junit.jupiter.api.Test;
@@ -12,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(classes = WbScoutingApiApplication.class)
 @ActiveProfiles("test")
 @Transactional
 class ModelMediaSynchronizationTest {
@@ -31,7 +34,7 @@ class ModelMediaSynchronizationTest {
         // 1. Criar Modelo base
         Model model = new Model();
         model.setStageName("Modelo Teste");
-        model.setGender("FEMALE");
+        model.setGender(GenderType.FEMALE);
         model = modelRepository.save(model);
 
         // 2. Adicionar Mídia 1 (Capa inicial)
@@ -39,9 +42,9 @@ class ModelMediaSynchronizationTest {
         media1.setModel(model);
         media1.setFileUrl("https://storage.supabase.co/models-media/foto1.jpg");
         media1.setFilePath("foto1.jpg");
-        media1.setMediaType("BOOK");
+        media1.setMediaType(MediaType.BOOK);
         media1.setIsCover(true);
-        modelMediaRepository.save(media1);
+        media1 = modelMediaRepository.save(media1);
 
         // Disparar sincronização do serviço
         modelMediaService.setCoverPhoto(model.getId(), media1.getId());
@@ -54,7 +57,7 @@ class ModelMediaSynchronizationTest {
         media2.setModel(model);
         media2.setFileUrl("https://storage.supabase.co/models-media/foto2.jpg");
         media2.setFilePath("foto2.jpg");
-        media2.setMediaType("BOOK");
+        media2.setMediaType(MediaType.BOOK);
         media2.setIsCover(false);
         media2 = modelMediaRepository.save(media2);
 
