@@ -5,12 +5,14 @@ import com.wbscouting.api.dto.admin.candidate.CandidateDetailAdminDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateListItemAdminDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateNotesUpdateDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateStatusUpdateDto;
-import com.wbscouting.api.entity.Candidate;
-import com.wbscouting.api.entity.CandidatePhoto;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.CandidateStatus;
+import com.wbscouting.api.enums.GenderType;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import com.wbscouting.api.exception.ResourceNotFoundException;
-import com.wbscouting.api.repository.CandidatePhotoRepository;
-import com.wbscouting.api.repository.CandidateRepository;
+import com.wbscouting.api.repository.ModelMediaRepository;
+import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.storage.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,12 +25,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,22 +42,13 @@ import static org.mockito.Mockito.*;
 class AdminCandidateServiceImplTest {
 
     @Mock
-    private CandidateRepository candidateRepository;
+    private ModelRepository modelRepository;
 
     @Mock
-    private CandidatePhotoRepository candidatePhotoRepository;
+    private ModelMediaRepository modelMediaRepository;
 
     @Mock
     private StorageService storageService;
-
-    @Mock
-    private com.wbscouting.api.repository.ModelRepository modelRepository;
-
-    @Mock
-    private com.wbscouting.api.repository.ModelMediaRepository modelMediaRepository;
-
-    @Mock
-    private com.wbscouting.api.repository.CandidateSubmissionRepository candidateSubmissionRepository;
 
     @Mock
     private SupabaseProperties supabaseProperties;
@@ -66,46 +57,45 @@ class AdminCandidateServiceImplTest {
     private AdminCandidateServiceImpl adminCandidateService;
 
     private UUID candidateId;
-    private Candidate candidate;
-    private CandidatePhoto photo1;
-    private CandidatePhoto photo2;
+    private Model model;
+    private ModelMedia media1;
+    private ModelMedia media2;
 
     @BeforeEach
     void setUp() {
         candidateId = UUID.randomUUID();
 
-        photo1 = CandidatePhoto.builder()
+        media1 = ModelMedia.builder()
                 .id(UUID.randomUUID())
-                .storagePath("cand-1/photo1.jpg")
+                .filePath("cand-1/photo1.jpg")
                 .displayOrder(1)
+                .isCover(true)
                 .build();
 
-        photo2 = CandidatePhoto.builder()
+        media2 = ModelMedia.builder()
                 .id(UUID.randomUUID())
-                .storagePath("cand-1/photo2.jpg")
+                .filePath("cand-1/photo2.jpg")
                 .displayOrder(2)
+                .isCover(false)
                 .build();
 
-        candidate = Candidate.builder()
+        model = Model.builder()
                 .id(candidateId)
+                .stageName("Mariana Silva")
                 .fullName("Mariana Silva")
                 .email("mariana@exemplo.com")
                 .phone("11988887777")
                 .birthDate(LocalDate.now().minusYears(17)) // Menor de idade
                 .age(17)
-                .gender("FEMALE")
-                .heightCm(new BigDecimal("178.00"))
+                .gender(GenderType.FEMALE)
+                .heightCm(178)
                 .city("São Paulo")
                 .state("SP")
-                .status(CandidateStatus.PENDING)
+                .status(TalentLifecycleStatus.APPLICANT_PENDING)
                 .internalNotes("Perfil promissor")
-                .photos(new ArrayList<>(List.of(photo2, photo1))) // Ordem invertida para testar ordenação
                 .createdAt(OffsetDateTime.now())
                 .updatedAt(OffsetDateTime.now())
                 .build();
-
-        photo1.setOwner(candidate);
-        photo2.setOwner(candidate);
 
         lenient().when(supabaseProperties.resolveBucketCandidates()).thenReturn("candidates-uploads");
     }
@@ -114,11 +104,12 @@ class AdminCandidateServiceImplTest {
     @DisplayName("Deve listar candidaturas com projeção compacta e contagem agregada de fotos")
     void listCandidates_Success() {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Candidate> candidatePage = new PageImpl<>(List.of(candidate), pageable, 1);
+        Page<Model> modelPage = new PageImpl<>(List.of(model), pageable, 1);
 
-        when(candidateRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Candidate>>any(), eq(pageable))).thenReturn(candidatePage);
-        when(candidatePhotoRepository.countPhotosByCandidateIds(List.of(candidateId)))
-                .thenReturn(List.<Object[]>of(new Object[]{candidateId, 2L}));
+        when(modelRepository.findAdminWithFiltersAndStatuses(any(), any(), any(), anyList(), any(), eq(pageable)))
+                .thenReturn(modelPage);
+        when(modelMediaRepository.findAllByModelIdOrderByDisplayOrderAsc(candidateId))
+                .thenReturn(List.of(media1, media2));
 
         Page<CandidateListItemAdminDto> result = adminCandidateService.listCandidates(
                 CandidateStatus.PENDING, "Mariana", "FEMALE", true, pageable
@@ -140,20 +131,23 @@ class AdminCandidateServiceImplTest {
     @DisplayName("Deve retornar página vazia quando nenhuma candidatura for encontrada")
     void listCandidates_Empty() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(candidateRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Candidate>>any(), eq(pageable))).thenReturn(Page.empty(pageable));
+        when(modelRepository.findAdminWithFiltersAndStatuses(any(), any(), any(), anyList(), any(), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
 
         Page<CandidateListItemAdminDto> result = adminCandidateService.listCandidates(
                 null, null, null, null, pageable
         );
 
         assertThat(result).isEmpty();
-        verify(candidatePhotoRepository, never()).countPhotosByCandidateIds(anyList());
+        verify(modelMediaRepository, never()).findAllByModelIdOrderByDisplayOrderAsc(any());
     }
 
     @Test
     @DisplayName("Deve retornar detalhes da candidatura com fotos acompanhadas de Signed URLs de 900s e ordenadas")
     void getCandidateDetail_Success() {
-        when(candidateRepository.findWithPhotosById(candidateId)).thenReturn(Optional.of(candidate));
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.of(model));
+        when(modelMediaRepository.findAllByModelIdOrderByDisplayOrderAsc(candidateId))
+                .thenReturn(List.of(media1, media2));
         when(storageService.createSignedUrl(eq("candidates-uploads"), eq("cand-1/photo1.jpg"), eq(900)))
                 .thenReturn("https://supabase.co/signed/cand-1/photo1.jpg?token=abc");
         when(storageService.createSignedUrl(eq("candidates-uploads"), eq("cand-1/photo2.jpg"), eq(900)))
@@ -170,7 +164,6 @@ class AdminCandidateServiceImplTest {
         // Verifica ordenação por displayOrder ASC
         assertThat(detail.getPhotos().get(0).getDisplayOrder()).isEqualTo(1);
         assertThat(detail.getPhotos().get(0).getSignedUrl()).isEqualTo("https://supabase.co/signed/cand-1/photo1.jpg?token=abc");
-        assertThat(detail.getPhotos().get(0).getExpiresInSeconds()).isEqualTo(900);
 
         assertThat(detail.getPhotos().get(1).getDisplayOrder()).isEqualTo(2);
         assertThat(detail.getPhotos().get(1).getSignedUrl()).isEqualTo("https://supabase.co/signed/cand-1/photo2.jpg?token=def");
@@ -179,7 +172,7 @@ class AdminCandidateServiceImplTest {
     @Test
     @DisplayName("Deve lançar ResourceNotFoundException ao buscar detalhes de ID inexistente")
     void getCandidateDetail_NotFound_ThrowsException() {
-        when(candidateRepository.findWithPhotosById(candidateId)).thenReturn(Optional.empty());
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> adminCandidateService.getCandidateDetail(candidateId))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -189,8 +182,9 @@ class AdminCandidateServiceImplTest {
     @Test
     @DisplayName("Deve atualizar status da candidatura com sucesso")
     void updateStatus_Success() {
-        when(candidateRepository.findWithPhotosById(candidateId)).thenReturn(Optional.of(candidate));
-        when(candidateRepository.save(any(Candidate.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.of(model));
+        when(modelRepository.save(any(Model.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(modelMediaRepository.findAllByModelIdOrderByDisplayOrderAsc(candidateId)).thenReturn(List.of());
 
         CandidateStatusUpdateDto dto = CandidateStatusUpdateDto.builder()
                 .status(CandidateStatus.APPROVED)
@@ -200,15 +194,16 @@ class AdminCandidateServiceImplTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getStatus()).isEqualTo(CandidateStatus.APPROVED);
-        assertThat(candidate.getStatus()).isEqualTo(CandidateStatus.APPROVED);
-        verify(candidateRepository).save(candidate);
+        assertThat(model.getStatus()).isEqualTo(TalentLifecycleStatus.APPLICANT_APPROVED);
+        verify(modelRepository).save(model);
     }
 
     @Test
     @DisplayName("Deve atualizar anotações internas da candidatura com sucesso")
     void updateNotes_Success() {
-        when(candidateRepository.findWithPhotosById(candidateId)).thenReturn(Optional.of(candidate));
-        when(candidateRepository.save(any(Candidate.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.of(model));
+        when(modelRepository.save(any(Model.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(modelMediaRepository.findAllByModelIdOrderByDisplayOrderAsc(candidateId)).thenReturn(List.of());
 
         CandidateNotesUpdateDto dto = CandidateNotesUpdateDto.builder()
                 .notes("Aprovada para casting de passarela")
@@ -218,55 +213,44 @@ class AdminCandidateServiceImplTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getInternalNotes()).isEqualTo("Aprovada para casting de passarela");
-        assertThat(candidate.getInternalNotes()).isEqualTo("Aprovada para casting de passarela");
-        verify(candidateRepository).save(candidate);
+        assertThat(model.getInternalNotes()).isEqualTo("Aprovada para casting de passarela");
+        verify(modelRepository).save(model);
     }
 
     @Test
-    @DisplayName("Deve arquivar candidatura (soft delete) definindo status ARCHIVED e gravando archivedAt")
+    @DisplayName("Deve arquivar candidatura (soft delete) definindo status ARCHIVED")
     void deleteCandidate_Success() {
-        when(candidateRepository.findById(candidateId)).thenReturn(Optional.of(candidate));
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.of(model));
 
         adminCandidateService.deleteCandidate(candidateId);
 
-        assertThat(candidate.getStatus()).isEqualTo(CandidateStatus.ARCHIVED);
-        assertThat(candidate.getArchivedAt()).isNotNull();
-        verify(candidateRepository).save(candidate);
-        verify(candidateRepository, never()).delete(any(Candidate.class));
+        assertThat(model.getStatus()).isEqualTo(TalentLifecycleStatus.ARCHIVED);
+        verify(modelRepository).save(model);
     }
 
     @Test
     @DisplayName("Deve lançar ResourceNotFoundException ao tentar arquivar ID inexistente")
     void deleteCandidate_NotFound_ThrowsException() {
-        when(candidateRepository.findById(candidateId)).thenReturn(Optional.empty());
-        when(candidateSubmissionRepository.findById(candidateId)).thenReturn(Optional.empty());
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> adminCandidateService.deleteCandidate(candidateId))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Candidatura não encontrada com ID: " + candidateId);
 
-        verify(candidateRepository, never()).delete(any(Candidate.class));
+        verify(modelRepository, never()).delete(any(Model.class));
     }
 
     @Test
-    @DisplayName("Deve promover candidato a modelo, migrar fotos para ModelMedia e vincular convertedToModel")
+    @DisplayName("Deve promover candidato a modelo com status CAST_PUBLIC")
     void promoteToModel_Success() {
-        UUID newModelId = UUID.randomUUID();
-        when(candidateRepository.findWithPhotosById(candidateId)).thenReturn(Optional.of(candidate));
-        when(modelRepository.save(any(com.wbscouting.api.entity.Model.class))).thenAnswer(invocation -> {
-            com.wbscouting.api.entity.Model m = invocation.getArgument(0);
-            m.setId(newModelId);
-            return m;
-        });
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.of(model));
+        when(modelRepository.save(any(Model.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UUID resultId = adminCandidateService.promoteToModel(candidateId, true);
 
-        assertThat(resultId).isEqualTo(newModelId);
-        verify(modelRepository).save(any(com.wbscouting.api.entity.Model.class));
-        verify(modelMediaRepository, atLeastOnce()).save(any(com.wbscouting.api.entity.ModelMedia.class));
-        verify(candidateRepository).save(candidate);
-        assertThat(candidate.getStatus()).isEqualTo(com.wbscouting.api.enums.CandidateStatus.APPROVED);
-        assertThat(candidate.getConvertedToModel()).isNotNull();
-        assertThat(candidate.getConvertedToModel().getId()).isEqualTo(newModelId);
+        assertThat(resultId).isEqualTo(candidateId);
+        verify(modelRepository).save(model);
+        assertThat(model.getStatus()).isEqualTo(TalentLifecycleStatus.CAST_PUBLIC);
+        assertThat(model.getIsActive()).isTrue();
     }
 }

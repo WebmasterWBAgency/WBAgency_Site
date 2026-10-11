@@ -1,10 +1,10 @@
 package com.wbscouting.api.dto.admin.candidate;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.wbscouting.api.entity.Candidate;
-import com.wbscouting.api.entity.CandidatePhoto;
-import com.wbscouting.api.entity.CandidateSubmission;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.SubmissionStatus;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -73,131 +73,18 @@ public class CandidateDetailResponseDto {
         private Long fileSizeBytes;
     }
 
-    public static CandidateDetailResponseDto fromCandidate(Candidate candidate, String defaultStorageBaseUrl) {
-        if (candidate == null) return null;
-
-        Integer heightVal = null;
-        if (candidate.getHeightCm() != null) {
-            heightVal = candidate.getHeightCm().intValue();
-        }
-
-        Integer ageCalculated = candidate.getAge();
-        boolean minor = false;
-        LocalDate bd = candidate.getBirthDate();
-        if (bd != null) {
-            int anos = Period.between(bd, LocalDate.now()).getYears();
-            if (anos >= 0 && anos < 120) {
-                ageCalculated = anos;
-                minor = anos < 18;
-            }
-        } else if (ageCalculated != null) {
-            minor = ageCalculated < 18;
-        }
-
-        Integer shoeSize = null;
-        if (candidate.getShoeSize() != null) {
-            try {
-                shoeSize = Integer.parseInt(candidate.getShoeSize().replaceAll("\\D", ""));
-            } catch (Exception ignored) {}
-        }
-
-        List<CandidateMediaDto> photosList = new ArrayList<>();
-        try {
-            if (candidate.getPhotos() != null) {
-                for (CandidatePhoto p : candidate.getPhotos()) {
-                    String url = p.getFileUrl();
-                    if (url == null || url.isBlank()) url = p.getFilePath();
-                    if (url == null || url.isBlank()) url = p.getStoragePath();
-                    if (url != null && !url.startsWith("http") && defaultStorageBaseUrl != null) {
-                        url = defaultStorageBaseUrl + "/" + url.replaceFirst("^/+", "");
-                    }
-
-                    int order = p.getDisplayOrder() != null ? p.getDisplayOrder() : 1;
-                    String type = switch (order) {
-                        case 1 -> "POLAROID_ROSTO";
-                        case 2 -> "POLAROID_PERFIL";
-                        case 3 -> "CORPO_INTEIRO";
-                        default -> "COMPOSITE";
-                    };
-
-                    photosList.add(CandidateMediaDto.builder()
-                            .id(p.getId() != null ? p.getId().toString() : UUID.randomUUID().toString())
-                            .url(url)
-                            .type(type)
-                            .fileName(p.getStoragePath())
-                            .fileSizeBytes(null)
-                            .build());
-                }
-            }
-        } catch (Exception ignored) {}
-
-        SubmissionStatus submissionStatus = null;
-        if (candidate.getStatus() != null) {
-            try {
-                submissionStatus = SubmissionStatus.valueOf(candidate.getStatus().name());
-            } catch (Exception ignored) {}
-        }
-        if (submissionStatus == null) submissionStatus = SubmissionStatus.PENDING;
-
-        return CandidateDetailResponseDto.builder()
-                .id(candidate.getId())
-                .fullName(candidate.getFullName())
-                .email(candidate.getEmail())
-                .phone(candidate.getPhone())
-                .instagram(candidate.getInstagramHandle())
-                .birthDate(bd)
-                .age(ageCalculated)
-                .isMinor(minor)
-                .guardianName(candidate.getGuardianName())
-                .guardianPhone(candidate.getLegalGuardianContact())
-                .guardianEmail(null)
-                .city(candidate.getCity())
-                .state(candidate.getState())
-                .biometrics(BiometricsDto.builder()
-                        .height(heightVal)
-                        .bust(candidate.getBustChestCm())
-                        .waist(candidate.getWaistCm())
-                        .hips(candidate.getHipsCm())
-                        .shoes(shoeSize)
-                        .eyes(null)
-                        .hair(null)
-                        .build())
-                .photos(photosList)
-                .status(submissionStatus)
-                .internalNotes(candidate.getInternalNotes())
-                .lgpdConsent(candidate.getLgpdAccepted())
-                .lgpdConsentAt(candidate.getLgpdAcceptedAt())
-                .submittedAt(candidate.getCreatedAt())
-                .protocol(candidate.getProtocol())
-                .build();
+    public static CandidateDetailResponseDto fromModel(Model model) {
+        return fromModel(model, model != null ? model.getMedia() : null);
     }
 
-    public static CandidateDetailResponseDto fromEntity(CandidateSubmission entity) {
-        if (entity == null) return null;
-        return fromEntity(entity, entity.getPhotos());
-    }
+    public static CandidateDetailResponseDto fromModel(Model model, List<ModelMedia> mediaList) {
+        if (model == null) return null;
 
-    public static CandidateDetailResponseDto fromEntity(CandidateSubmission entity, List<CandidatePhoto> photosList) {
-        if (entity == null) {
-            return null;
-        }
+        Integer heightVal = model.getHeight();
 
-        Integer heightVal = null;
-        if (entity.getHeight() != null) {
-            if (entity.getHeight().compareTo(new BigDecimal("3.0")) < 0) {
-                heightVal = entity.getHeight().multiply(new BigDecimal("100")).intValue();
-            } else {
-                heightVal = entity.getHeight().intValue();
-            }
-        }
-
-        // ================================
-        // 🔥 REGRA OBRIGATÓRIA DO DOD: NÃO USAR entity.getAge()
-        // Calcular dinamicamente com Period.between(birthDate, hoje)
-        // ================================
         Integer ageCalculated = null;
         boolean minor = false;
-        LocalDate bd = entity.getBirthDate();
+        LocalDate bd = model.getBirthDate();
         if (bd != null) {
             int anos = Period.between(bd, LocalDate.now()).getYears();
             if (anos >= 0 && anos < 120) {
@@ -208,98 +95,82 @@ public class CandidateDetailResponseDto {
 
         BiometricsDto biometrics = BiometricsDto.builder()
                 .height(heightVal)
-                .bust(entity.getBust())
-                .waist(entity.getWaist())
-                .hips(entity.getHips())
-                .shoes(entity.getShoeSize())
-                .eyes(entity.getEyeColor() != null ? entity.getEyeColor() : "Não informado")
-                .hair(entity.getHairColor() != null ? entity.getHairColor() : "Não informado")
+                .bust(model.getBust())
+                .waist(model.getWaist())
+                .hips(model.getHips())
+                .shoes(model.getShoes())
+                .eyes("Não informado")
+                .hair("Não informado")
                 .build();
 
         List<CandidateMediaDto> photos = new ArrayList<>();
-        List<CandidatePhoto> sourcePhotos = (photosList != null && !photosList.isEmpty())
-                ? photosList
-                : (entity.getPhotos() != null ? entity.getPhotos() : List.of());
+        List<ModelMedia> sourceMedia = (mediaList != null && !mediaList.isEmpty())
+                ? mediaList
+                : (model.getMedia() != null ? model.getMedia() : List.of());
 
-        // 1. Se a submissão tiver a lista candidate_photos associada, adicione TODAS (dinâmico de 1 a 8+)
-        if (!sourcePhotos.isEmpty()) {
-            for (CandidatePhoto p : sourcePhotos) {
-                String u = p.getFileUrl();
-                if (u == null || u.isBlank()) u = p.getFilePath();
-                if (u == null || u.isBlank()) u = p.getStoragePath();
+        if (!sourceMedia.isEmpty()) {
+            for (ModelMedia m : sourceMedia) {
+                String u = m.getMediaUrl();
                 if (u != null && !u.isBlank()) {
-                    short pos = p.getPhotoPosition() != null ? p.getPhotoPosition() : (p.getDisplayOrder() != null ? p.getDisplayOrder().shortValue() : 1);
-                    String type = p.getType();
-                    if (type == null) {
-                        type = switch (pos) {
-                            case 1 -> "POLAROID_ROSTO";
-                            case 2 -> "POLAROID_PERFIL";
-                            case 3 -> "CORPO_INTEIRO";
-                            default -> "POLAROID_" + pos;
-                        };
-                    }
+                    int pos = m.getDisplayOrder() != null ? m.getDisplayOrder() + 1 : 1;
+                    String type = m.getMediaType() != null ? m.getMediaType().name() : switch (pos) {
+                        case 1 -> "POLAROID_ROSTO";
+                        case 2 -> "POLAROID_PERFIL";
+                        case 3 -> "CORPO_INTEIRO";
+                        default -> "POLAROID_" + pos;
+                    };
                     photos.add(CandidateMediaDto.builder()
-                            .id(p.getId() != null ? p.getId().toString() : "photo-" + pos + "-" + entity.getId())
+                            .id(m.getId() != null ? m.getId().toString() : "media-" + pos)
                             .url(u)
                             .type(type)
-                            .fileName(extractFileName(u, "polaroid-" + pos + ".jpg"))
+                            .fileName(extractFileName(u, "photo-" + pos + ".jpg"))
                             .fileSizeBytes(1500000L)
                             .build());
                 }
             }
-        } else {
-            // 2. Fallback caso só existam as colunas diretas legadas
-            if (entity.getFacePhotoUrl() != null && !entity.getFacePhotoUrl().isBlank()) {
-                photos.add(CandidateMediaDto.builder()
-                        .id("photo-face-" + entity.getId())
-                        .url(entity.getFacePhotoUrl())
-                        .type("POLAROID_ROSTO")
-                        .fileName(extractFileName(entity.getFacePhotoUrl(), "polaroid-rosto.jpg"))
-                        .fileSizeBytes(1204000L)
-                        .build());
-            }
-            if (entity.getProfilePhotoUrl() != null && !entity.getProfilePhotoUrl().isBlank()) {
-                photos.add(CandidateMediaDto.builder()
-                        .id("photo-profile-" + entity.getId())
-                        .url(entity.getProfilePhotoUrl())
-                        .type("POLAROID_PERFIL")
-                        .fileName(extractFileName(entity.getProfilePhotoUrl(), "polaroid-perfil.jpg"))
-                        .fileSizeBytes(1500000L)
-                        .build());
-            }
-            if (entity.getFullBodyPhotoUrl() != null && !entity.getFullBodyPhotoUrl().isBlank()) {
-                photos.add(CandidateMediaDto.builder()
-                        .id("photo-fullbody-" + entity.getId())
-                        .url(entity.getFullBodyPhotoUrl())
-                        .type("CORPO_INTEIRO")
-                        .fileName(extractFileName(entity.getFullBodyPhotoUrl(), "corpo-inteiro.jpg"))
-                        .fileSizeBytes(1804000L)
-                        .build());
-            }
+        } else if (model.getPrimaryPhotoUrl() != null && !model.getPrimaryPhotoUrl().isBlank()) {
+            photos.add(CandidateMediaDto.builder()
+                    .id("photo-primary-" + model.getId())
+                    .url(model.getPrimaryPhotoUrl())
+                    .type("POLAROID_ROSTO")
+                    .fileName(extractFileName(model.getPrimaryPhotoUrl(), "primary-photo.jpg"))
+                    .fileSizeBytes(1200000L)
+                    .build());
+        }
+
+        SubmissionStatus subStatus = SubmissionStatus.PENDING;
+        if (model.getStatus() != null) {
+            subStatus = switch (model.getStatus()) {
+                case APPLICANT_APPROVED -> SubmissionStatus.APPROVED;
+                case APPLICANT_DECLINED -> SubmissionStatus.DECLINED;
+                case ARCHIVED -> SubmissionStatus.ARCHIVED;
+                case CAST_PUBLIC, CAST_INTERNAL, CAST_STAR -> SubmissionStatus.PROMOTED;
+                default -> SubmissionStatus.PENDING;
+            };
         }
 
         return CandidateDetailResponseDto.builder()
-                .id(entity.getId())
-                .fullName(entity.getFullName())
-                .email(entity.getEmail())
-                .phone(entity.getPhone())
-                .instagram(entity.getInstagramHandle())
-                .birthDate(entity.getBirthDate())
+                .id(model.getId())
+                .fullName(model.getName())
+                .email(model.getEmail())
+                .phone(model.getPhone())
+                .instagram(model.getInstagram())
+                .birthDate(bd)
                 .age(ageCalculated)
                 .isMinor(minor)
-                .guardianName(entity.getGuardianName())
-                .guardianPhone(entity.getGuardianPhone())
-                .guardianEmail(entity.getGuardianEmail())
-                .city(entity.getCity())
-                .state(entity.getState())
+                .guardianName(model.getGuardianName())
+                .guardianPhone(model.getGuardianPhone())
+                .guardianEmail(model.getGuardianEmail())
+                .city(model.getCity())
+                .state(model.getState())
                 .biometrics(biometrics)
                 .photos(photos)
-                .status(entity.getStatus())
-                .internalNotes(entity.getFeedbackNotes())
-                .lgpdConsent(entity.getLgpdConsent())
-                .lgpdConsentAt(entity.getLgpdConsentAt())
-                .submittedAt(entity.getCreatedAt())
-                .protocol(entity.getProtocol())
+                .status(subStatus)
+                .internalNotes(model.getInternalNotes())
+                .lgpdConsent(true)
+                .lgpdConsentAt(model.getCreatedAt())
+                .submittedAt(model.getCreatedAt())
+                .protocol(model.getProtocol())
                 .build();
     }
 

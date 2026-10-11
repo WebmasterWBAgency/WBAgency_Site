@@ -5,7 +5,6 @@ import com.wbscouting.api.dto.content.AssetUploadResponseDto;
 import com.wbscouting.api.dto.content.SiteContentAdminDto;
 import com.wbscouting.api.dto.content.SiteContentPublicDto;
 import com.wbscouting.api.dto.content.SiteContentUpdateRequestDto;
-import com.wbscouting.api.entity.InstitutionalSetting;
 import com.wbscouting.api.entity.SiteContent;
 import com.wbscouting.api.exception.FileSizeExceededException;
 import com.wbscouting.api.exception.InvalidFileException;
@@ -31,9 +30,6 @@ public class SiteContentServiceImpl implements SiteContentService {
     private final SiteContentRepository siteContentRepository;
     private final StorageService storageService;
     private final SupabaseProperties supabaseProperties;
-
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.wbscouting.api.repository.InstitutionalSettingRepository institutionalSettingRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -144,73 +140,6 @@ public class SiteContentServiceImpl implements SiteContentService {
 
         SiteContent saved = siteContentRepository.save(content);
         log.info("Conteúdo institucional da seção '{}' atualizado com sucesso.", normalizedKey);
-
-        if (institutionalSettingRepository != null && dto.getPayloadPt() != null) {
-            try {
-                Map<String, Object> pt = dto.getResolvedPayloadPt();
-                if ("ABOUT_MANIFESTO".equalsIgnoreCase(normalizedKey)) {
-                    String headline = (String) pt.get("headline");
-                    String quote = (String) pt.get("quote");
-                    String sectionTitle = (String) pt.get("sectionTitle");
-                    String body = (String) pt.getOrDefault("body", pt.get("content"));
-                    InstitutionalSetting setting = institutionalSettingRepository.findBySettingKey("ABOUT_PAGE")
-                            .orElseGet(() -> InstitutionalSetting.builder()
-                                    .settingKey("ABOUT_PAGE")
-                                    .build());
-
-                    if (headline != null) {
-                        setting.setTitle(headline.trim());
-                    }
-                    if (body != null) {
-                        setting.setDescription(body.trim());
-                    }
-                    Map<String, Object> data = setting.getContentDataWithFallback();
-                    if (data == null) data = new LinkedHashMap<>();
-                    if (quote != null) data.put("heroQuote", quote.trim());
-                    if (sectionTitle != null) {
-                        data.put("sectionTitle", sectionTitle.trim());
-                        data.put("manifestoTitle", sectionTitle.trim());
-                    }
-                    if (body != null) data.put("manifestoText", body.trim());
-                    setting.setContentData(data);
-                    setting.setContentJson(data);
-                    institutionalSettingRepository.save(setting);
-                    log.info("Sincronização de ABOUT_MANIFESTO com institutional_settings (ABOUT_PAGE) via SiteContentService concluída com sucesso");
-                } else if ("TERMS".equalsIgnoreCase(normalizedKey)) {
-                    Object rawText = pt.getOrDefault("content", pt.getOrDefault("body", pt.get("text")));
-                    String text = rawText != null ? rawText.toString().trim() : "";
-                    for (String key : List.of("TERMS", "TERMS_OF_USE")) {
-                        InstitutionalSetting setting = institutionalSettingRepository.findBySettingKey(key)
-                                .orElseGet(() -> InstitutionalSetting.builder().settingKey(key).build());
-                        setting.setTitle("Termos de Uso");
-                        setting.setDescription(text);
-                        Map<String, Object> data = new LinkedHashMap<>();
-                        data.put("content", text);
-                        setting.setContentData(data);
-                        setting.setContentJson(data);
-                        institutionalSettingRepository.save(setting);
-                    }
-                    log.info("Sincronização de contingência de TERMS com institutional_settings concluída com sucesso");
-                } else if ("PRIVACY".equalsIgnoreCase(normalizedKey)) {
-                    Object rawText = pt.getOrDefault("content", pt.getOrDefault("body", pt.get("text")));
-                    String text = rawText != null ? rawText.toString().trim() : "";
-                    for (String key : List.of("PRIVACY", "PRIVACY_POLICY")) {
-                        InstitutionalSetting setting = institutionalSettingRepository.findBySettingKey(key)
-                                .orElseGet(() -> InstitutionalSetting.builder().settingKey(key).build());
-                        setting.setTitle("Política de Privacidade & LGPD");
-                        setting.setDescription(text);
-                        Map<String, Object> data = new LinkedHashMap<>();
-                        data.put("content", text);
-                        setting.setContentData(data);
-                        setting.setContentJson(data);
-                        institutionalSettingRepository.save(setting);
-                    }
-                    log.info("Sincronização de contingência de PRIVACY com institutional_settings concluída com sucesso");
-                }
-            } catch (Exception ex) {
-                log.warn("Erro ao sincronizar institutionalSettingRepository no SiteContentServiceImpl: {}", ex.getMessage());
-            }
-        }
 
         return toAdminDto(saved);
     }

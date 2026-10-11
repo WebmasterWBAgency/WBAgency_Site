@@ -1,5 +1,7 @@
 package com.wbscouting.api.dto.candidate;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wbscouting.api.enums.GenderType;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -14,6 +16,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CandidateApplyRequestDto {
 
     @NotBlank(message = "O nome completo é obrigatório.")
@@ -26,7 +29,6 @@ public class CandidateApplyRequestDto {
     private String email;
 
     @NotBlank(message = "O telefone de contato é obrigatório.")
-    @Pattern(regexp = "^\\+?[0-9\\s()\\-\\.\\/]{10,25}$", message = "O telefone deve incluir DDD e possuir formato válido.")
     private String phone;
 
     @NotNull(message = "A data de nascimento é obrigatória.")
@@ -37,8 +39,8 @@ public class CandidateApplyRequestDto {
     private GenderType gender;
 
     @NotNull(message = "A altura em centímetros é obrigatória.")
-    @Min(value = 140, message = "A altura mínima permitida é de 140 cm.")
-    @Max(value = 220, message = "A altura máxima permitida é de 220 cm.")
+    @Min(value = 50, message = "A altura mínima permitida é de 50 cm.")
+    @Max(value = 250, message = "A altura máxima permitida é de 250 cm.")
     private Integer heightCm;
 
     @NotBlank(message = "A cidade é obrigatória.")
@@ -47,31 +49,54 @@ public class CandidateApplyRequestDto {
     @NotBlank(message = "O estado (UF) é obrigatório.")
     private String state;
 
+    private Integer age;
+
+    private BigDecimal weightKg;
+
     // Campos de Responsável Legal (obrigatórios se menor de 18 anos)
     private String legalGuardianName;
     private String legalGuardianContact;
+    private String guardianName;
+    private String guardianPhone;
+    private String guardianEmail;
 
     // Medidas corporais opcionais
-    @DecimalMin(value = "30.00", message = "Medida de busto/tórax inválida.")
-    @DecimalMax(value = "200.00", message = "Medida de busto/tórax inválida.")
     private BigDecimal bustChestCm;
-
-    @DecimalMin(value = "30.00", message = "Medida de cintura inválida.")
-    @DecimalMax(value = "200.00", message = "Medida de cintura inválida.")
     private BigDecimal waistCm;
-
-    @DecimalMin(value = "30.00", message = "Medida de quadril inválida.")
-    @DecimalMax(value = "200.00", message = "Medida de quadril inválida.")
     private BigDecimal hipsCm;
-
     private String shoeSize;
     private String dressSize;
+    private String hairColor;
+    private String eyesColor;
 
     // Redes sociais e portfólio opcionais
     private String instagramHandle;
     private String portfolioUrl;
+    private Boolean lgpdConsent;
 
-    public String getFullName() {
-        return fullName;
+    public String getResolvedGuardianName() {
+        if (legalGuardianName != null && !legalGuardianName.isBlank()) return legalGuardianName.trim();
+        if (guardianName != null && !guardianName.isBlank()) return guardianName.trim();
+        return null;
+    }
+
+    public String getResolvedGuardianContact() {
+        if (legalGuardianContact != null && !legalGuardianContact.isBlank()) return legalGuardianContact.trim();
+        if (guardianPhone != null && !guardianPhone.isBlank()) return guardianPhone.trim();
+        if (guardianEmail != null && !guardianEmail.isBlank()) return guardianEmail.trim();
+        return null;
+    }
+
+    public void setGender(Object val) {
+        if (val instanceof GenderType gt) {
+            this.gender = gt;
+        } else if (val instanceof String s) {
+            String up = s.trim().toUpperCase();
+            if (up.contains("FEM") || up.equals("F")) {
+                this.gender = GenderType.FEMALE;
+            } else {
+                this.gender = GenderType.MALE;
+            }
+        }
     }
 }

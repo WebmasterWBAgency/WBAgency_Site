@@ -43,6 +43,7 @@ public class CandidateListItemAdminDto {
     // 🆕 FOTOS (agora enviadas tambem na LISTAGEM, nao so no detalhe!)
     private String coverPhoto;
     private String coverPhotoUrl;
+    private String firstPhotoUrl;
     private String facePhotoUrl;
     private String profilePhotoUrl;
     private String fullBodyPhotoUrl;

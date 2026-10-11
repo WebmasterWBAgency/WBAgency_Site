@@ -1,15 +1,16 @@
 package com.wbscouting.api.service.candidate;
 
 import com.wbscouting.api.config.MailProperties;
+import com.wbscouting.api.config.SupabaseProperties;
 import com.wbscouting.api.dto.CandidateApplicationDto;
 import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
 import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
-import com.wbscouting.api.entity.Candidate;
+import com.wbscouting.api.entity.Model;
 import com.wbscouting.api.enums.GenderType;
 import com.wbscouting.api.exception.InvalidApplicationException;
 import com.wbscouting.api.exception.StorageException;
-import com.wbscouting.api.repository.CandidatePhotoRepository;
-import com.wbscouting.api.repository.CandidateRepository;
+import com.wbscouting.api.repository.ModelMediaRepository;
+import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.email.EmailService;
 import com.wbscouting.api.service.storage.StorageService;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,10 +37,10 @@ import static org.mockito.Mockito.*;
 class CandidateApplicationServiceImplTest {
 
     @Mock
-    private CandidateRepository candidateRepository;
+    private ModelRepository modelRepository;
 
     @Mock
-    private CandidatePhotoRepository candidatePhotoRepository;
+    private ModelMediaRepository modelMediaRepository;
 
     @Mock
     private StorageService storageService;
@@ -49,6 +50,9 @@ class CandidateApplicationServiceImplTest {
 
     @Mock
     private MailProperties mailProperties;
+
+    @Mock
+    private SupabaseProperties supabaseProperties;
 
     @InjectMocks
     private CandidateApplicationServiceImpl candidateApplicationService;
@@ -80,6 +84,9 @@ class CandidateApplicationServiceImplTest {
                 new MockMultipartFile("photos", "photo2.png", "image/png", "fake-image-2".getBytes()),
                 new MockMultipartFile("photos", "photo3.webp", "image/webp", "fake-image-3".getBytes())
         );
+
+        lenient().when(supabaseProperties.resolveBucketCandidates()).thenReturn("candidates-uploads");
+        lenient().when(modelRepository.existsByProtocol(anyString())).thenReturn(false);
     }
 
     @Test
@@ -88,10 +95,10 @@ class CandidateApplicationServiceImplTest {
         when(mailProperties.getAgencyNotificationEmail()).thenReturn("agency@wbscouting.com");
 
         UUID generatedId = UUID.randomUUID();
-        when(candidateRepository.saveAndFlush(any(Candidate.class))).thenAnswer(invocation -> {
-            Candidate candidate = invocation.getArgument(0);
-            candidate.setId(generatedId);
-            return candidate;
+        when(modelRepository.saveAndFlush(any(Model.class))).thenAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.setId(generatedId);
+            return model;
         });
 
         when(storageService.getPublicUrl(anyString(), anyString())).thenReturn("https://supabase.co/storage/photo.jpg");
@@ -103,8 +110,8 @@ class CandidateApplicationServiceImplTest {
         assertThat(response.getMessage()).isEqualTo("Candidatura recebida com sucesso.");
         assertThat(response.getSubmittedAt()).isNotNull();
 
-        verify(candidateRepository, times(1)).saveAndFlush(any(Candidate.class));
-        verify(candidatePhotoRepository, times(1)).saveAll(anyList());
+        verify(modelRepository, times(1)).saveAndFlush(any(Model.class));
+        verify(modelMediaRepository, times(1)).saveAll(anyList());
         verify(storageService, times(3)).uploadFile(eq("candidates-uploads"), anyString(), any(MultipartFile.class));
         verify(emailService, times(1)).sendCandidateApplicationNotification(eq("agency@wbscouting.com"), any(CandidateApplicationDto.class));
     }
@@ -128,17 +135,17 @@ class CandidateApplicationServiceImplTest {
                 .build();
 
         UUID generatedId = UUID.randomUUID();
-        when(candidateRepository.saveAndFlush(any(Candidate.class))).thenAnswer(invocation -> {
-            Candidate candidate = invocation.getArgument(0);
-            candidate.setId(generatedId);
-            return candidate;
+        when(modelRepository.saveAndFlush(any(Model.class))).thenAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.setId(generatedId);
+            return model;
         });
 
         CandidateApplyResponseDto response = candidateApplicationService.apply(minorDto, validPhotos);
 
         assertThat(response).isNotNull();
         assertThat(response.getCandidateId()).isEqualTo(generatedId);
-        verify(candidateRepository, times(1)).saveAndFlush(any(Candidate.class));
+        verify(modelRepository, times(1)).saveAndFlush(any(Model.class));
     }
 
     @Test
@@ -161,7 +168,7 @@ class CandidateApplicationServiceImplTest {
                 .isInstanceOf(InvalidApplicationException.class)
                 .hasMessageContaining("Candidatos menores de 18 anos devem informar obrigatoriamente o nome e contato do responsável legal.");
 
-        verify(candidateRepository, never()).save(any());
+        verify(modelRepository, never()).save(any());
         verify(storageService, never()).uploadFile(anyString(), anyString(), any());
     }
 
@@ -185,7 +192,7 @@ class CandidateApplicationServiceImplTest {
     }
 
     @Test
-    @DisplayName("Deve falhar se quantidade de fotos for menor que 3 ou maior que 6")
+    @DisplayName("Deve falhar se quantidade de fotos for menor que 3 ou maior que 8")
     void shouldFailWhenInvalidPhotoCount() {
         List<MultipartFile> twoPhotos = List.of(
                 new MockMultipartFile("photos", "1.jpg", "image/jpeg", "1".getBytes()),
@@ -194,21 +201,23 @@ class CandidateApplicationServiceImplTest {
 
         assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, twoPhotos))
                 .isInstanceOf(InvalidApplicationException.class)
-                .hasMessageContaining("no mínimo 3 e no máximo 6 fotos");
+                .hasMessageContaining("no mínimo 3 e no máximo 8 fotos");
 
-        List<MultipartFile> sevenPhotos = List.of(
+        List<MultipartFile> ninePhotos = List.of(
                 new MockMultipartFile("photos", "1.jpg", "image/jpeg", "1".getBytes()),
                 new MockMultipartFile("photos", "2.jpg", "image/jpeg", "2".getBytes()),
                 new MockMultipartFile("photos", "3.jpg", "image/jpeg", "3".getBytes()),
                 new MockMultipartFile("photos", "4.jpg", "image/jpeg", "4".getBytes()),
                 new MockMultipartFile("photos", "5.jpg", "image/jpeg", "5".getBytes()),
                 new MockMultipartFile("photos", "6.jpg", "image/jpeg", "6".getBytes()),
-                new MockMultipartFile("photos", "7.jpg", "image/jpeg", "7".getBytes())
+                new MockMultipartFile("photos", "7.jpg", "image/jpeg", "7".getBytes()),
+                new MockMultipartFile("photos", "8.jpg", "image/jpeg", "8".getBytes()),
+                new MockMultipartFile("photos", "9.jpg", "image/jpeg", "9".getBytes())
         );
 
-        assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, sevenPhotos))
+        assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, ninePhotos))
                 .isInstanceOf(InvalidApplicationException.class)
-                .hasMessageContaining("no mínimo 3 e no máximo 6 fotos");
+                .hasMessageContaining("no mínimo 3 e no máximo 8 fotos");
     }
 
     @Test
@@ -243,10 +252,10 @@ class CandidateApplicationServiceImplTest {
     @DisplayName("Deve falhar e efetuar compensação (deleção no bucket) caso o upload falhe")
     void shouldCompensateStorageFilesWhenUploadFails() {
         UUID generatedId = UUID.randomUUID();
-        when(candidateRepository.saveAndFlush(any(Candidate.class))).thenAnswer(invocation -> {
-            Candidate candidate = invocation.getArgument(0);
-            candidate.setId(generatedId);
-            return candidate;
+        when(modelRepository.saveAndFlush(any(Model.class))).thenAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.setId(generatedId);
+            return model;
         });
 
         // Configura para que upload da primeira foto funcione e da segunda lance erro
@@ -259,7 +268,7 @@ class CandidateApplicationServiceImplTest {
                 .hasMessageContaining("Falha de conexão com Supabase Storage");
 
         // Verifica que se algum arquivo foi enviado antes do erro, a compensação chamou deleteFile
-        verify(candidatePhotoRepository, never()).saveAll(anyList());
+        verify(modelMediaRepository, never()).saveAll(anyList());
         verify(emailService, never()).sendCandidateApplicationNotification(anyString(), any());
     }
 }

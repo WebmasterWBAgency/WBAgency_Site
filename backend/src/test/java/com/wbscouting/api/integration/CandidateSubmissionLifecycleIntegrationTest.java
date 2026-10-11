@@ -1,10 +1,12 @@
 package com.wbscouting.api.integration;
 
-import com.wbscouting.api.entity.Candidate;
-import com.wbscouting.api.entity.CandidatePhoto;
-import com.wbscouting.api.enums.CandidateStatus;
-import com.wbscouting.api.repository.CandidatePhotoRepository;
-import com.wbscouting.api.repository.CandidateRepository;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
+import com.wbscouting.api.enums.GenderType;
+import com.wbscouting.api.enums.MediaType;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
+import com.wbscouting.api.repository.ModelMediaRepository;
+import com.wbscouting.api.repository.ModelRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,9 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,54 +27,58 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class CandidateSubmissionLifecycleIntegrationTest {
 
     @Autowired
-    private CandidateRepository candidateRepository;
+    private ModelRepository modelRepository;
 
     @Autowired
-    private CandidatePhotoRepository candidatePhotoRepository;
+    private ModelMediaRepository modelMediaRepository;
 
     @Test
     @Transactional
-    @DisplayName("Garante persistência atômica da candidatura canônica e fotos filhas sem violação de FK")
+    @DisplayName("Garante persistência atômica da candidatura canônica em Model e fotos filhas em ModelMedia sem violação de FK")
     void shouldPersistSubmissionAndPhotosWithoutFkViolation() {
-        // 1. Cria e persiste entidade pai canônica Candidate
-        Candidate candidate = new Candidate();
-        candidate.setFullName("Marina Silva");
-        candidate.setEmail("marina.test@example.com");
-        candidate.setPhone("+5511999998888");
-        candidate.setBirthDate(LocalDate.of(2000, 5, 20));
-        candidate.setAge(26);
-        candidate.setGender("FEMALE");
-        candidate.setCity("São Paulo");
-        candidate.setState("SP");
-        candidate.setHeightCm(BigDecimal.valueOf(178));
-        candidate.setStatus(CandidateStatus.PENDING);
-        candidate.setLgpdAccepted(true);
+        // 1. Cria e persiste entidade canônica Model como candidata
+        Model model = Model.builder()
+                .stageName("Marina Silva")
+                .fullName("Marina Silva")
+                .email("marina.test@example.com")
+                .phone("+5511999998888")
+                .birthDate(LocalDate.of(2000, 5, 20))
+                .age(26)
+                .gender(GenderType.FEMALE)
+                .city("São Paulo")
+                .state("SP")
+                .heightCm(178)
+                .status(TalentLifecycleStatus.APPLICANT_PENDING)
+                .lgpdAccepted(true)
+                .isActive(true)
+                .build();
 
-        Candidate savedCandidate = candidateRepository.saveAndFlush(candidate);
-        assertNotNull(savedCandidate.getId(), "ID do candidato persistido não pode ser nulo");
-        assertTrue(candidateRepository.existsById(savedCandidate.getId()), "Candidato pai deve existir no banco de dados");
+        Model savedModel = modelRepository.saveAndFlush(model);
+        assertNotNull(savedModel.getId(), "ID do modelo persistido não pode ser nulo");
+        assertTrue(modelRepository.existsById(savedModel.getId()), "Modelo pai deve existir no banco de dados");
 
-        // 2. Itera sobre uploads simulados e associa ao candidato persistido
-        List<CandidatePhoto> photoEntities = new ArrayList<>();
-        short position = 1;
+        // 2. Itera sobre uploads simulados e associa ao modelo persistido
+        List<ModelMedia> mediaEntities = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
-            String storagePath = "candidates/" + savedCandidate.getId() + "/photo_" + position + ".jpg";
-            CandidatePhoto photo = new CandidatePhoto();
-            photo.setCandidate(savedCandidate);
-            photo.setPhotoPosition(position++);
-            photo.setFileUrl("https://example.com/" + storagePath);
-            photo.setFilePath(storagePath);
-            photo.setStoragePath(storagePath);
-            photo.setDisplayOrder((int) position);
-            photo.setUploadedAt(OffsetDateTime.now());
-            photoEntities.add(photo);
+            String storagePath = "models/" + savedModel.getId() + "/photo_" + (i + 1) + ".jpg";
+            ModelMedia media = ModelMedia.builder()
+                    .model(savedModel)
+                    .mediaType(MediaType.BOOK)
+                    .fileUrl("https://example.com/" + storagePath)
+                    .filePath(storagePath)
+                    .displayOrder(i + 1)
+                    .isCover(i == 0)
+                    .isActive(true)
+                    .build();
+            mediaEntities.add(media);
         }
 
-        // 3. Salva fotos filhas vinculadas ao candidato
-        candidatePhotoRepository.saveAll(photoEntities);
+        // 3. Salva fotos filhas vinculadas ao modelo
+        modelMediaRepository.saveAll(mediaEntities);
 
         // 4. Valida integridade referencial e contagem
-        assertTrue(candidateRepository.existsById(savedCandidate.getId()), "Candidato pai deve continuar existindo");
-        assertEquals(3L, candidatePhotoRepository.countByCandidateId(savedCandidate.getId()), "Devem existir 3 fotos filhas associadas via FK ao candidato");
+        assertTrue(modelRepository.existsById(savedModel.getId()), "Modelo pai deve continuar existindo");
+        List<ModelMedia> loadedMedia = modelMediaRepository.findAllByModelIdOrderByDisplayOrderAsc(savedModel.getId());
+        assertEquals(3, loadedMedia.size(), "Devem existir 3 fotos filhas associadas via FK ao modelo");
     }
 }

@@ -83,28 +83,17 @@ public class SecurityConfig {
                         .requestMatchers("/submissions/**", "/api/v1/submissions/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/candidates/**", "/api/v1/candidates/**", "/public/candidates/**", "/api/v1/public/candidates/**", "/public/candidates/apply", "/api/v1/public/candidates/apply").permitAll()
 
-                        // Endpoints públicos da página Sobre Nós e leitura institucional (/sobre)
+                        // Endpoints públicos de conteúdos institucionais e páginas (/public/content/**, /site-contents/**)
                         .requestMatchers(HttpMethod.GET, "/api/v1/public/content/**", "/public/content/**").permitAll()
                         .requestMatchers(
-                                "/api/v1/public/institutional/about",
-                                "/public/institutional/about",
                                 "/api/v1/public/**",
                                 "/public/**"
                         ).permitAll()
 
-                        // Endpoints públicos de traduções (I18N / Translations)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/translations/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/translations").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/translations/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/translations").permitAll()
-
-                        // Endpoints públicos de leitura (Catálogo, Home, Destaques, Conteúdos, Contato, I18n, Storage Local)
+                        // Endpoints públicos de leitura (Catálogo, Conteúdos, Contato, I18n, Storage Local)
                         .requestMatchers(HttpMethod.GET, "/models/**", "/api/v1/models/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/featured-models/**", "/api/v1/featured-models/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/home-settings/**", "/api/v1/home-settings/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/site-contents/**", "/api/v1/site-contents/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/contact-channels/**", "/api/v1/contact-channels/**", "/api/v1/public/contact-channels/**", "/public/contact-channels/**", "/public/institutional/contact/**", "/api/v1/public/institutional/contact/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/i18n/**", "/api/v1/public/i18n/**", "/public/i18n/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/contact-channels/**", "/api/v1/contact-channels/**", "/api/v1/public/contact-channels/**", "/public/contact-channels/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/storage/local/**", "/api/v1/storage/local/**").permitAll()
 
                         // Endpoints de gestão de usuários restritos exclusivamente a WEBMASTER e SUPER_ADMIN (ADM-018)

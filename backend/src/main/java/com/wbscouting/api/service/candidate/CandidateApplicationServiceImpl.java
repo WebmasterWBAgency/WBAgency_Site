@@ -1,18 +1,21 @@
 package com.wbscouting.api.service.candidate;
 
 import com.wbscouting.api.config.MailProperties;
+import com.wbscouting.api.config.SupabaseProperties;
 import com.wbscouting.api.dto.CandidateApplicationDto;
 import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
 import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
-import com.wbscouting.api.entity.Candidate;
-import com.wbscouting.api.entity.CandidatePhoto;
-import com.wbscouting.api.enums.CandidateStatus;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
+import com.wbscouting.api.enums.GenderType;
+import com.wbscouting.api.enums.MediaType;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import com.wbscouting.api.exception.FileSizeExceededException;
 import com.wbscouting.api.exception.InvalidApplicationException;
 import com.wbscouting.api.exception.InvalidFileException;
 import com.wbscouting.api.exception.StorageException;
-import com.wbscouting.api.repository.CandidatePhotoRepository;
-import com.wbscouting.api.repository.CandidateRepository;
+import com.wbscouting.api.repository.ModelMediaRepository;
+import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.email.EmailService;
 import com.wbscouting.api.service.storage.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +27,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -38,10 +42,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RequiredArgsConstructor
 public class CandidateApplicationServiceImpl implements CandidateApplicationService {
 
-    public static final String BUCKET_CANDIDATES_UPLOADS = "candidates-uploads";
     public static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
     public static final int MIN_PHOTOS = 3;
-    public static final int MAX_PHOTOS = 6;
+    public static final int MAX_PHOTOS = 8;
 
     public static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
             "image/jpeg",
@@ -49,104 +52,127 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
             "image/webp"
     );
 
-    private final CandidateRepository candidateRepository;
-    private final CandidatePhotoRepository candidatePhotoRepository;
+    private static final String PROTOCOL_CHARSET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final int PROTOCOL_SUFFIX_LENGTH = 4;
+    private static final int MAX_PROTOCOL_ATTEMPTS = 10;
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    private final ModelRepository modelRepository;
+    private final ModelMediaRepository modelMediaRepository;
     private final StorageService storageService;
     private final EmailService emailService;
     private final MailProperties mailProperties;
+    private final SupabaseProperties supabaseProperties;
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public CandidateApplyResponseDto apply(CandidateApplyRequestDto requestDto, List<MultipartFile> photos) {
-        log.info("Iniciando processamento de nova candidatura pública para: {}", requestDto.getFullName());
+        log.info("Iniciando processamento de nova candidatura de talento: {}", requestDto.getFullName());
 
-        // 1. Validação estrutural de fotos (fail-fast antes de qualquer gravação ou upload)
+        // 1. Validação estrutural de fotos
         validatePhotos(photos);
 
         // 2. Validação de data de nascimento e menoridade
         int age = calculateAndValidateAge(requestDto);
+
+        // 3. Resolução de bucket de persistência
+        String bucket = resolveBucket();
 
         // Lista concorrente para controle de compensação (rollback de storage)
         List<String> uploadedPaths = new CopyOnWriteArrayList<>();
         List<UploadedPhoto> uploadedPhotos = new ArrayList<>();
 
         try {
-            // 3. Persistência atômica da ficha cadastral do candidato
-            Candidate candidate = mapToCandidateEntity(requestDto, age);
-            candidate = candidateRepository.saveAndFlush(candidate);
-            final UUID candidateId = candidate.getId();
-            log.info("Ficha de candidato salva com ID={}. Iniciando upload concorrente de {} fotos...",
-                    candidateId, photos.size());
+            // 4. Geração de protocolo único
+            String protocol = generateUniqueProtocol();
 
-            // 4. Upload concorrente das fotografias para o bucket privado 'candidates-uploads'
+            // 5. Persistência atômica do talento na entidade canônica Model
+            Model model = mapToModelEntity(requestDto, age, protocol);
+            model = modelRepository.saveAndFlush(model);
+            final UUID modelId = model.getId();
+            log.info("Candidatura persistida em models com ID={} e protocolo={}. Iniciando upload de {} fotos...",
+                    modelId, protocol, photos.size());
+
+            // 6. Upload concorrente das fotografias para o storage
             List<CompletableFuture<UploadedPhoto>> uploadFutures = new ArrayList<>();
             for (int i = 0; i < photos.size(); i++) {
                 final int displayOrder = i + 1;
                 final MultipartFile file = photos.get(i);
                 final String sanitizedFilename = sanitizeFilename(file.getOriginalFilename());
-                final String storagePath = String.format("%s/%s-%s", candidateId, UUID.randomUUID(), sanitizedFilename);
+                final String storagePath = String.format("%s/%s-%s", modelId, UUID.randomUUID(), sanitizedFilename);
 
                 uploadFutures.add(CompletableFuture.supplyAsync(() -> {
                     log.debug("Executando upload de foto ordem={} para path='{}'", displayOrder, storagePath);
-                    storageService.uploadFile(BUCKET_CANDIDATES_UPLOADS, storagePath, file);
+                    storageService.uploadFile(bucket, storagePath, file);
                     uploadedPaths.add(storagePath);
-                    return new UploadedPhoto(displayOrder, storagePath);
+                    String publicUrl = storageService.getPublicUrl(bucket, storagePath);
+                    return new UploadedPhoto(displayOrder, storagePath, publicUrl);
                 }));
             }
 
-            // Aguarda a conclusão de todos os uploads assíncronos
+            // Aguarda a conclusão dos uploads
             CompletableFuture.allOf(uploadFutures.toArray(new CompletableFuture[0])).join();
 
             for (CompletableFuture<UploadedPhoto> future : uploadFutures) {
                 uploadedPhotos.add(future.join());
             }
 
-            // Ordena as fotos pelo índice de exibição
+            // Ordena as fotos pela ordem de exibição
             uploadedPhotos.sort(Comparator.comparingInt(UploadedPhoto::displayOrder));
 
-            // 5. Persistência dos registros das fotos na tabela 'candidate_photos'
-            List<CandidatePhoto> photoEntities = new ArrayList<>();
-            for (UploadedPhoto upload : uploadedPhotos) {
-                CandidatePhoto photoEntity = CandidatePhoto.builder()
-                        .candidate(candidate)
-                        .storagePath(upload.storagePath())
-                        .displayOrder(upload.displayOrder())
-                        .photoPosition((short) upload.displayOrder())
+            // 7. Persistência dos registros das fotos na entidade canônica ModelMedia
+            List<ModelMedia> mediaEntities = new ArrayList<>();
+            for (int i = 0; i < uploadedPhotos.size(); i++) {
+                UploadedPhoto upload = uploadedPhotos.get(i);
+                boolean isCover = (i == 0);
+                ModelMedia media = ModelMedia.builder()
+                        .model(model)
+                        .mediaType(MediaType.BOOK)
                         .filePath(upload.storagePath())
-                        .fileUrl(storageService.getPublicUrl(BUCKET_CANDIDATES_UPLOADS, upload.storagePath()))
+                        .fileUrl(upload.publicUrl())
+                        .displayOrder(upload.displayOrder())
+                        .isCover(isCover)
+                        .isActive(true)
                         .build();
-                photoEntities.add(photoEntity);
+                mediaEntities.add(media);
             }
-            candidatePhotoRepository.saveAll(photoEntities);
-            candidate.setPhotos(photoEntities);
 
-            // 6. Registro de envio de e-mail assíncrono pós-commit da transação
-            CandidateApplicationDto applicationDto = CandidateApplicationDto.fromEntity(candidate);
+            modelMediaRepository.saveAll(mediaEntities);
+
+            // Sincroniza foto de capa primária no modelo
+            if (!uploadedPhotos.isEmpty()) {
+                model.setPrimaryPhotoUrl(uploadedPhotos.get(0).publicUrl());
+                modelRepository.save(model);
+            }
+
+            // 8. Notificação por e-mail assíncrona pós-commit
+            CandidateApplicationDto applicationDto = CandidateApplicationDto.fromModel(model);
             String agencyEmail = mailProperties.getAgencyNotificationEmail();
             schedulePostCommitEmail(agencyEmail, applicationDto);
 
-            log.info("Candidatura concluída com sucesso para ID={}. Protocolo emitido.", candidateId);
+            log.info("Candidatura concluída com sucesso para ID={} Protocolo={}", modelId, protocol);
 
             return CandidateApplyResponseDto.builder()
-                    .candidateId(candidateId)
+                    .candidateId(modelId)
+                    .id(modelId)
+                    .protocol(protocol)
+                    .status("PENDING")
                     .message("Candidatura recebida com sucesso.")
                     .submittedAt(Instant.now())
                     .build();
 
         } catch (Exception ex) {
             log.error("Erro detectado durante submissão da candidatura. Iniciando compensação de arquivos no storage...", ex);
-            compensateUploadedFiles(uploadedPaths);
+            compensateUploadedFiles(bucket, uploadedPaths);
 
             Throwable root = (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
-            
-            // Mensagem amigavel: pega getMessage() com FALLBACK se for null (ex: NPE sem mensagem)
+
             String motivo = (root.getMessage() != null && !root.getMessage().isBlank())
                     ? root.getMessage()
                     : "Erro interno ao processar a candidatura. Contate a equipe.";
 
             if (root instanceof InvalidApplicationException iae) {
-                // InvalidApplicationException extends IllegalArgumentException? SE SIM: deixa passar, ja tem handler.
-                // SE NAO: converter para IllegalArgumentException (o handler global ja existe → HTTP 400 detail)
                 throw iae;
             }
             if (root instanceof InvalidFileException ife) {
@@ -156,15 +182,11 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                 throw fse;
             }
             if (root instanceof StorageException se) {
-                // StorageException NAO TEM handler no GlobalExceptionHandler → convertemos para IllegalArgumentException
-                // (mesmo padrao do composite upload que resolveu o 500 generico de PDF!)
-                log.warn("[APPLY CANDIDATURA] StorageException convertida para IllegalArgumentException para HTTP 400 amigavel. Motivo original: {}. Detalhes: {}", motivo, se.getMessage());
+                log.warn("[APPLY] StorageException convertida para IllegalArgumentException: {}", se.getMessage());
                 throw new IllegalArgumentException("Não foi possível concluir a candidatura. " + motivo);
             }
-            // QUALQUER outra excecao (NPE, SQLException, RLS Supabase, IllegalArgumentException etc):
-            // CONVERTE PARA IllegalArgumentException sempre → handler global garante HTTP 400 SEMPRE (nunca 500 generico)
-            log.warn("[APPLY CANDIDATURA] Excecao generica convertida para IllegalArgumentException. Classe: {}. Motivo: {}",
-                    root.getClass().getSimpleName(), motivo);
+
+            log.warn("[APPLY] Excecao genérica convertida para IllegalArgumentException: {}", motivo);
             throw new IllegalArgumentException("Não foi possível concluir a candidatura. " + motivo);
         }
     }
@@ -214,10 +236,10 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
         }
 
         if (age < 18) {
-            boolean hasGuardianName = StringUtils.hasText(dto.getLegalGuardianName());
-            boolean hasGuardianContact = StringUtils.hasText(dto.getLegalGuardianContact());
+            boolean hasGuardian = StringUtils.hasText(dto.getResolvedGuardianName());
+            boolean hasContact = StringUtils.hasText(dto.getResolvedGuardianContact());
 
-            if (!hasGuardianName || !hasGuardianContact) {
+            if (!hasGuardian || !hasContact) {
                 throw new InvalidApplicationException(
                         "Candidatos menores de 18 anos devem informar obrigatoriamente o nome e contato do responsável legal."
                 );
@@ -227,30 +249,71 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
         return age;
     }
 
-    private Candidate mapToCandidateEntity(CandidateApplyRequestDto dto, int age) {
-        return Candidate.builder()
+    private Model mapToModelEntity(CandidateApplyRequestDto dto, int age, String protocol) {
+        GenderType gender = dto.getGender() != null ? dto.getGender() : GenderType.FEMALE;
+
+        return Model.builder()
+                .stageName(dto.getFullName().trim())
                 .fullName(dto.getFullName().trim())
+                .protocol(protocol)
                 .email(dto.getEmail().trim().toLowerCase())
                 .phone(dto.getPhone().trim())
                 .birthDate(dto.getBirthDate())
                 .age(age)
-                .gender(dto.getGender().name())
-                .heightCm(BigDecimal.valueOf(dto.getHeightCm()))
+                .gender(gender)
+                .heightCm(dto.getHeightCm())
+                .weightKg(dto.getWeightKg())
                 .city(dto.getCity().trim())
                 .state(dto.getState().trim())
-                .legalGuardianName(StringUtils.hasText(dto.getLegalGuardianName()) ? dto.getLegalGuardianName().trim() : null)
-                .legalGuardianContact(StringUtils.hasText(dto.getLegalGuardianContact()) ? dto.getLegalGuardianContact().trim() : null)
-                .guardianName(StringUtils.hasText(dto.getLegalGuardianName()) ? dto.getLegalGuardianName().trim() : null)
                 .bustChestCm(dto.getBustChestCm())
                 .waistCm(dto.getWaistCm())
                 .hipsCm(dto.getHipsCm())
-                .shoeSize(dto.getShoeSize())
                 .dressSize(dto.getDressSize())
-                .instagramHandle(dto.getInstagramHandle())
-                .portfolioUrl(dto.getPortfolioUrl())
-                .status(CandidateStatus.PENDING)
+                .shoeSize(dto.getShoeSize())
+                .hairColor(dto.getHairColor())
+                .eyesColor(dto.getEyesColor())
+                .instagramUrl(dto.getInstagramHandle())
+                .legalGuardianName(dto.getResolvedGuardianName())
+                .legalGuardianContact(dto.getResolvedGuardianContact())
+                .status(TalentLifecycleStatus.APPLICANT_PENDING)
                 .lgpdAccepted(true)
+                .isActive(true)
+                .isStar(false)
+                .isFeaturedHome(false)
                 .build();
+    }
+
+    private String generateUniqueProtocol() {
+        String datePart = LocalDate.now().format(DATE_FORMATTER);
+        int attempts = 0;
+        while (attempts < MAX_PROTOCOL_ATTEMPTS) {
+            String candidate = String.format("WB-%s-%s", datePart, generateRandomSuffix());
+            if (!modelRepository.existsByProtocol(candidate)) {
+                return candidate;
+            }
+            attempts++;
+            log.warn("[PROTOCOL] Tentativa {} - protocolo '{}' já existe. Regenerando...", attempts, candidate);
+        }
+        return String.format("WB-%s-%06d", datePart, RANDOM.nextInt(1000000));
+    }
+
+    private String generateRandomSuffix() {
+        StringBuilder sb = new StringBuilder(PROTOCOL_SUFFIX_LENGTH);
+        final int size = PROTOCOL_CHARSET.length();
+        for (int i = 0; i < PROTOCOL_SUFFIX_LENGTH; i++) {
+            sb.append(PROTOCOL_CHARSET.charAt(RANDOM.nextInt(size)));
+        }
+        return sb.toString();
+    }
+
+    private String resolveBucket() {
+        if (supabaseProperties != null) {
+            String bucket = supabaseProperties.resolveBucketCandidates();
+            if (StringUtils.hasText(bucket)) {
+                return bucket;
+            }
+        }
+        return "models-media";
     }
 
     private void schedulePostCommitEmail(String agencyEmail, CandidateApplicationDto applicationDto) {
@@ -263,7 +326,7 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    log.info("Transação confirmada com sucesso no banco. Disparando notificação assíncrona para: {}", agencyEmail);
+                    log.info("Transação confirmada no banco. Disparando notificação para: {}", agencyEmail);
                     emailService.sendCandidateApplicationNotification(agencyEmail, applicationDto);
                 }
             });
@@ -272,14 +335,14 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
         }
     }
 
-    private void compensateUploadedFiles(List<String> uploadedPaths) {
+    private void compensateUploadedFiles(String bucket, List<String> uploadedPaths) {
         for (String path : uploadedPaths) {
             try {
-                log.info("Compensação: deletando arquivo órfão do bucket '{}', path='{}'", BUCKET_CANDIDATES_UPLOADS, path);
-                storageService.deleteFile(BUCKET_CANDIDATES_UPLOADS, path);
+                log.info("Compensação: deletando arquivo órfão do bucket '{}', path='{}'", bucket, path);
+                storageService.deleteFile(bucket, path);
             } catch (Exception ex) {
                 log.warn("Falha na compensação de deleção do arquivo '{}' no bucket '{}': {}",
-                        path, BUCKET_CANDIDATES_UPLOADS, ex.getMessage());
+                        path, bucket, ex.getMessage());
             }
         }
     }
@@ -294,5 +357,5 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
         return sanitized.isEmpty() ? "photo.jpg" : sanitized;
     }
 
-    private record UploadedPhoto(int displayOrder, String storagePath) {}
+    private record UploadedPhoto(int displayOrder, String storagePath, String publicUrl) {}
 }

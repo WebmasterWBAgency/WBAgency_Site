@@ -6,7 +6,6 @@ import com.wbscouting.api.dto.publicapi.ContactChannelsPublicDto;
 import com.wbscouting.api.entity.SiteContent;
 import com.wbscouting.api.repository.SiteContentRepository;
 import com.wbscouting.api.service.content.ContactChannelsService;
-import com.wbscouting.api.service.content.I18nDictionaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 public class PublicContactController {
 
     private final ContactChannelsService contactChannelsService;
-    private final I18nDictionaryService i18nDictionaryService;
     private final SiteContentRepository siteContentRepository;
 
     @GetMapping({"/api/v1/public/contact-channels", "/public/contact-channels"})
@@ -58,7 +56,18 @@ public class PublicContactController {
     public ResponseEntity<Map<String, Object>> getDictionary(
             @PathVariable("lang") String lang) {
 
-        Map<String, Object> dictionary = i18nDictionaryService.getDictionary(lang);
+        boolean isEn = "en".equalsIgnoreCase(lang != null ? lang.trim() : "pt");
+        Map<String, Object> dictionary = new LinkedHashMap<>();
+
+        List<SiteContent> all = siteContentRepository.findAll();
+        for (SiteContent sc : all) {
+            Map<String, Object> payload = isEn
+                    ? (sc.getPayloadEn() != null && !sc.getPayloadEn().isEmpty() ? sc.getPayloadEn() : sc.getPayloadPt())
+                    : (sc.getPayloadPt() != null && !sc.getPayloadPt().isEmpty() ? sc.getPayloadPt() : sc.getPayloadEn());
+            if (payload != null) {
+                dictionary.put(sc.getSectionKey(), payload);
+            }
+        }
 
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(300, TimeUnit.SECONDS).cachePublic())

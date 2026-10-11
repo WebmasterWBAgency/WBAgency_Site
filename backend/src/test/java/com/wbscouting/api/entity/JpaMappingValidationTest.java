@@ -1,6 +1,8 @@
 package com.wbscouting.api.entity;
 
-import com.wbscouting.api.enums.CandidateStatus;
+import com.wbscouting.api.enums.GenderType;
+import com.wbscouting.api.enums.MediaType;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.DisplayName;
@@ -9,9 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,49 +26,55 @@ class JpaMappingValidationTest {
     private EntityManagerFactory entityManagerFactory;
 
     @Test
-    @DisplayName("DoD: EntityManagerFactory inicializa com sucesso e mapeamento bidirecional funciona sem divergência de mappedBy na entidade canônica Candidate")
-    void shouldInitializeEntityManagerFactoryAndPersistCandidateSubmissionWithPhotos() {
+    @DisplayName("DoD: EntityManagerFactory inicializa com sucesso e mapeamento bidirecional funciona sem divergência de mappedBy na entidade canônica Model e ModelMedia")
+    void shouldInitializeEntityManagerFactoryAndPersistModelWithMedia() {
         assertThat(entityManagerFactory).isNotNull();
         assertThat(entityManagerFactory.isOpen()).isTrue();
 
-        // Cria a entidade canônica Candidate
-        Candidate candidate = Candidate.builder()
+        // Cria a entidade canônica Model
+        Model model = Model.builder()
                 .protocol("WB-20261010-TEST")
+                .stageName("Isabeli Fontana")
                 .fullName("Isabeli Fontana")
                 .email("isabeli@agency.com")
                 .phone("+55 41 99999-8888")
                 .birthDate(LocalDate.of(1983, 7, 4))
                 .age(23)
-                .gender("FEMALE")
+                .gender(GenderType.FEMALE)
                 .city("Curitiba")
                 .state("PR")
-                .heightCm(BigDecimal.valueOf(177))
-                .status(CandidateStatus.PENDING)
+                .heightCm(177)
+                .status(TalentLifecycleStatus.APPLICANT_PENDING)
                 .lgpdAccepted(true)
+                .isActive(true)
                 .build();
 
-        // Foto 1
-        CandidatePhoto photo1 = new CandidatePhoto();
-        photo1.setCandidate(candidate);
-        photo1.setStoragePath("submissions/test/face.jpg");
-        photo1.setFilePath("submissions/test/face.jpg");
-        photo1.setFileUrl("https://example.com/face.jpg");
-        photo1.setDisplayOrder(1);
-        photo1.setPhotoPosition((short) 1);
+        entityManager.persist(model);
 
-        candidate.addPhoto(photo1);
+        // Media 1
+        ModelMedia media1 = ModelMedia.builder()
+                .model(model)
+                .mediaType(MediaType.POLAROID)
+                .filePath("models/test/face.jpg")
+                .fileUrl("https://example.com/face.jpg")
+                .displayOrder(1)
+                .isCover(true)
+                .isActive(true)
+                .build();
 
-        entityManager.persist(candidate);
+        entityManager.persist(media1);
         entityManager.flush();
         entityManager.clear();
 
         // Carrega do banco e valida persistência e mapeamento
-        Candidate reloaded = entityManager.find(Candidate.class, candidate.getId());
+        Model reloaded = entityManager.find(Model.class, model.getId());
         assertThat(reloaded).isNotNull();
         assertThat(reloaded.getFullName()).isEqualTo("Isabeli Fontana");
-        assertThat(reloaded.getStatus()).isEqualTo(CandidateStatus.PENDING);
-        assertThat(reloaded.getPhotos()).hasSize(1);
-        assertThat(reloaded.getPhotos().get(0).getCandidate().getId()).isEqualTo(candidate.getId());
-        assertThat(reloaded.getPhotos().get(0).getStoragePath()).isEqualTo("submissions/test/face.jpg");
+        assertThat(reloaded.getStatus()).isEqualTo(TalentLifecycleStatus.APPLICANT_PENDING);
+
+        ModelMedia reloadedMedia = entityManager.find(ModelMedia.class, media1.getId());
+        assertThat(reloadedMedia).isNotNull();
+        assertThat(reloadedMedia.getModel().getId()).isEqualTo(model.getId());
+        assertThat(reloadedMedia.getFilePath()).isEqualTo("models/test/face.jpg");
     }
 }

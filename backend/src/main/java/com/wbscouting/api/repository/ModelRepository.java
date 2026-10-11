@@ -146,6 +146,12 @@ public interface ModelRepository extends JpaRepository<Model, UUID>, JpaSpecific
     // ========================================================================
     @EntityGraph(attributePaths = {"media"})
     Optional<Model> findByIdAndIsActiveTrue(UUID id);
+
+    boolean existsByProtocol(String protocol);
+
+    Optional<Model> findByProtocol(String protocol);
+
+    long countByStatus(com.wbscouting.api.enums.TalentLifecycleStatus status);
 }
 
 

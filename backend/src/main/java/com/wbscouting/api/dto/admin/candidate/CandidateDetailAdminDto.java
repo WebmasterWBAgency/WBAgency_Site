@@ -29,6 +29,7 @@ public class CandidateDetailAdminDto {
     private Integer age;
     private Boolean isMinor;
     private String guardianName;
+    private String legalGuardianName;
     private String legalGuardianContact;
     private String gender;
     private BigDecimal heightCm;
@@ -47,6 +48,7 @@ public class CandidateDetailAdminDto {
     private String internalNotes;
     private Boolean lgpdAccepted;
     private OffsetDateTime lgpdAcceptedAt;
+    private UUID convertedToModelId;
 
     @Builder.Default
     private List<CandidatePhotoSignedDto> photos = new ArrayList<>();

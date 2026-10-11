@@ -242,7 +242,16 @@ public class ModelMediaServiceImpl implements ModelMediaService {
         ModelMedia targetMedia = modelMediaRepository.findByIdAndModelId(mediaId, modelId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mídia", "id", mediaId));
 
-        // 1. Reseta is_cover = false para todas as mídias do modelo
+        if (targetMedia.getMediaType() != null && targetMedia.getMediaType() != MediaType.BOOK) {
+            throw new IllegalArgumentException("Apenas mídias do tipo BOOK podem ser marcadas como capa.");
+        }
+
+        modelMediaRepository.findByModelIdAndIsCoverTrue(modelId).ifPresent(oldCover -> {
+            oldCover.setIsCover(false);
+            modelMediaRepository.save(oldCover);
+        });
+
+        // 1. Reseta is_cover = false para todas as mídias do modelo no banco
         modelMediaRepository.resetCovers(modelId);
 
         // 2. Define is_cover = true na mídia selecionada

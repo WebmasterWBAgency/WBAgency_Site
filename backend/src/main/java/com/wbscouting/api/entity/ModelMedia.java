@@ -81,6 +81,9 @@ public class ModelMedia {
     public String getFileUrl() { return this.fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
 
+    public String getMediaUrl() { return this.fileUrl; }
+    public void setMediaUrl(String mediaUrl) { this.fileUrl = mediaUrl; }
+
     public String getFilePath() { return this.filePath; }
     public void setFilePath(String filePath) { this.filePath = filePath; }
 

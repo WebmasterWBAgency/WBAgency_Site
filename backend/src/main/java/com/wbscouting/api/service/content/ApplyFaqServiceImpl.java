@@ -5,10 +5,10 @@ import com.wbscouting.api.dto.ApplyFaqDto;
 import com.wbscouting.api.dto.ApplyFaqReorderDto;
 import com.wbscouting.api.dto.ApplyHeaderDto;
 import com.wbscouting.api.entity.ApplyFaq;
-import com.wbscouting.api.entity.InstitutionalSetting;
+import com.wbscouting.api.entity.SiteContent;
 import com.wbscouting.api.exception.ResourceNotFoundException;
 import com.wbscouting.api.repository.ApplyFaqRepository;
-import com.wbscouting.api.repository.InstitutionalSettingRepository;
+import com.wbscouting.api.repository.SiteContentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,8 +29,7 @@ public class ApplyFaqServiceImpl implements ApplyFaqService {
     public static final String DEFAULT_DESCRIPTION = "Se você deseja fazer parte do casting da WB Agency, atenção para as informações abaixo: preencha o formulário e envie suas fotos para realizarmos a avaliação digital.";
 
     private final ApplyFaqRepository applyFaqRepository;
-    private final InstitutionalSettingRepository institutionalSettingRepository;
-    private final com.wbscouting.api.repository.SiteContentRepository siteContentRepository;
+    private final SiteContentRepository siteContentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -73,12 +72,18 @@ public class ApplyFaqServiceImpl implements ApplyFaqService {
     @Transactional(readOnly = true)
     public ApplyHeaderDto getPublicApplyHeader() {
         try {
-            return institutionalSettingRepository.findBySettingKey(APPLY_HEADER_KEY)
-                    .map(s -> ApplyHeaderDto.builder()
-                            .title(s.getTitle() != null && !s.getTitle().isBlank() ? s.getTitle() : DEFAULT_TITLE)
-                            .subtitle(s.getSubtitle() != null && !s.getSubtitle().isBlank() ? s.getSubtitle() : DEFAULT_SUBTITLE)
-                            .description(s.getDescription() != null && !s.getDescription().isBlank() ? s.getDescription() : DEFAULT_DESCRIPTION)
-                            .build())
+            return siteContentRepository.findBySectionKey(APPLY_HEADER_KEY)
+                    .map(sc -> {
+                        Map<String, Object> payload = sc.getPayloadPt() != null ? sc.getPayloadPt() : Collections.emptyMap();
+                        String t = (String) payload.getOrDefault("title", DEFAULT_TITLE);
+                        String s = (String) payload.getOrDefault("subtitle", DEFAULT_SUBTITLE);
+                        String d = (String) payload.getOrDefault("description", DEFAULT_DESCRIPTION);
+                        return ApplyHeaderDto.builder()
+                                .title(t != null && !t.isBlank() ? t : DEFAULT_TITLE)
+                                .subtitle(s != null && !s.isBlank() ? s : DEFAULT_SUBTITLE)
+                                .description(d != null && !d.isBlank() ? d : DEFAULT_DESCRIPTION)
+                                .build();
+                    })
                     .orElseGet(this::getDefaultHeader);
         } catch (Exception e) {
             log.warn("Erro ao buscar cabeçalho de candidatura no banco de dados, ativando fallback: {}", e.getMessage());
@@ -406,22 +411,27 @@ public class ApplyFaqServiceImpl implements ApplyFaqService {
     @Override
     @Transactional
     public ApplyHeaderDto updateApplyHeader(ApplyHeaderDto dto) {
-        InstitutionalSetting setting = institutionalSettingRepository.findBySettingKey(APPLY_HEADER_KEY)
-                .orElseGet(() -> InstitutionalSetting.builder()
-                        .settingKey(APPLY_HEADER_KEY)
-                        .build());
+        String title = dto.getTitle() != null && !dto.getTitle().isBlank() ? dto.getTitle().trim() : DEFAULT_TITLE;
+        String subtitle = dto.getSubtitle() != null && !dto.getSubtitle().isBlank() ? dto.getSubtitle().trim() : DEFAULT_SUBTITLE;
+        String description = dto.getDescription() != null && !dto.getDescription().isBlank() ? dto.getDescription().trim() : DEFAULT_DESCRIPTION;
 
-        setting.setTitle(dto.getTitle() != null && !dto.getTitle().isBlank() ? dto.getTitle().trim() : DEFAULT_TITLE);
-        setting.setSubtitle(dto.getSubtitle() != null && !dto.getSubtitle().isBlank() ? dto.getSubtitle().trim() : DEFAULT_SUBTITLE);
-        setting.setDescription(dto.getDescription() != null && !dto.getDescription().isBlank() ? dto.getDescription().trim() : DEFAULT_DESCRIPTION);
+        SiteContent content = siteContentRepository.findBySectionKey(APPLY_HEADER_KEY)
+                .orElseGet(() -> SiteContent.builder().sectionKey(APPLY_HEADER_KEY).build());
 
-        InstitutionalSetting saved = institutionalSettingRepository.save(setting);
-        log.info("Cabeçalho de candidatura institucional atualizado com sucesso");
+        Map<String, Object> payload = content.getPayloadPt() != null ? new LinkedHashMap<>(content.getPayloadPt()) : new LinkedHashMap<>();
+        payload.put("title", title);
+        payload.put("subtitle", subtitle);
+        payload.put("description", description);
+
+        content.setPayloadPt(payload);
+        content.setUpdatedAt(OffsetDateTime.now());
+        siteContentRepository.save(content);
+        log.info("Cabeçalho de candidatura institucional atualizado com sucesso em site_contents");
 
         return ApplyHeaderDto.builder()
-                .title(saved.getTitle())
-                .subtitle(saved.getSubtitle())
-                .description(saved.getDescription())
+                .title(title)
+                .subtitle(subtitle)
+                .description(description)
                 .build();
     }
 

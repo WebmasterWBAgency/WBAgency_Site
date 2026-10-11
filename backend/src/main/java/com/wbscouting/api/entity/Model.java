@@ -249,5 +249,45 @@ public class Model {
 
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    // ============================================================
+    // 🔥 ALIASES DE CONVENIÊNCIA CANÔNICOS (compatibilidade universal)
+    // ============================================================
+    public String getName() { return this.stageName != null ? this.stageName : this.fullName; }
+    public void setName(String name) { this.stageName = name; if (this.fullName == null) this.fullName = name; }
+
+    public Integer getHeight() { return this.heightCm; }
+    public void setHeight(Integer height) { this.heightCm = height; }
+
+    public BigDecimal getBust() { return this.bustChestCm; }
+    public void setBust(BigDecimal bust) { this.bustChestCm = bust; }
+
+    public BigDecimal getWaist() { return this.waistCm; }
+    public void setWaist(BigDecimal waist) { this.waistCm = waist; }
+
+    public BigDecimal getHips() { return this.hipsCm; }
+    public void setHips(BigDecimal hips) { this.hipsCm = hips; }
+
+    public Integer getShoes() {
+        if (this.shoeSize == null) return null;
+        try {
+            return Integer.parseInt(this.shoeSize.replaceAll("\\D", ""));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    public void setShoes(Integer shoes) { this.shoeSize = shoes != null ? shoes.toString() : null; }
+
+    public String getInstagram() { return this.instagramUrl; }
+    public void setInstagram(String instagram) { this.instagramUrl = instagram; }
+
+    public String getGuardianName() { return this.legalGuardianName; }
+    public void setGuardianName(String name) { this.legalGuardianName = name; }
+
+    public String getGuardianPhone() { return this.legalGuardianContact; }
+    public void setGuardianPhone(String phone) { this.legalGuardianContact = phone; }
+
+    public String getGuardianEmail() { return null; }
+    public void setGuardianEmail(String email) {}
 }
 

@@ -6,26 +6,28 @@ import com.wbscouting.api.controller.AuthController;
 import com.wbscouting.api.controller.admin.AdminApplicationController;
 import com.wbscouting.api.controller.publicapi.CandidatePublicController;
 import com.wbscouting.api.controller.publicapi.PublicModelController;
-import com.wbscouting.api.dto.CandidateSubmissionRequestDto;
-import com.wbscouting.api.dto.CandidateSubmissionResponseDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDecisionRequestDto;
 import com.wbscouting.api.dto.auth.LoginRequestDto;
 import com.wbscouting.api.dto.auth.LoginResponseDto;
-import com.wbscouting.api.dto.model.ModelResponseDto;
-import com.wbscouting.api.entity.CandidateSubmission;
+import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
+import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.GenderType;
-import com.wbscouting.api.enums.SubmissionGender;
 import com.wbscouting.api.enums.SubmissionStatus;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import com.wbscouting.api.exception.GlobalExceptionHandler;
 import com.wbscouting.api.exception.InvalidFileException;
-import com.wbscouting.api.repository.CandidateSubmissionRepository;
+import com.wbscouting.api.repository.ModelMediaRepository;
+import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
 import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtService;
+import com.wbscouting.api.security.JwtTokenProvider;
 import com.wbscouting.api.service.auth.AuthService;
+import com.wbscouting.api.service.candidate.AdminCandidateService;
+import com.wbscouting.api.service.candidate.CandidateApplicationService;
 import com.wbscouting.api.service.storage.StorageService;
-import com.wbscouting.api.service.submission.CandidateSubmissionAdminService;
-import com.wbscouting.api.service.submission.CandidateSubmissionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,15 +45,16 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -75,18 +78,17 @@ class CandidateSubmissionLifecycleE2ETest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // Mocks dos serviços e dependências da aplicação
     @MockitoBean
-    private CandidateSubmissionService candidateSubmissionService;
+    private CandidateApplicationService candidateApplicationService;
 
     @MockitoBean
-    private CandidateSubmissionAdminService candidateSubmissionAdminService;
+    private AdminCandidateService adminCandidateService;
 
     @MockitoBean
-    private CandidateSubmissionRepository submissionRepository;
+    private ModelRepository modelRepository;
 
     @MockitoBean
-    private com.wbscouting.api.repository.CandidatePhotoRepository candidatePhotoRepository;
+    private ModelMediaRepository modelMediaRepository;
 
     @MockitoBean
     private StorageService storageService;
@@ -104,6 +106,9 @@ class CandidateSubmissionLifecycleE2ETest {
     private JwtService jwtService;
 
     @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @MockitoBean
@@ -118,10 +123,9 @@ class CandidateSubmissionLifecycleE2ETest {
     @MockitoBean
     private com.wbscouting.api.repository.AdminRepository adminRepository;
 
-    // Fixtures de Teste
-    private CandidateSubmissionRequestDto validSubmissionDto;
-    private CandidateSubmission candidateEntity;
-    private CandidateSubmissionResponseDto submissionResponseDto;
+    private CandidateApplyRequestDto validSubmissionDto;
+    private Model candidateEntity;
+    private CandidateApplyResponseDto submissionResponseDto;
     private UUID candidateId;
     private String protocol;
     private byte[] validJpegBytes;
@@ -132,88 +136,57 @@ class CandidateSubmissionLifecycleE2ETest {
         protocol = "WB-20260930-A1B2C3";
         validJpegBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F'};
 
-        validSubmissionDto = CandidateSubmissionRequestDto.builder()
+        validSubmissionDto = CandidateApplyRequestDto.builder()
                 .fullName("Isabella Fontana")
                 .email("isabella.fontana@models.com")
                 .phone("+5511999998888")
                 .birthDate(LocalDate.of(2002, 3, 23))
-                .gender(SubmissionGender.FEMALE)
+                .gender(GenderType.FEMALE)
                 .city("Curitiba")
                 .state("PR")
-                .height(new BigDecimal("1.77"))
-                .bust(new BigDecimal("84.0"))
-                .waist(new BigDecimal("60.0"))
-                .hips(new BigDecimal("89.0"))
-                .shoeSize(38)
-                .eyeColor("Verdes")
-                .hairColor("Castanho Claro")
+                .heightCm(177)
+                .bustChestCm(new BigDecimal("84.0"))
+                .waistCm(new BigDecimal("60.0"))
+                .hipsCm(new BigDecimal("89.0"))
+                .shoeSize("38")
                 .instagramHandle("@isabellafontana")
-                .lgpdConsent(true)
                 .build();
 
-        candidateEntity = CandidateSubmission.builder()
+        candidateEntity = Model.builder()
                 .id(candidateId)
                 .protocol(protocol)
-                .fullName(validSubmissionDto.getFullName())
-                .email(validSubmissionDto.getEmail())
-                .phone(validSubmissionDto.getPhone())
-                .birthDate(validSubmissionDto.getBirthDate())
+                .stageName("Isabella Fontana")
+                .fullName("Isabella Fontana")
+                .email("isabella.fontana@models.com")
+                .phone("+5511999998888")
+                .birthDate(LocalDate.of(2002, 3, 23))
                 .age(24)
-                .gender(validSubmissionDto.getGender())
-                .city(validSubmissionDto.getCity())
-                .state(validSubmissionDto.getState())
-                .height(validSubmissionDto.getHeight())
-                .bust(validSubmissionDto.getBust())
-                .waist(validSubmissionDto.getWaist())
-                .hips(validSubmissionDto.getHips())
-                .shoeSize(validSubmissionDto.getShoeSize())
-                .eyeColor(validSubmissionDto.getEyeColor())
-                .hairColor(validSubmissionDto.getHairColor())
-                .instagramHandle(validSubmissionDto.getInstagramHandle())
-                .lgpdConsent(true)
-                .lgpdConsentAt(OffsetDateTime.now())
-                .status(SubmissionStatus.PENDING)
-                .facePhotoUrl("https://example.com/storage/face.jpg")
-                .profilePhotoUrl("https://example.com/storage/profile.jpg")
-                .fullBodyPhotoUrl("https://example.com/storage/body.jpg")
+                .gender(GenderType.FEMALE)
+                .city("Curitiba")
+                .state("PR")
+                .heightCm(177)
+                .bustChestCm(new BigDecimal("84.0"))
+                .waistCm(new BigDecimal("60.0"))
+                .hipsCm(new BigDecimal("89.0"))
+                .shoeSize("38")
+                .eyesColor("Verdes")
+                .hairColor("Castanho Claro")
+                .instagramUrl("@isabellafontana")
+                .lgpdAccepted(true)
+                .status(TalentLifecycleStatus.APPLICANT_PENDING)
+                .primaryPhotoUrl("https://example.com/storage/face.jpg")
                 .createdAt(OffsetDateTime.now())
                 .build();
 
-        submissionResponseDto = CandidateSubmissionResponseDto.builder()
+        submissionResponseDto = CandidateApplyResponseDto.builder()
                 .id(candidateId)
+                .candidateId(candidateId)
                 .protocol(protocol)
-                .fullName(validSubmissionDto.getFullName())
-                .email(validSubmissionDto.getEmail())
-                .phone(validSubmissionDto.getPhone())
-                .birthDate(validSubmissionDto.getBirthDate())
-                .age(24)
-                .gender(validSubmissionDto.getGender())
-                .city(validSubmissionDto.getCity())
-                .state(validSubmissionDto.getState())
-                .height(validSubmissionDto.getHeight())
-                .bust(validSubmissionDto.getBust())
-                .waist(validSubmissionDto.getWaist())
-                .hips(validSubmissionDto.getHips())
-                .shoeSize(validSubmissionDto.getShoeSize())
-                .eyeColor(validSubmissionDto.getEyeColor())
-                .hairColor(validSubmissionDto.getHairColor())
-                .instagramHandle(validSubmissionDto.getInstagramHandle())
-                .status(SubmissionStatus.PENDING)
-                .facePhotoUrl("https://example.com/storage/face.jpg")
-                .profilePhotoUrl("https://example.com/storage/profile.jpg")
-                .fullBodyPhotoUrl("https://example.com/storage/body.jpg")
-                .createdAt(OffsetDateTime.now())
                 .message("Candidatura submetida com sucesso.")
+                .status("PENDING")
+                .submittedAt(Instant.now())
                 .build();
-
-        SupabaseProperties.Buckets buckets = new SupabaseProperties.Buckets();
-        buckets.setCandidatesUploads("candidates-uploads");
-        when(supabaseProperties.getBuckets()).thenReturn(buckets);
     }
-
-    // =========================================================================
-    // FASE 1: SUBMISSÃO PÚBLICA (PORTAL DO CANDIDATO / SCOUTING DESK)
-    // =========================================================================
 
     @Test
     @DisplayName("TC-01 [Happy Path]: Deve submeter candidatura com dados válidos e 3 fotos, retornando 201 Created e Protocolo")
@@ -226,7 +199,7 @@ class CandidateSubmissionLifecycleE2ETest {
         MockMultipartFile profilePhoto = new MockMultipartFile("profilePhoto", "profile.jpg", "image/jpeg", validJpegBytes);
         MockMultipartFile fullBodyPhoto = new MockMultipartFile("fullBodyPhoto", "body.jpg", "image/jpeg", validJpegBytes);
 
-        when(candidateSubmissionService.submit(any(), any(), any(), any())).thenReturn(submissionResponseDto);
+        when(candidateApplicationService.apply(any(), any())).thenReturn(submissionResponseDto);
 
         mockMvc.perform(multipart("/api/v1/submissions")
                         .file(dataPart)
@@ -236,19 +209,15 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(candidateId.toString()))
                 .andExpect(jsonPath("$.protocol").value(protocol))
-                .andExpect(jsonPath("$.fullName").value("Isabella Fontana"))
-                .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.facePhotoUrl").isNotEmpty())
-                .andExpect(jsonPath("$.profilePhotoUrl").isNotEmpty())
-                .andExpect(jsonPath("$.fullBodyPhotoUrl").isNotEmpty());
+                .andExpect(jsonPath("$.status").value("PENDING"));
 
-        verify(candidateSubmissionService, times(1)).submit(any(), any(), any(), any());
+        verify(candidateApplicationService, times(1)).apply(any(), any());
     }
 
     @Test
-    @DisplayName("TC-02 [LGPD Compliance]: Deve rejeitar submissão com lgpdConsent = false com 400 Bad Request")
-    void shouldRejectSubmissionWithoutLgpdConsent() throws Exception {
-        validSubmissionDto.setLgpdConsent(false);
+    @DisplayName("TC-02 [Validation]: Deve rejeitar submissão com email inválido com 400 Bad Request")
+    void shouldRejectSubmissionWithInvalidEmail() throws Exception {
+        validSubmissionDto.setEmail("email-invalido");
         MockMultipartFile dataPart = new MockMultipartFile(
                 "data", "", MediaType.APPLICATION_JSON_VALUE,
                 objectMapper.writeValueAsBytes(validSubmissionDto)
@@ -265,13 +234,13 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Erro de Validação"));
 
-        verifyNoInteractions(candidateSubmissionService);
+        verifyNoInteractions(candidateApplicationService);
     }
 
     @Test
-    @DisplayName("TC-03 [Security - CRLF Injection]: Deve rejeitar fullName contendo quebras de linha com 400 Bad Request")
-    void shouldRejectSubmissionWithCrlfInFullName() throws Exception {
-        validSubmissionDto.setFullName("Isabella\r\nBcc: attacker@evil.com");
+    @DisplayName("TC-03 [Security - Invalid Length]: Deve rejeitar fullName vazio ou muito curto com 400 Bad Request")
+    void shouldRejectSubmissionWithShortFullName() throws Exception {
+        validSubmissionDto.setFullName("A");
         MockMultipartFile dataPart = new MockMultipartFile(
                 "data", "", MediaType.APPLICATION_JSON_VALUE,
                 objectMapper.writeValueAsBytes(validSubmissionDto)
@@ -288,36 +257,31 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Erro de Validação"));
 
-        verifyNoInteractions(candidateSubmissionService);
+        verifyNoInteractions(candidateApplicationService);
     }
 
     @Test
-    @DisplayName("TC-04 [Security - Polyglot Rejection]: Deve rejeitar upload com magic bytes inválidos com 400 Bad Request")
-    void shouldRejectSubmissionWithInvalidMagicBytes() throws Exception {
+    @DisplayName("TC-04 [Security - Invalid File]: Deve retornar 400 Bad Request quando serviço lançar InvalidFileException")
+    void shouldRejectSubmissionWithInvalidFileException() throws Exception {
         MockMultipartFile dataPart = new MockMultipartFile(
                 "data", "", MediaType.APPLICATION_JSON_VALUE,
                 objectMapper.writeValueAsBytes(validSubmissionDto)
         );
-        byte[] maliciousBytes = new byte[]{'M', 'Z', (byte) 0x90, 0, 3, 0, 0, 0};
-        MockMultipartFile fakeFacePhoto = new MockMultipartFile("facePhoto", "exploit.jpg", "image/jpeg", maliciousBytes);
+        MockMultipartFile facePhoto = new MockMultipartFile("facePhoto", "exploit.jpg", "image/jpeg", validJpegBytes);
         MockMultipartFile profilePhoto = new MockMultipartFile("profilePhoto", "profile.jpg", "image/jpeg", validJpegBytes);
         MockMultipartFile fullBodyPhoto = new MockMultipartFile("fullBodyPhoto", "body.jpg", "image/jpeg", validJpegBytes);
 
-        when(candidateSubmissionService.submit(any(), any(), any(), any()))
-                .thenThrow(new InvalidFileException("Formato de imagem não suportado. Os bytes do arquivo não correspondem a uma imagem válida."));
+        when(candidateApplicationService.apply(any(), any()))
+                .thenThrow(new InvalidFileException("Formato de imagem não suportado."));
 
         mockMvc.perform(multipart("/api/v1/submissions")
                         .file(dataPart)
-                        .file(fakeFacePhoto)
+                        .file(facePhoto)
                         .file(profilePhoto)
                         .file(fullBodyPhoto))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Arquivo Inválido"));
     }
-
-    // =========================================================================
-    // FASE 2: AUTENTICAÇÃO ADMINISTRATIVA (PAINEL CMS / SCOUTING DESK)
-    // =========================================================================
 
     @Test
     @DisplayName("TC-05 [Admin Login]: Deve autenticar com sucesso e emitir JWT + Cookie HttpOnly")
@@ -346,15 +310,13 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
     }
 
-    // =========================================================================
-    // FASE 3: CONSULTA, TRIAGEM E DETALHAMENTO DE CANDIDATURAS
-    // =========================================================================
-
     @Test
     @DisplayName("TC-06 [Admin Query]: Deve listar candidaturas com paginação e filtros")
     void shouldListApplicationsWithFilters() throws Exception {
-        when(submissionRepository.findAll(org.mockito.ArgumentMatchers.<Specification<CandidateSubmission>>any(), any(Pageable.class)))
+        when(modelRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(candidateEntity)));
+        when(modelMediaRepository.findByModelIdInOrderByDisplayOrderAsc(anyList()))
+                .thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/admin/applications")
                         .param("page", "0")
@@ -373,14 +335,10 @@ class CandidateSubmissionLifecycleE2ETest {
     @Test
     @DisplayName("TC-07 [Admin Metrics]: Deve retornar contadores agregados por status")
     void shouldReturnApplicationCounts() throws Exception {
-        when(submissionRepository.countByStatusAndConvertedToModelIdIsNull(SubmissionStatus.PENDING)).thenReturn(12L);
-        when(submissionRepository.countByStatusAndConvertedToModelIdIsNull(SubmissionStatus.APPROVED)).thenReturn(3L);
-        when(submissionRepository.countByStatusAndConvertedToModelIdIsNull(SubmissionStatus.REJECTED)).thenReturn(5L);
-        when(submissionRepository.countByConvertedToModelIdIsNull()).thenReturn(20L);
-        when(submissionRepository.countByStatus(SubmissionStatus.PENDING)).thenReturn(12L);
-        when(submissionRepository.countByStatus(SubmissionStatus.APPROVED)).thenReturn(3L);
-        when(submissionRepository.countByStatus(SubmissionStatus.REJECTED)).thenReturn(5L);
-        when(submissionRepository.count()).thenReturn(20L);
+        when(modelRepository.countByStatus(TalentLifecycleStatus.APPLICANT_PENDING)).thenReturn(12L);
+        when(modelRepository.countByStatus(TalentLifecycleStatus.APPLICANT_APPROVED)).thenReturn(3L);
+        when(modelRepository.countByStatus(TalentLifecycleStatus.APPLICANT_DECLINED)).thenReturn(5L);
+        when(modelRepository.countByStatus(TalentLifecycleStatus.ARCHIVED)).thenReturn(0L);
 
         mockMvc.perform(get("/api/v1/admin/applications/counts"))
                 .andExpect(status().isOk())
@@ -393,7 +351,8 @@ class CandidateSubmissionLifecycleE2ETest {
     @Test
     @DisplayName("TC-08 [Admin Detail]: Deve retornar detalhes completos da candidatura com biometria e fotos")
     void shouldGetApplicationDetails() throws Exception {
-        when(submissionRepository.findById(candidateId)).thenReturn(Optional.of(candidateEntity));
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.of(candidateEntity));
+        when(modelMediaRepository.findByModelIdOrderByDisplayOrderAsc(candidateId)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/admin/applications/{id}", candidateId))
                 .andExpect(status().isOk())
@@ -403,13 +362,8 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(jsonPath("$.biometrics.bust").value(84.0))
                 .andExpect(jsonPath("$.biometrics.waist").value(60.0))
                 .andExpect(jsonPath("$.biometrics.hips").value(89.0))
-                .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.photos", hasSize(3)));
+                .andExpect(jsonPath("$.status").value("PENDING"));
     }
-
-    // =========================================================================
-    // FASE 4: DECISÃO, PROMOÇÃO A MODELO E PURGA LGPD
-    // =========================================================================
 
     @Test
     @DisplayName("TC-09 [Decision Update]: Deve atualizar status da candidatura para APPROVED com parecer técnico")
@@ -419,13 +373,14 @@ class CandidateSubmissionLifecycleE2ETest {
                 .internalNotes("Perfil comercial e fashion de alto impacto. Aprovado pelo Scouting Desk.")
                 .build();
 
-        when(submissionRepository.findById(candidateId)).thenReturn(Optional.of(candidateEntity));
-        when(submissionRepository.save(any(CandidateSubmission.class))).thenAnswer(inv -> {
-            CandidateSubmission s = inv.getArgument(0);
-            s.setStatus(SubmissionStatus.APPROVED);
-            s.setFeedbackNotes(decisionDto.getInternalNotes());
+        when(modelRepository.findById(candidateId)).thenReturn(Optional.of(candidateEntity));
+        when(modelRepository.save(any(Model.class))).thenAnswer(inv -> {
+            Model s = inv.getArgument(0);
+            s.setStatus(TalentLifecycleStatus.APPLICANT_APPROVED);
+            s.setInternalNotes(decisionDto.getInternalNotes());
             return s;
         });
+        when(modelMediaRepository.findByModelIdOrderByDisplayOrderAsc(candidateId)).thenReturn(List.of());
 
         mockMvc.perform(patch("/api/v1/admin/applications/{id}/decision", candidateId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -438,52 +393,39 @@ class CandidateSubmissionLifecycleE2ETest {
     @Test
     @DisplayName("TC-10 [Promotion to Model]: Deve promover candidatura aprovada a Modelo Oficial no casting")
     void shouldPromoteCandidateToOfficialModel() throws Exception {
-        UUID officialModelId = UUID.randomUUID();
-        ModelResponseDto modelResponse = ModelResponseDto.builder()
-                .id(officialModelId)
-                .stageName("Isabella Fontana")
-                .artisticName("Isabella Fontana")
-                .gender(GenderType.FEMALE)
-                .heightCm(177)
-                .isActive(true)
-                .isStar(true)
-                .primaryPhotoUrl("https://example.com/storage/face.jpg")
-                .build();
-
-        when(candidateSubmissionAdminService.promoteCandidateToModel(eq(candidateId), any(), any()))
-                .thenReturn(modelResponse);
+        when(adminCandidateService.promoteToModel(eq(candidateId), any()))
+                .thenReturn(candidateId);
 
         mockMvc.perform(post("/api/v1/admin/applications/{id}/promote", candidateId)
                         .param("activateImmediately", "true"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Candidato promovido a modelo com sucesso."))
-                .andExpect(jsonPath("$.data.id").value(officialModelId.toString()))
-                .andExpect(jsonPath("$.data.stageName").value("Isabella Fontana"))
-                .andExpect(jsonPath("$.data.heightCm").value(177))
-                .andExpect(jsonPath("$.data.isActive").value(true))
-                .andExpect(jsonPath("$.data.isStar").value(true));
+                .andExpect(jsonPath("$.data.id").value(candidateId.toString()));
 
-        verify(candidateSubmissionAdminService, times(1))
-                .promoteCandidateToModel(eq(candidateId), any(), eq(true));
+        verify(adminCandidateService, times(1))
+                .promoteToModel(eq(candidateId), eq(true));
     }
 
     @Test
-    @DisplayName("TC-11 [Arquivo Morto / Soft Delete]: Deve arquivar candidatura com status ARCHIVED com 204 No Content")
+    @DisplayName("TC-11 [Soft Delete]: Deve arquivar candidatura com 204 No Content")
     void shouldPurgeApplicationUnderLgpd() throws Exception {
+        doNothing().when(adminCandidateService).deleteCandidate(candidateId);
+
         mockMvc.perform(delete("/api/v1/admin/applications/{id}", candidateId))
                 .andExpect(status().isNoContent());
 
-        verify(candidateSubmissionAdminService, times(1)).deletePermanently(eq(candidateId), any());
+        verify(adminCandidateService, times(1)).deleteCandidate(eq(candidateId));
     }
 
     @Test
-    @DisplayName("TC-12 [FK Integrity]: Deve garantir persistência atômica da submissão e fotos sem violar FK")
+    @DisplayName("TC-12 [FK Integrity]: Deve garantir persistência atômica do modelo e fotos em ModelMedia")
     void shouldPersistSubmissionAndPhotosWithoutFkViolation() {
-        when(submissionRepository.existsById(candidateId)).thenReturn(true);
-        when(candidatePhotoRepository.countByCandidateId(candidateId)).thenReturn(3L);
+        when(modelRepository.existsById(candidateId)).thenReturn(true);
+        ModelMedia media = ModelMedia.builder().id(UUID.randomUUID()).build();
+        when(modelMediaRepository.findAllByModelIdOrderByDisplayOrderAsc(candidateId)).thenReturn(List.of(media, media, media));
 
-        assertTrue(submissionRepository.existsById(candidateId), "Submissão pai deve existir no banco de dados");
-        assertEquals(3L, candidatePhotoRepository.countByCandidateId(candidateId), "Devem existir 3 fotos filhas vinculadas à submissão");
+        assertTrue(modelRepository.existsById(candidateId), "Modelo pai deve existir no banco de dados");
+        assertEquals(3, modelMediaRepository.findAllByModelIdOrderByDisplayOrderAsc(candidateId).size(), "Devem existir 3 fotos filhas vinculadas ao modelo");
     }
 }

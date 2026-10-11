@@ -1,6 +1,7 @@
 package com.wbscouting.api.dto;
 
-import com.wbscouting.api.entity.Candidate;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -112,55 +113,49 @@ public class CandidateApplicationDto {
         }
     }
 
-    public static CandidateApplicationDto fromEntity(Candidate candidate) {
-        if (candidate == null) {
+    public static CandidateApplicationDto fromModel(Model model) {
+        if (model == null) {
             return null;
         }
 
-        List<CandidatePhotoDto> photoDtos = candidate.getPhotos() != null
-                ? candidate.getPhotos().stream()
+        List<CandidatePhotoDto> photoDtos = model.getMediaList() != null
+                ? model.getMediaList().stream()
                 .map(p -> {
                     CandidatePhotoDto photo = new CandidatePhotoDto();
-                    Short pos = p.getPhotoPosition() != null ? p.getPhotoPosition() : (p.getDisplayOrder() != null ? p.getDisplayOrder().shortValue() : 1);
+                    Short pos = p.getDisplayOrder() != null ? p.getDisplayOrder().shortValue() : 1;
                     photo.setPhotoPosition(pos);
                     photo.setDisplayOrder(p.getDisplayOrder());
-                    photo.setFileUrl(p.getFileUrl() != null ? p.getFileUrl() : p.getStoragePath());
-                    photo.setStoragePath(p.getStoragePath());
+                    photo.setFileUrl(p.getFileUrl() != null ? p.getFileUrl() : p.getFilePath());
+                    photo.setStoragePath(p.getFilePath());
                     return photo;
                 })
                 .collect(Collectors.toList())
                 : new ArrayList<>();
 
         CandidateApplicationDto dto = new CandidateApplicationDto();
-        dto.setId(candidate.getId());
-        dto.setFullName(candidate.getFullName());
-        dto.setEmail(candidate.getEmail());
-        dto.setPhone(candidate.getPhone());
-        dto.setBirthDate(candidate.getBirthDate());
-        dto.setAge(candidate.getAge());
-        dto.setGuardianName(candidate.getGuardianName());
-        dto.setLegalGuardianName(candidate.getLegalGuardianName());
-        dto.setLegalGuardianContact(candidate.getLegalGuardianContact());
-        dto.setGender(candidate.getGender());
-        dto.setHeightCm(candidate.getHeightCm());
-        dto.setCity(candidate.getCity());
-        dto.setState(candidate.getState());
-        dto.setWeightKg(candidate.getWeightKg());
-        dto.setBustChestCm(candidate.getBustChestCm());
-        dto.setWaistCm(candidate.getWaistCm());
-        dto.setHipsCm(candidate.getHipsCm());
-        dto.setShoeSize(candidate.getShoeSize());
-        dto.setDressSize(candidate.getDressSize());
-        dto.setInstagramHandle(candidate.getInstagramHandle());
-        dto.setPortfolioUrl(candidate.getPortfolioUrl());
-        dto.setTiktokHandle(candidate.getTiktokHandle());
-        // fallback safe para status enum (evita null pointer)
-        dto.setStatus(candidate.getStatus() != null ? candidate.getStatus().name() : null);
-        // fallback de lgpd (nunca nulo)
-        Boolean lgpd = candidate.getLgpdAccepted();
-        dto.setLgpdAccepted(lgpd != null ? lgpd : Boolean.TRUE);
-        OffsetDateTime created = candidate.getCreatedAt();
-        dto.setCreatedAt(created != null ? created : OffsetDateTime.now());
+        dto.setId(model.getId());
+        dto.setFullName(model.getFullName() != null ? model.getFullName() : model.getStageName());
+        dto.setEmail(model.getEmail());
+        dto.setPhone(model.getPhone());
+        dto.setBirthDate(model.getBirthDate());
+        dto.setAge(model.getAge());
+        dto.setGuardianName(model.getLegalGuardianName());
+        dto.setLegalGuardianName(model.getLegalGuardianName());
+        dto.setLegalGuardianContact(model.getLegalGuardianContact());
+        dto.setGender(model.getGender() != null ? model.getGender().name() : "FEMALE");
+        dto.setHeightCm(model.getHeightCm() != null ? BigDecimal.valueOf(model.getHeightCm()) : null);
+        dto.setCity(model.getCity());
+        dto.setState(model.getState());
+        dto.setWeightKg(model.getWeightKg());
+        dto.setBustChestCm(model.getBustChestCm());
+        dto.setWaistCm(model.getWaistCm());
+        dto.setHipsCm(model.getHipsCm());
+        dto.setShoeSize(model.getShoeSize());
+        dto.setDressSize(model.getDressSize());
+        dto.setInstagramHandle(model.getInstagramUrl());
+        dto.setStatus(model.getStatus() != null ? model.getStatus().name() : "APPLICANT_PENDING");
+        dto.setLgpdAccepted(model.getLgpdAccepted() != null ? model.getLgpdAccepted() : Boolean.TRUE);
+        dto.setCreatedAt(model.getCreatedAt());
         dto.setPhotos(photoDtos);
         return dto;
     }

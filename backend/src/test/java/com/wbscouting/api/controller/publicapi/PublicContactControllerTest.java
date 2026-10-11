@@ -1,12 +1,13 @@
 package com.wbscouting.api.controller.publicapi;
 
 import com.wbscouting.api.dto.publicapi.ContactChannelsPublicDto;
+import com.wbscouting.api.entity.SiteContent;
 import com.wbscouting.api.exception.GlobalExceptionHandler;
+import com.wbscouting.api.repository.SiteContentRepository;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
 import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtTokenProvider;
 import com.wbscouting.api.service.content.ContactChannelsService;
-import com.wbscouting.api.service.content.I18nDictionaryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -35,10 +37,7 @@ class PublicContactControllerTest {
     private ContactChannelsService contactChannelsService;
 
     @MockitoBean
-    private I18nDictionaryService i18nDictionaryService;
-
-    @MockitoBean
-    private com.wbscouting.api.repository.SiteContentRepository siteContentRepository;
+    private SiteContentRepository siteContentRepository;
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
@@ -75,12 +74,16 @@ class PublicContactControllerTest {
     @Test
     @DisplayName("GET /api/v1/public/i18n/{lang} - Deve retornar 200 OK com cabeçalho de cache de 300s")
     void getDictionary_ReturnsOkWithCacheHeader() throws Exception {
-        Map<String, Object> dictionary = Map.of(
-                "HOME_HERO", Map.of("title", "WB Scouting"),
-                "ABOUT_US", Map.of("description", "Agência de Modelos")
-        );
+        SiteContent sc1 = SiteContent.builder()
+                .sectionKey("HOME_HERO")
+                .payloadPt(Map.of("title", "WB Scouting"))
+                .build();
+        SiteContent sc2 = SiteContent.builder()
+                .sectionKey("ABOUT_US")
+                .payloadPt(Map.of("description", "Agência de Modelos"))
+                .build();
 
-        when(i18nDictionaryService.getDictionary(eq("pt"))).thenReturn(dictionary);
+        when(siteContentRepository.findAll()).thenReturn(List.of(sc1, sc2));
 
         mockMvc.perform(get("/api/v1/public/i18n/pt"))
                 .andExpect(status().isOk())

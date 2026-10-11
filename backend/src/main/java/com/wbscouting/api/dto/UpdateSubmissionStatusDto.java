@@ -21,4 +21,7 @@ public class UpdateSubmissionStatusDto {
     @Size(max = 500, message = "As notas da curadoria não podem exceder 500 caracteres.")
     @JsonAlias({"notes", "feedbackNotes"})
     private String adminNotes;
+
+    public String getFeedbackNotes() { return this.adminNotes; }
+    public void setFeedbackNotes(String n) { this.adminNotes = n; }
 }

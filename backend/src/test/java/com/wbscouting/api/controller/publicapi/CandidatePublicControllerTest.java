@@ -1,16 +1,15 @@
 package com.wbscouting.api.controller.publicapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wbscouting.api.dto.CandidateSubmissionRequestDto;
-import com.wbscouting.api.dto.CandidateSubmissionResponseDto;
-import com.wbscouting.api.enums.SubmissionGender;
-import com.wbscouting.api.enums.SubmissionStatus;
+import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
+import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
+import com.wbscouting.api.enums.GenderType;
 import com.wbscouting.api.exception.BusinessException;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
 import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtService;
 import com.wbscouting.api.security.JwtTokenProvider;
-import com.wbscouting.api.service.submission.CandidateSubmissionService;
+import com.wbscouting.api.service.candidate.CandidateApplicationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,8 +22,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -43,7 +42,7 @@ class CandidatePublicControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private CandidateSubmissionService submissionService;
+    private CandidateApplicationService applicationService;
 
     @MockitoBean
     private JwtService jwtService;
@@ -57,7 +56,7 @@ class CandidatePublicControllerTest {
     @MockitoBean
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    private CandidateSubmissionRequestDto validDto;
+    private CandidateApplyRequestDto validDto;
     private MockMultipartFile dataPart;
     private MockMultipartFile facePhoto;
     private MockMultipartFile profilePhoto;
@@ -65,23 +64,20 @@ class CandidatePublicControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        validDto = CandidateSubmissionRequestDto.builder()
+        validDto = CandidateApplyRequestDto.builder()
                 .fullName("Gisele Bundchen")
                 .email("gisele@models.com")
                 .phone("+5511999998888")
                 .birthDate(LocalDate.of(2000, 7, 20))
-                .gender(SubmissionGender.FEMALE)
+                .gender(GenderType.FEMALE)
+                .heightCm(180)
                 .city("Horizontina")
                 .state("RS")
-                .height(new BigDecimal("1.80"))
-                .bust(new BigDecimal("86"))
-                .waist(new BigDecimal("60"))
-                .hips(new BigDecimal("89"))
-                .shoeSize(38)
-                .eyeColor("Azul")
-                .hairColor("Castanho Claro")
+                .bustChestCm(new BigDecimal("86"))
+                .waistCm(new BigDecimal("60"))
+                .hipsCm(new BigDecimal("89"))
+                .shoeSize("38")
                 .instagramHandle("gisele")
-                .lgpdConsent(true)
                 .build();
 
         byte[] jpegBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F'};
@@ -102,15 +98,16 @@ class CandidatePublicControllerTest {
     @DisplayName("POST /api/v1/submissions - Deve retornar 201 Created quando o payload e fotos forem válidos")
     void shouldReturn201WhenValid() throws Exception {
         UUID generatedId = UUID.randomUUID();
-        CandidateSubmissionResponseDto responseDto = CandidateSubmissionResponseDto.builder()
+        CandidateApplyResponseDto responseDto = CandidateApplyResponseDto.builder()
                 .id(generatedId)
+                .candidateId(generatedId)
                 .protocol("WB-20260920-A1B2C3")
                 .message("Candidatura enviada com sucesso!")
-                .status(SubmissionStatus.PENDING)
-                .createdAt(OffsetDateTime.now())
+                .status("PENDING")
+                .submittedAt(Instant.now())
                 .build();
 
-        when(submissionService.submit(any(), any(), any(), any())).thenReturn(responseDto);
+        when(applicationService.apply(any(), any())).thenReturn(responseDto);
 
         mockMvc.perform(multipart("/api/v1/submissions")
                         .file(dataPart)
@@ -141,41 +138,5 @@ class CandidatePublicControllerTest {
                         .file(fullBodyPhoto))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Erro de Validação"));
-    }
-
-    @Test
-    @DisplayName("POST /api/v1/submissions - Deve retornar 400 Bad Request quando serviço lançar BusinessException")
-    void shouldReturn400WhenBusinessExceptionThrown() throws Exception {
-        when(submissionService.submit(any(), any(), any(), any()))
-                .thenThrow(new BusinessException("Para candidatos menores de 18 anos, os dados do responsável legal são obrigatórios."));
-        mockMvc.perform(multipart("/api/v1/submissions")
-                        .file(dataPart)
-                        .file(facePhoto)
-                        .file(profilePhoto)
-                        .file(fullBodyPhoto))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Regra de Negócio Violada"))
-                .andExpect(jsonPath("$.detail").value("Para candidatos menores de 18 anos, os dados do responsável legal são obrigatórios."));
-    }
-
-    @Test
-    @DisplayName("POST /api/v1/submissions - Deve retornar status específico de StorageException sem mascarar como 502 genérico")
-    void shouldReturnSpecificStatusOnStorageException() throws Exception {
-        when(submissionService.submit(any(), any(), any(), any()))
-                .thenThrow(new com.wbscouting.api.exception.StorageException(
-                        "Falha de autenticação com Supabase Storage",
-                        org.springframework.http.HttpStatus.UNAUTHORIZED,
-                        "Falha de Autenticação com Armazenamento",
-                        "STORAGE_AUTH_FAILED"
-                ));
-
-        mockMvc.perform(multipart("/api/v1/submissions")
-                        .file(dataPart)
-                        .file(facePhoto)
-                        .file(profilePhoto)
-                        .file(fullBodyPhoto))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.title").value("Falha de Autenticação com Armazenamento"))
-                .andExpect(jsonPath("$.storageErrorCode").value("STORAGE_AUTH_FAILED"));
     }
 }

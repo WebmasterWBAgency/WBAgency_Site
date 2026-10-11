@@ -3,8 +3,11 @@ package com.wbscouting.api.service;
 import com.wbscouting.api.config.MailProperties;
 import com.wbscouting.api.dto.CandidateApplicationDto;
 import com.wbscouting.api.dto.CandidateDTO;
-import com.wbscouting.api.entity.Candidate;
-import com.wbscouting.api.repository.CandidateRepository;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.enums.GenderType;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
+import com.wbscouting.api.repository.ModelMediaRepository;
+import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.email.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +32,10 @@ import static org.mockito.Mockito.*;
 class CandidateServiceTest {
 
     @Mock
-    private CandidateRepository candidateRepository;
+    private ModelRepository modelRepository;
+
+    @Mock
+    private ModelMediaRepository modelMediaRepository;
 
     @Mock
     private EmailService emailService;
@@ -48,19 +54,21 @@ class CandidateServiceTest {
     @Test
     @DisplayName("Deve salvar candidatura e disparar notificações assíncronas para agência e candidato")
     void shouldSubmitApplicationAndDispatchEmails() {
-        Candidate savedCandidate = Candidate.builder()
+        Model savedModel = Model.builder()
                 .id(UUID.randomUUID())
+                .stageName("Mariana Rios")
                 .fullName("Mariana Rios")
                 .email("mariana@exemplo.com")
                 .phone("(11) 97777-6666")
                 .age(19)
-                .gender("Feminino")
-                .heightCm(new BigDecimal("179.00"))
-                .photos(new ArrayList<>())
+                .gender(GenderType.FEMALE)
+                .heightCm(179)
+                .mediaList(new ArrayList<>())
+                .status(TalentLifecycleStatus.APPLICANT_PENDING)
                 .createdAt(OffsetDateTime.now())
                 .build();
 
-        when(candidateRepository.save(any(Candidate.class))).thenReturn(savedCandidate);
+        when(modelRepository.save(any(Model.class))).thenReturn(savedModel);
 
         CandidateDTO.ApplicationRequest request = CandidateDTO.ApplicationRequest.builder()
                 .fullName("Mariana Rios")
@@ -76,7 +84,7 @@ class CandidateServiceTest {
         CandidateDTO.Response response = candidateService.submitApplication(request);
 
         assertThat(response).isNotNull();
-        assertThat(response.getId()).isEqualTo(savedCandidate.getId());
+        assertThat(response.getId()).isEqualTo(savedModel.getId());
 
         // Verifica que disparou para a agência
         verify(emailService, times(1)).sendCandidateApplicationNotification(

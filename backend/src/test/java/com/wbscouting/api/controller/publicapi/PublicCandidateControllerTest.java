@@ -1,15 +1,14 @@
 package com.wbscouting.api.controller.publicapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wbscouting.api.dto.CandidateSubmissionRequestDto;
-import com.wbscouting.api.dto.CandidateSubmissionResponseDto;
-import com.wbscouting.api.enums.SubmissionGender;
-import com.wbscouting.api.enums.SubmissionStatus;
+import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
+import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
+import com.wbscouting.api.enums.GenderType;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
 import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtService;
 import com.wbscouting.api.security.JwtTokenProvider;
-import com.wbscouting.api.service.submission.CandidateSubmissionService;
+import com.wbscouting.api.service.candidate.CandidateApplicationService;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,8 +26,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -56,7 +55,7 @@ class PublicCandidateControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private CandidateSubmissionService candidateSubmissionService;
+    private CandidateApplicationService candidateApplicationService;
 
     @MockitoBean
     private JwtService jwtService;
@@ -70,25 +69,24 @@ class PublicCandidateControllerTest {
     @MockitoBean
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    private CandidateSubmissionRequestDto validDto;
+    private CandidateApplyRequestDto validDto;
 
     @BeforeEach
     void setUp() {
-        validDto = CandidateSubmissionRequestDto.builder()
+        validDto = CandidateApplyRequestDto.builder()
                 .fullName("Camila Queiroz")
                 .email("camila@queiroz.com")
                 .phone("(11) 98888-7777")
                 .birthDate(LocalDate.of(2000, 5, 20))
-                .gender(SubmissionGender.FEMALE)
-                .height(new BigDecimal("1.77"))
+                .gender(GenderType.FEMALE)
+                .heightCm(177)
                 .city("Ribeirão Preto")
                 .state("SP")
-                .bust(new BigDecimal("85.00"))
-                .waist(new BigDecimal("61.00"))
-                .hips(new BigDecimal("90.00"))
-                .shoeSize(37)
+                .bustChestCm(new BigDecimal("85.00"))
+                .waistCm(new BigDecimal("61.00"))
+                .hipsCm(new BigDecimal("90.00"))
+                .shoeSize("37")
                 .instagramHandle("camilaqueiroz")
-                .lgpdConsent(true)
                 .build();
     }
 
@@ -96,15 +94,16 @@ class PublicCandidateControllerTest {
     @DisplayName("POST /public/candidates/apply - Deve retornar 201 Created quando requisição for válida")
     void shouldApplySuccessfully() throws Exception {
         UUID candidateId = UUID.randomUUID();
-        CandidateSubmissionResponseDto responseDto = CandidateSubmissionResponseDto.builder()
+        CandidateApplyResponseDto responseDto = CandidateApplyResponseDto.builder()
                 .id(candidateId)
+                .candidateId(candidateId)
                 .protocol("WB-20261007-ABCDEF")
                 .message("Candidatura enviada com sucesso!")
-                .status(SubmissionStatus.PENDING)
-                .createdAt(OffsetDateTime.now())
+                .status("PENDING")
+                .submittedAt(Instant.now())
                 .build();
 
-        when(candidateSubmissionService.submit(any(), any(), any(), any())).thenReturn(responseDto);
+        when(candidateApplicationService.apply(any(), any())).thenReturn(responseDto);
 
         String candidateJson = objectMapper.writeValueAsString(validDto);
         MockMultipartFile dataPart = new MockMultipartFile(
@@ -132,13 +131,13 @@ class PublicCandidateControllerTest {
     @Test
     @DisplayName("POST /public/candidates/apply - Deve retornar 400 Bad Request quando Bean Validation falhar")
     void shouldReturnBadRequestWhenBeanValidationFails() throws Exception {
-        CandidateSubmissionRequestDto invalidDto = CandidateSubmissionRequestDto.builder()
+        CandidateApplyRequestDto invalidDto = CandidateApplyRequestDto.builder()
                 .fullName("Ab") // menor que 3 chars
                 .email("email-invalido") // email inválido
                 .phone("") // telefone vazio
                 .birthDate(LocalDate.now().plusDays(10)) // data futura
                 .gender(null) // nulo
-                .height(new BigDecimal("2.50")) // maior que 2.30
+                .heightCm(300) // inválido
                 .city("")
                 .state("")
                 .build();

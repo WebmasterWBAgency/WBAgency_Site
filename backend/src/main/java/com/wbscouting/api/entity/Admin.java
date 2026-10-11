@@ -54,10 +54,7 @@ public class Admin implements UserDetails {
     @Builder.Default
     private Boolean is2faEnabled = false;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "admin_backup_codes", schema = "public", joinColumns = @JoinColumn(name = "admin_id"))
-    @Column(name = "code", length = 255, nullable = false)
-    @OrderColumn
+    @Transient
     @Builder.Default
     private List<String> backupCodes = new ArrayList<>();
 

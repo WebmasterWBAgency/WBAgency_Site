@@ -2,9 +2,9 @@ package com.wbscouting.api.controller.publicapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wbscouting.api.dto.ApiResponse;
-import com.wbscouting.api.dto.CandidateSubmissionRequestDto;
-import com.wbscouting.api.dto.CandidateSubmissionResponseDto;
-import com.wbscouting.api.service.submission.CandidateSubmissionService;
+import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
+import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
+import com.wbscouting.api.service.candidate.CandidateApplicationService;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -24,68 +26,66 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PublicCandidateController {
 
-    /** Serviço de negócio com protocolo WB-YYYYMMDD-XXXX + persistência em candidate_photos */
-    private final CandidateSubmissionService submissionService;
-
-    /** ObjectMapper para desserializar MANUALMENTE o part 'data' multipart (JSON embutido em Blob) */
+    private final CandidateApplicationService candidateApplicationService;
     private final ObjectMapper objectMapper;
-
-    /** Validator JSR-380 aplicado APÓS desserialização manual (equivalente ao @Valid do Spring) */
     private final Validator validator;
 
     @PostMapping(value = "/apply", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<CandidateSubmissionResponseDto>> apply(
+    public ResponseEntity<ApiResponse<CandidateApplyResponseDto>> apply(
             @RequestPart("data") String dataJson,
             @RequestPart(value = "facePhoto", required = false) MultipartFile facePhoto,
             @RequestPart(value = "profilePhoto", required = false) MultipartFile profilePhoto,
-            @RequestPart(value = "fullBodyPhoto", required = false) MultipartFile fullBodyPhoto
+            @RequestPart(value = "fullBodyPhoto", required = false) MultipartFile fullBodyPhoto,
+            @RequestPart(value = "photos", required = false) List<MultipartFile> additionalPhotos
     ) {
         try {
-            // 1) Blindagem: desserializa o Blob JSON ('data') manualmente p/ evitar que o Spring erre
-            //    Content-Type=application/octet-stream automatico do FormData em navegadores modernos.
-            CandidateSubmissionRequestDto dto = objectMapper.readValue(
+            CandidateApplyRequestDto dto = objectMapper.readValue(
                     dataJson,
-                    CandidateSubmissionRequestDto.class
+                    CandidateApplyRequestDto.class
             );
 
-            // 2) Aplica @Valid MANUALMENTE (Bean Validation JSR-380) - equivalente a "@Valid" em
-            //    @RequestPart mas sem depender do HttpMessageConverter do Spring p/ multipart JSON.
-            Set<ConstraintViolation<CandidateSubmissionRequestDto>> violations = validator.validate(dto);
+            Set<ConstraintViolation<CandidateApplyRequestDto>> violations = validator.validate(dto);
             if (!violations.isEmpty()) {
                 String firstMsg = violations.iterator().next().getMessage();
-                log.warn("[APPLY] Payload invalido no part 'data': {} violations — primeira: {}",
+                log.warn("[APPLY] Payload inválido no part 'data': {} violações - primeira: {}",
                         violations.size(), firstMsg);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, firstMsg);
             }
 
-            log.info("[APPLY] Candidatura recebida via /apply (multipart): nome='{}' email='{}'",
+            log.info("[APPLY] Candidatura recebida via /apply: nome='{}' email='{}'",
                     dto.getFullName(), dto.getEmail());
 
-            // 3) Delega para o serviço (geração protocolo, upload storage, persistência DB).
-            CandidateSubmissionResponseDto response = submissionService.submit(
-                    dto,
-                    facePhoto,
-                    profilePhoto,
-                    fullBodyPhoto
-            );
+            List<MultipartFile> photos = new ArrayList<>();
+            if (facePhoto != null && !facePhoto.isEmpty()) photos.add(facePhoto);
+            if (profilePhoto != null && !profilePhoto.isEmpty()) photos.add(profilePhoto);
+            if (fullBodyPhoto != null && !fullBodyPhoto.isEmpty()) photos.add(fullBodyPhoto);
+            if (additionalPhotos != null) {
+                for (MultipartFile f : additionalPhotos) {
+                    if (f != null && !f.isEmpty()) {
+                        photos.add(f);
+                    }
+                }
+            }
+
+            CandidateApplyResponseDto response = candidateApplicationService.apply(dto, photos);
 
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Candidatura enviada com sucesso.", response));
 
         } catch (ResponseStatusException ex) {
-            // Propaga erros de validação já formatados pelo Spring (HttpStatus + motivo)
             throw ex;
         } catch (com.fasterxml.jackson.core.JacksonException ex) {
-            // JSON mal formatado vindo do frontend (Blob 'data' quebrado)
-            log.error("[APPLY] Falha de desserializacao no part 'data': {}", ex.getMessage());
+            log.error("[APPLY] Falha de desserialização no part 'data': {}", ex.getMessage());
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Payload JSON do formulário está inválido. Revise os campos e tente novamente."
             );
+        } catch (IllegalArgumentException ex) {
+            log.warn("[APPLY] Erro de validação de negócio: {}", ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
         } catch (Exception ex) {
-            // Falha de negócio do service (ex: falha upload bucket, null pointer, etc)
-            log.error("[APPLY] Falha geral no submitApplication: {}", ex.getMessage(), ex);
+            log.error("[APPLY] Falha geral no apply: {}", ex.getMessage(), ex);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "Falha ao submeter candidatura. Por favor, revise seus dados e tente novamente."

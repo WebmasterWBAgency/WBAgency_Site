@@ -1,10 +1,10 @@
 package com.wbscouting.api.dto.admin.candidate;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.wbscouting.api.entity.Candidate;
-import com.wbscouting.api.entity.CandidatePhoto;
-import com.wbscouting.api.entity.CandidateSubmission;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.SubmissionStatus;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,8 +18,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-// TASK: Anotacoes Lombok completas conforme exigido (@Data + @Builder + @NoArgsConstructor + @AllArgsConstructor)
-// Builder manual tambem existe abaixo como fallback seguro caso Lombok annotation processor nao rode
 @Data
 @Builder
 @NoArgsConstructor
@@ -53,7 +51,6 @@ public class CandidateApplicationSummaryDto {
     private String protocol;
     private List<PhotoThumbDto> photos;
 
-    // TASK: Anotacoes Lombok completas na inner class PhotoThumbDto
     @Data
     @Builder
     @NoArgsConstructor
@@ -62,8 +59,6 @@ public class CandidateApplicationSummaryDto {
         private String id;
         private String url;
         private String type;
-
-        // 🔥 Obs: Construtor vazio eh gerado AUTOMATICAMENTE por @NoArgsConstructor do Lombok. Nao declarar manual (duplicata).
 
         public static PhotoThumbDtoBuilder builder() { return new PhotoThumbDtoBuilder(); }
 
@@ -83,258 +78,103 @@ public class CandidateApplicationSummaryDto {
         }
     }
 
-    // 🔥 Obs: Construtor vazio eh gerado AUTOMATICAMENTE por @NoArgsConstructor do Lombok. Nao declarar manual (duplicata).
-
     public static CandidateApplicationSummaryDtoBuilder builder() { return new CandidateApplicationSummaryDtoBuilder(); }
 
-    public static CandidateApplicationSummaryDto fromCandidate(Candidate candidate, String defaultStorageBaseUrl) {
-        if (candidate == null) return null;
+    public static CandidateApplicationSummaryDto fromModel(Model model) {
+        return fromModel(model, model != null ? model.getMedia() : null);
+    }
+
+    public static CandidateApplicationSummaryDto fromModel(Model model, List<ModelMedia> mediaList) {
+        if (model == null) return null;
+
+        List<ModelMedia> media = (mediaList != null && !mediaList.isEmpty())
+                ? mediaList
+                : (model.getMedia() != null ? model.getMedia() : List.of());
 
         String face = null;
         String profile = null;
         String fullBody = null;
         List<PhotoThumbDto> photosArr = new ArrayList<>();
 
-        try {
-            if (candidate.getPhotos() != null) {
-                for (CandidatePhoto p : candidate.getPhotos()) {
-                    String url = p.getFileUrl();
-                    if (url == null || url.isBlank()) url = p.getFilePath();
-                    if (url == null || url.isBlank()) url = p.getStoragePath();
-                    if (url != null && !url.startsWith("http") && defaultStorageBaseUrl != null) {
-                        url = defaultStorageBaseUrl + "/" + url.replaceFirst("^/+", "");
-                    }
-
-                    int order = p.getDisplayOrder() != null ? p.getDisplayOrder() : 1;
-                    String type = switch (order) {
+        if (!media.isEmpty()) {
+            for (ModelMedia m : media) {
+                String u = m.getMediaUrl();
+                if (u != null && !u.isBlank()) {
+                    int pos = m.getDisplayOrder() != null ? m.getDisplayOrder() + 1 : 1;
+                    String type = m.getMediaType() != null ? m.getMediaType().name() : switch (pos) {
                         case 1 -> "POLAROID_ROSTO";
                         case 2 -> "POLAROID_PERFIL";
                         case 3 -> "CORPO_INTEIRO";
-                        default -> "COMPOSITE";
+                        default -> "POLAROID_" + pos;
                     };
 
-                    if (order == 1 && face == null) face = url;
-                    else if (order == 2 && profile == null) profile = url;
-                    else if (order == 3 && fullBody == null) fullBody = url;
+                    if (pos == 1 && face == null) face = u;
+                    else if (pos == 2 && profile == null) profile = u;
+                    else if (pos == 3 && fullBody == null) fullBody = u;
 
-                    if (url != null) {
-                        photosArr.add(PhotoThumbDto.builder()
-                                .id(p.getId() != null ? p.getId().toString() : "p" + order)
-                                .url(url)
-                                .type(type)
-                                .build());
-                    }
+                    photosArr.add(PhotoThumbDto.builder()
+                            .id(m.getId() != null ? m.getId().toString() : "m-" + pos)
+                            .url(u)
+                            .type(type)
+                            .build());
                 }
             }
-        } catch (Exception ignored) {}
-
-        if (face == null && !photosArr.isEmpty()) face = photosArr.get(0).getUrl();
-        String cover = face != null ? face : (profile != null ? profile : fullBody);
-
-        Integer heightVal = null;
-        if (candidate.getHeightCm() != null) {
-            heightVal = candidate.getHeightCm().intValue();
         }
 
-        Integer ageCalculated = candidate.getAge();
+        if (face == null && model.getPrimaryPhotoUrl() != null && !model.getPrimaryPhotoUrl().isBlank()) {
+            face = model.getPrimaryPhotoUrl();
+        }
+
+        String cover = face != null ? face : (!photosArr.isEmpty() ? photosArr.get(0).getUrl() : null);
+
+        Integer ageCalculated = null;
         boolean minor = false;
-        LocalDate bd = candidate.getBirthDate();
+        LocalDate bd = model.getBirthDate();
         if (bd != null) {
             int anos = Period.between(bd, LocalDate.now()).getYears();
             if (anos >= 0 && anos < 120) {
                 ageCalculated = anos;
                 minor = anos < 18;
             }
-        } else if (ageCalculated != null) {
-            minor = ageCalculated < 18;
         }
 
-        Integer shoeSize = null;
-        if (candidate.getShoeSize() != null) {
-            try {
-                shoeSize = Integer.parseInt(candidate.getShoeSize().replaceAll("\\D", ""));
-            } catch (Exception ignored) {}
+        SubmissionStatus subStatus = SubmissionStatus.PENDING;
+        if (model.getStatus() != null) {
+            subStatus = switch (model.getStatus()) {
+                case APPLICANT_APPROVED -> SubmissionStatus.APPROVED;
+                case APPLICANT_DECLINED -> SubmissionStatus.DECLINED;
+                case ARCHIVED -> SubmissionStatus.ARCHIVED;
+                case CAST_PUBLIC, CAST_INTERNAL, CAST_STAR -> SubmissionStatus.PROMOTED;
+                default -> SubmissionStatus.PENDING;
+            };
         }
-
-        SubmissionStatus submissionStatus = null;
-        if (candidate.getStatus() != null) {
-            try {
-                submissionStatus = SubmissionStatus.valueOf(candidate.getStatus().name());
-            } catch (Exception ignored) {}
-        }
-        if (submissionStatus == null) submissionStatus = SubmissionStatus.PENDING;
 
         return CandidateApplicationSummaryDto.builder()
-                .id(candidate.getId())
-                .fullName(candidate.getFullName())
-                .email(candidate.getEmail())
-                .phone(candidate.getPhone())
+                .id(model.getId())
+                .fullName(model.getName())
+                .email(model.getEmail())
+                .phone(model.getPhone())
                 .birthDate(bd)
                 .age(ageCalculated)
                 .isMinor(minor)
-                .city(candidate.getCity())
-                .state(candidate.getState())
-                .height(heightVal)
-                .bust(candidate.getBustChestCm())
-                .waist(candidate.getWaistCm())
-                .hips(candidate.getHipsCm())
-                .shoes(shoeSize)
-                .status(submissionStatus)
-                .hasPhotos(!photosArr.isEmpty())
-                .polaroidsCount(photosArr.size())
-                .createdAt(candidate.getCreatedAt())
+                .city(model.getCity())
+                .state(model.getState())
+                .height(model.getHeight())
+                .bust(model.getBust())
+                .waist(model.getWaist())
+                .hips(model.getHips())
+                .shoes(model.getShoes())
+                .status(subStatus)
+                .hasPhotos(cover != null || !photosArr.isEmpty())
+                .polaroidsCount(!photosArr.isEmpty() ? photosArr.size() : (cover != null ? 1 : 0))
+                .createdAt(model.getCreatedAt())
                 .coverPhoto(cover)
                 .coverPhotoUrl(cover)
                 .facePhotoUrl(face != null ? face : cover)
                 .profilePhotoUrl(profile)
                 .fullBodyPhotoUrl(fullBody)
                 .photos(photosArr.isEmpty() ? null : photosArr)
-                .protocol(candidate.getProtocol())
-                .build();
-    }
-
-    public static CandidateApplicationSummaryDto fromEntity(CandidateSubmission entity) {
-        if (entity == null) return null;
-        return fromEntity(entity, entity.getPhotos());
-    }
-
-    public static CandidateApplicationSummaryDto fromEntity(CandidateSubmission entity, List<CandidatePhoto> photos) {
-        if (entity == null) return null;
-
-        List<CandidatePhoto> photoList = (photos != null && !photos.isEmpty())
-                ? photos
-                : (entity.getPhotos() != null ? entity.getPhotos() : List.of());
-
-        String face = null;
-        String profile = null;
-        String fullBody = null;
-
-        // 1. Extração a partir da lista de fotos filhas (candidate_photos)
-        if (!photoList.isEmpty()) {
-            face = photoList.stream()
-                .filter(p -> (p.getPhotoPosition() != null && p.getPhotoPosition() == 1) || "POLAROID_ROSTO".equalsIgnoreCase(p.getType()))
-                .map(CandidatePhoto::getFileUrl)
-                .filter(u -> u != null && !u.isBlank())
-                .findFirst()
-                .orElse(null);
-
-            profile = photoList.stream()
-                .filter(p -> (p.getPhotoPosition() != null && p.getPhotoPosition() == 2) || "POLAROID_PERFIL".equalsIgnoreCase(p.getType()))
-                .map(CandidatePhoto::getFileUrl)
-                .filter(u -> u != null && !u.isBlank())
-                .findFirst()
-                .orElse(null);
-
-            fullBody = photoList.stream()
-                .filter(p -> (p.getPhotoPosition() != null && p.getPhotoPosition() == 3) || "CORPO_INTEIRO".equalsIgnoreCase(p.getType()))
-                .map(CandidatePhoto::getFileUrl)
-                .filter(u -> u != null && !u.isBlank())
-                .findFirst()
-                .orElse(null);
-
-            // Fallback: se não encontrou posição 1 ou POLAROID_ROSTO, usa a primeira foto com URL válida
-            if (face == null) {
-                face = photoList.stream()
-                    .map(CandidatePhoto::getFileUrl)
-                    .filter(u -> u != null && !u.isBlank())
-                    .findFirst()
-                    .orElse(null);
-            }
-        }
-
-        // 2. Se ainda for nulo, consulta as propriedades diretas da entidade pai
-        if (face == null) face = blankToNull(entity.getFacePhotoUrl());
-        if (profile == null) profile = blankToNull(entity.getProfilePhotoUrl());
-        if (fullBody == null) fullBody = blankToNull(entity.getFullBodyPhotoUrl());
-
-        String cover = face;
-        if (cover == null) cover = profile;
-        if (cover == null) cover = fullBody;
-        if (cover == null && !photoList.isEmpty()) {
-            cover = photoList.get(0).getFileUrl();
-        }
-
-        // 3. Monta lista de PhotoThumbDto para os thumbnails do card e detalhe
-        List<PhotoThumbDto> photosArr = new ArrayList<>();
-        if (!photoList.isEmpty()) {
-            for (CandidatePhoto p : photoList) {
-                String u = p.getFileUrl();
-                if (u == null || u.isBlank()) u = p.getFilePath();
-                if (u == null || u.isBlank()) u = p.getStoragePath();
-                if (u != null && !u.isBlank()) {
-                    int pos = p.getPhotoPosition() != null ? p.getPhotoPosition().intValue() : (p.getDisplayOrder() != null ? p.getDisplayOrder() : 1);
-                    String type = p.getType();
-                    if (type == null) {
-                        type = switch (pos) {
-                            case 1 -> "POLAROID_ROSTO";
-                            case 2 -> "POLAROID_PERFIL";
-                            case 3 -> "CORPO_INTEIRO";
-                            default -> "COMPOSITE";
-                        };
-                    }
-                    photosArr.add(PhotoThumbDto.builder()
-                        .id(p.getId() != null ? p.getId().toString() : "p-" + pos)
-                        .url(u)
-                        .type(type)
-                        .build());
-                }
-            }
-        } else {
-            if (face != null) photosArr.add(PhotoThumbDto.builder().id("face").url(face).type("POLAROID_ROSTO").build());
-            if (profile != null) photosArr.add(PhotoThumbDto.builder().id("profile").url(profile).type("POLAROID_PERFIL").build());
-            if (fullBody != null) photosArr.add(PhotoThumbDto.builder().id("fullbody").url(fullBody).type("CORPO_INTEIRO").build());
-        }
-
-        int polaroids = !photosArr.isEmpty() ? photosArr.size() : (!photoList.isEmpty() ? photoList.size() : (cover != null ? 1 : 0));
-
-        Integer heightVal = null;
-        if (entity.getHeight() != null) {
-            if (entity.getHeight().compareTo(new BigDecimal("3.0")) < 0) {
-                heightVal = entity.getHeight().multiply(new BigDecimal("100")).intValue();
-            } else {
-                heightVal = entity.getHeight().intValue();
-            }
-        }
-
-        Integer ageCalculated = null;
-        boolean minor = false;
-        LocalDate bd = entity.getBirthDate();
-        if (bd != null) {
-            int anos = Period.between(bd, LocalDate.now()).getYears();
-            if (anos >= 0 && anos < 120) {
-                ageCalculated = anos;
-                minor = anos < 18;
-            }
-        }
-
-        String protocol = blankToNull(entity.getProtocol());
-
-        return CandidateApplicationSummaryDto.builder()
-                .id(entity.getId())
-                .fullName(entity.getFullName())
-                .email(entity.getEmail())
-                .phone(entity.getPhone())
-                .birthDate(entity.getBirthDate())
-                .age(ageCalculated)
-                .isMinor(minor)
-                .city(entity.getCity())
-                .state(entity.getState())
-                .height(heightVal)
-                .bust(entity.getBust())
-                .waist(entity.getWaist())
-                .hips(entity.getHips())
-                .shoes(entity.getShoeSize())
-                .status(entity.getStatus())
-                .hasPhotos(cover != null || !photosArr.isEmpty())
-                .polaroidsCount(polaroids > 0 ? polaroids : 4)
-                .createdAt(entity.getCreatedAt())
-                .coverPhoto(cover)
-                .coverPhotoUrl(cover)
-                .facePhotoUrl(cover)
-                .profilePhotoUrl(profile)
-                .fullBodyPhotoUrl(fullBody)
-                .photos(photosArr.isEmpty() ? null : photosArr)
-                .protocol(protocol)
+                .protocol(model.getProtocol())
                 .build();
     }
 
@@ -429,4 +269,3 @@ public class CandidateApplicationSummaryDto {
         public CandidateApplicationSummaryDto build() { return d; }
     }
 }
-

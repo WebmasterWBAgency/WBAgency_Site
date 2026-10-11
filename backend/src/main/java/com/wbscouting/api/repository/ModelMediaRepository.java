@@ -39,7 +39,11 @@ public interface ModelMediaRepository extends JpaRepository<ModelMedia, UUID> {
 
     List<ModelMedia> findByModelIdInAndIsActiveTrueOrderByDisplayOrderAsc(List<UUID> modelIds);
 
+    List<ModelMedia> findByModelIdInOrderByDisplayOrderAsc(List<UUID> modelIds);
+
     List<ModelMedia> findByModelIdOrderByDisplayOrderAsc(UUID modelId);
+
+    List<ModelMedia> findAllByModelIdOrderByDisplayOrderAsc(UUID modelId);
 
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE ModelMedia m SET m.isCover = false WHERE m.model.id = :modelId")

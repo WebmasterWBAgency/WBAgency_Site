@@ -1,42 +1,40 @@
 package com.wbscouting.api.controller.admin;
 
+import com.wbscouting.api.dto.ApiResponse;
 import com.wbscouting.api.dto.admin.candidate.CandidateApplicationSummaryDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDecisionRequestDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDetailResponseDto;
 import com.wbscouting.api.entity.Admin;
-import com.wbscouting.api.entity.CandidatePhoto;
-import com.wbscouting.api.entity.CandidateSubmission;
+import com.wbscouting.api.entity.Model;
+import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.SubmissionGender;
 import com.wbscouting.api.enums.SubmissionStatus;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import com.wbscouting.api.exception.ResourceNotFoundException;
-import com.wbscouting.api.repository.CandidatePhotoRepository;
-import com.wbscouting.api.repository.CandidateSubmissionRepository;
-import com.wbscouting.api.specification.CandidateSubmissionSpecification;
-
+import com.wbscouting.api.repository.ModelMediaRepository;
+import com.wbscouting.api.repository.ModelRepository;
+import com.wbscouting.api.security.audit.AuditAction;
+import com.wbscouting.api.service.candidate.AdminCandidateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import com.wbscouting.api.dto.ApiResponse;
-import com.wbscouting.api.service.submission.CandidateSubmissionAdminService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import com.wbscouting.api.security.audit.AuditAction;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -46,9 +44,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminApplicationController {
 
-    private final CandidateSubmissionRepository submissionRepository;
-    private final CandidateSubmissionAdminService submissionAdminService;
-    private final CandidatePhotoRepository candidatePhotoRepository;
+    private final ModelRepository modelRepository;
+    private final ModelMediaRepository modelMediaRepository;
+    private final AdminCandidateService adminCandidateService;
 
     @Transactional(readOnly = true)
     @GetMapping
@@ -63,53 +61,83 @@ public class AdminApplicationController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection
     ) {
-        log.info("Consulta administrativa tabular de candidaturas canônicas (candidate_submissions). Status: {}, Search: {}, isMinor: {}, Page: {}, Size: {}",
+        log.info("Consulta administrativa tabular de candidaturas canônicas (models). Status: {}, Search: {}, isMinor: {}, Page: {}, Size: {}",
                 status, search, isMinor, page, size);
 
         Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC;
         String mappedSortBy = switch (sortBy) {
             case "height" -> "height";
-            case "fullName" -> "fullName";
+            case "fullName", "name" -> "name";
             case "city" -> "city";
-            case "age" -> "age";
             case "status" -> "status";
             default -> "createdAt";
         };
 
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(direction, mappedSortBy));
 
-        Specification<CandidateSubmission> spec = CandidateSubmissionSpecification.filter(
-                search, status, gender, isMinor, null, null, null, null, includePromoted
-        );
+        Specification<Model> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
 
-        Page<CandidateSubmission> pageResult = submissionRepository.findAll(spec, pageable);
-        List<UUID> submissionIds = pageResult.getContent().stream()
-                .map(CandidateSubmission::getId)
+            if (status != null) {
+                TalentLifecycleStatus targetStatus = switch (status) {
+                    case APPROVED -> TalentLifecycleStatus.APPLICANT_APPROVED;
+                    case REJECTED, DECLINED -> TalentLifecycleStatus.APPLICANT_DECLINED;
+                    case ARCHIVED -> TalentLifecycleStatus.ARCHIVED;
+                    case PROMOTED -> TalentLifecycleStatus.CAST_PUBLIC;
+                    default -> TalentLifecycleStatus.APPLICANT_PENDING;
+                };
+                predicates.add(cb.equal(root.get("status"), targetStatus));
+            } else if (!Boolean.TRUE.equals(includePromoted)) {
+                predicates.add(root.get("status").in(
+                        TalentLifecycleStatus.APPLICANT_PENDING,
+                        TalentLifecycleStatus.APPLICANT_APPROVED,
+                        TalentLifecycleStatus.APPLICANT_DECLINED
+                ));
+            }
+
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("name")), pattern),
+                        cb.like(cb.lower(root.get("email")), pattern),
+                        cb.like(cb.lower(root.get("protocol")), pattern),
+                        cb.like(cb.lower(root.get("city")), pattern)
+                ));
+            }
+
+            if (gender != null) {
+                predicates.add(cb.equal(cb.upper(root.get("gender")), gender.name().toUpperCase()));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        Page<Model> pageResult = modelRepository.findAll(spec, pageable);
+        List<UUID> modelIds = pageResult.getContent().stream()
+                .map(Model::getId)
                 .toList();
 
-        Map<UUID, List<CandidatePhoto>> photosBySubmission = Map.of();
-        if (!submissionIds.isEmpty()) {
-            List<CandidatePhoto> allPhotos = candidatePhotoRepository.findBySubmissionIdInOrderByDisplayOrderAsc(submissionIds);
-            photosBySubmission = allPhotos.stream()
-                    .filter(p -> p.getSubmission() != null && p.getSubmission().getId() != null)
-                    .collect(Collectors.groupingBy(p -> p.getSubmission().getId()));
+        Map<UUID, List<ModelMedia>> mediaByModel = Map.of();
+        if (!modelIds.isEmpty()) {
+            List<ModelMedia> allMedia = modelMediaRepository.findByModelIdInOrderByDisplayOrderAsc(modelIds);
+            mediaByModel = allMedia.stream()
+                    .filter(m -> m.getModel() != null && m.getModel().getId() != null)
+                    .collect(Collectors.groupingBy(m -> m.getModel().getId()));
         }
 
-        final Map<UUID, List<CandidatePhoto>> finalPhotosMap = photosBySubmission;
+        final Map<UUID, List<ModelMedia>> finalMediaMap = mediaByModel;
         Page<CandidateApplicationSummaryDto> result = pageResult
-                .map(s -> CandidateApplicationSummaryDto.fromEntity(s, finalPhotosMap.getOrDefault(s.getId(), List.of())));
+                .map(m -> CandidateApplicationSummaryDto.fromModel(m, finalMediaMap.getOrDefault(m.getId(), List.of())));
         return ResponseEntity.ok(result);
     }
 
     @Transactional(readOnly = true)
     @GetMapping("/counts")
     public ResponseEntity<Map<String, Long>> getCounts() {
-        long pending = submissionRepository.countByStatusAndConvertedToModelIdIsNull(SubmissionStatus.PENDING);
-        long approved = submissionRepository.countByStatusAndConvertedToModelIdIsNull(SubmissionStatus.APPROVED);
-        long rejected = submissionRepository.countByStatusAndConvertedToModelIdIsNull(SubmissionStatus.REJECTED)
-                + submissionRepository.countByStatusAndConvertedToModelIdIsNull(SubmissionStatus.DECLINED);
-        long archived = submissionRepository.countByStatus(SubmissionStatus.ARCHIVED)
-                + submissionRepository.countByStatus(SubmissionStatus.PROMOTED);
+        long pending = modelRepository.countByStatus(TalentLifecycleStatus.APPLICANT_PENDING);
+        long approved = modelRepository.countByStatus(TalentLifecycleStatus.APPLICANT_APPROVED);
+        long rejected = modelRepository.countByStatus(TalentLifecycleStatus.APPLICANT_DECLINED);
+        long archived = modelRepository.countByStatus(TalentLifecycleStatus.ARCHIVED);
         long total = pending + approved + rejected;
 
         return ResponseEntity.ok(Map.of(
@@ -125,10 +153,10 @@ public class AdminApplicationController {
     @GetMapping("/{id}")
     public ResponseEntity<CandidateDetailResponseDto> getApplicationById(@PathVariable UUID id) {
         log.info("Buscando detalhes da candidatura ID: {}", id);
-        CandidateSubmission submission = submissionRepository.findById(id)
+        Model model = modelRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidatura", "id", id));
-        List<CandidatePhoto> photos = candidatePhotoRepository.findBySubmissionIdOrderByDisplayOrderAsc(id);
-        return ResponseEntity.ok(CandidateDetailResponseDto.fromEntity(submission, photos));
+        List<ModelMedia> media = modelMediaRepository.findByModelIdOrderByDisplayOrderAsc(id);
+        return ResponseEntity.ok(CandidateDetailResponseDto.fromModel(model, media));
     }
 
     @Transactional
@@ -139,57 +167,48 @@ public class AdminApplicationController {
             @Valid @RequestBody CandidateDecisionRequestDto decisionDto,
             Authentication authentication
     ) {
-        log.info("Decisão de triagem para candidatura canônica ID: {}, Status: {}", id, decisionDto.getStatus());
-        String reviewerName = extractReviewerName(authentication);
+        log.info("Decisão de triagem para candidatura ID: {}, Status: {}", id, decisionDto.getStatus());
 
-        CandidateSubmission submission = submissionRepository.findById(id)
+        Model model = modelRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidatura", "id", id));
 
-        submission.setStatus(decisionDto.getStatus());
-        if (decisionDto.getInternalNotes() != null) {
-            submission.setFeedbackNotes(decisionDto.getInternalNotes());
+        if (decisionDto.getStatus() != null) {
+            TalentLifecycleStatus targetStatus = switch (decisionDto.getStatus()) {
+                case APPROVED -> TalentLifecycleStatus.APPLICANT_APPROVED;
+                case REJECTED, DECLINED -> TalentLifecycleStatus.APPLICANT_DECLINED;
+                case ARCHIVED -> TalentLifecycleStatus.ARCHIVED;
+                case PROMOTED -> TalentLifecycleStatus.CAST_PUBLIC;
+                default -> TalentLifecycleStatus.APPLICANT_PENDING;
+            };
+            model.setStatus(targetStatus);
         }
-        submission.setReviewedBy(reviewerName);
-        submission.setReviewedAt(OffsetDateTime.now());
 
-        CandidateSubmission savedSubmission = submissionRepository.save(submission);
-        List<CandidatePhoto> photos = candidatePhotoRepository.findBySubmissionIdOrderByDisplayOrderAsc(id);
-        return ResponseEntity.ok(CandidateDetailResponseDto.fromEntity(savedSubmission, photos));
+        if (decisionDto.getInternalNotes() != null) {
+            model.setInternalNotes(decisionDto.getInternalNotes());
+        }
+
+        Model saved = modelRepository.save(model);
+        List<ModelMedia> media = modelMediaRepository.findByModelIdOrderByDisplayOrderAsc(id);
+        return ResponseEntity.ok(CandidateDetailResponseDto.fromModel(saved, media));
     }
 
     @PostMapping({"/{id}/promote", "/{id}/promote-to-model"})
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'WEBMASTER', 'CONTENT_ADMIN')")
-    public ResponseEntity<ApiResponse<com.wbscouting.api.dto.model.ModelResponseDto>> promote(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> promote(
             @PathVariable UUID id,
-            @RequestParam(required = false, defaultValue = "true") Boolean activateImmediately,
-            @AuthenticationPrincipal UserDetails userDetails,
-            Authentication authentication) {
-        String adminEmail = userDetails != null ? userDetails.getUsername() : extractReviewerName(authentication);
-        com.wbscouting.api.dto.model.ModelResponseDto model = submissionAdminService.promoteCandidateToModel(id, adminEmail, activateImmediately);
+            @RequestParam(required = false, defaultValue = "true") Boolean activateImmediately) {
+        UUID promotedId = adminCandidateService.promoteToModel(id, activateImmediately);
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", promotedId != null ? promotedId.toString() : id.toString());
+        data.put("status", Boolean.TRUE.equals(activateImmediately) ? "CAST_PUBLIC" : "CAST_INTERNAL");
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
-                .body(ApiResponse.success("Candidato promovido a modelo com sucesso.", model));
+                .body(ApiResponse.success("Candidato promovido a modelo com sucesso.", data));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'WEBMASTER', 'CONTENT_ADMIN')")
-    public ResponseEntity<Void> delete(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails userDetails,
-            Authentication authentication) {
-        String adminEmail = userDetails != null ? userDetails.getUsername() : extractReviewerName(authentication);
-        submissionAdminService.deletePermanently(id, adminEmail);
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        adminCandidateService.deleteCandidate(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private String extractReviewerName(Authentication authentication) {
-        Authentication auth = authentication != null ? authentication : SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null) {
-            if (auth.getPrincipal() instanceof Admin admin) {
-                return admin.getName() != null ? admin.getName() : admin.getEmail();
-            } else if (auth.getName() != null) {
-                return auth.getName();
-            }
-        }
-        return "Booker / Scouting Desk";
     }
 }
