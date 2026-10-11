@@ -110,7 +110,7 @@ public class AdminCandidateServiceImpl implements AdminCandidateService {
         if (candidate != null) {
             candidate.setStatus(dto.getStatus());
             candidate.setUpdatedAt(OffsetDateTime.now());
-            saved = candidateRepository.saveAndFlush(candidate);
+            saved = candidateRepository.save(candidate);
             protocol = candidate.getProtocol();
         }
 
@@ -185,7 +185,7 @@ public class AdminCandidateServiceImpl implements AdminCandidateService {
         if (candidate != null) {
             candidate.setInternalNotes(dto.getInternalNotes());
             candidate.setUpdatedAt(OffsetDateTime.now());
-            saved = candidateRepository.saveAndFlush(candidate);
+            saved = candidateRepository.save(candidate);
             protocol = candidate.getProtocol();
         }
 
@@ -236,7 +236,7 @@ public class AdminCandidateServiceImpl implements AdminCandidateService {
         if (candidate != null) {
             candidate.setStatus(CandidateStatus.ARCHIVED);
             candidate.setArchivedAt(OffsetDateTime.now());
-            candidateRepository.saveAndFlush(candidate);
+            candidateRepository.save(candidate);
 
             if (candidateSubmissionRepository != null) {
                 candidateSubmissionRepository.findById(id).ifPresent(s -> {
@@ -336,20 +336,29 @@ public class AdminCandidateServiceImpl implements AdminCandidateService {
 
             Model savedModel = modelRepository.save(model);
 
-            // 2. Migra as URLs das fotos de candidate_photos para a galeria do Model (ModelMedia)
+            // 2. Migra as fotos associadas de candidate_photos para a galeria do Model (ModelMedia)
             if (candidate.getPhotos() != null && !candidate.getPhotos().isEmpty()) {
+                List<CandidatePhoto> sortedPhotos = candidate.getPhotos().stream()
+                        .sorted(Comparator.comparing(CandidatePhoto::getDisplayOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                        .collect(Collectors.toList());
+
+                boolean coverAssigned = false;
                 int order = 1;
-                for (CandidatePhoto p : candidate.getPhotos()) {
+                for (CandidatePhoto p : sortedPhotos) {
                     String photoUrl = p.getFileUrl() != null ? p.getFileUrl() : p.getFilePath();
                     if (photoUrl == null) photoUrl = p.getStoragePath();
                     if (StringUtils.hasText(photoUrl)) {
+                        boolean isCover = (!coverAssigned && (p.getPhotoPosition() == null || p.getPhotoPosition() == 1 || order == 1));
+                        if (isCover) {
+                            coverAssigned = true;
+                        }
                         ModelMedia media = ModelMedia.builder()
                                 .model(savedModel)
-                                .mediaType(order == 1 ? MediaType.BOOK : MediaType.POLAROID)
+                                .mediaType(MediaType.BOOK)
                                 .fileUrl(photoUrl)
                                 .filePath(p.getStoragePath() != null ? p.getStoragePath() : photoUrl)
                                 .displayOrder(p.getDisplayOrder() != null ? p.getDisplayOrder() : order)
-                                .isCover(order == 1)
+                                .isCover(isCover)
                                 .isActive(true)
                                 .build();
                         modelMediaRepository.save(media);
@@ -358,11 +367,13 @@ public class AdminCandidateServiceImpl implements AdminCandidateService {
                 }
             }
 
-            // 3. Remove fisicamente o registro original de candidates e candidate_photos
-            candidateRepository.delete(candidate);
-            candidateRepository.flush();
+            // 3. Atualiza o candidate com vinculo ao Model criado e status APPROVED (preservando historico)
+            candidate.setConvertedToModel(savedModel);
+            candidate.setStatus(CandidateStatus.APPROVED);
+            candidate.setUpdatedAt(OffsetDateTime.now());
+            candidateRepository.save(candidate);
 
-            log.info("Candidato ID: {} promovido para Modelo ID: {} e removido da esteira com sucesso.", id, savedModel.getId());
+            log.info("Candidato ID: {} promovido para Modelo ID: {} com vinculo converted_to_model_id com sucesso.", id, savedModel.getId());
             return savedModel.getId();
         }
 

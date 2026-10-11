@@ -123,19 +123,53 @@ public class AdminModelController {
         final long DIAG_COUNT_TOTAL = modelRepository.count();
         log.info("[DIAGNOSTICO-BD] [CONTROLLER] modelRepository.count() (JPA) no Supabase = {} (executado ANTES de service/specs)", DIAG_COUNT_TOTAL);
 
-        if (isActive == null && status != null) {
-            isActive = "ACTIVE".equalsIgnoreCase(status) || "true".equalsIgnoreCase(status);
+        List<com.wbscouting.api.enums.TalentLifecycleStatus> parsedStatuses = null;
+        if (StringUtils.hasText(status)) {
+            String s = status.trim().toUpperCase();
+            if (s.equals("APPLICANTS") || s.equals("APPLICANT_PENDING")) {
+                parsedStatuses = List.of(com.wbscouting.api.enums.TalentLifecycleStatus.APPLICANT_PENDING);
+            } else if (s.equals("CAST")) {
+                parsedStatuses = List.of(
+                        com.wbscouting.api.enums.TalentLifecycleStatus.CAST_PUBLIC,
+                        com.wbscouting.api.enums.TalentLifecycleStatus.CAST_STAR,
+                        com.wbscouting.api.enums.TalentLifecycleStatus.CAST_INTERNAL
+                );
+            } else if (s.equals("ARCHIVED") || s.equals("DECLINED") || s.equals("ARCHIVED_DECLINED")) {
+                parsedStatuses = List.of(
+                        com.wbscouting.api.enums.TalentLifecycleStatus.APPLICANT_DECLINED,
+                        com.wbscouting.api.enums.TalentLifecycleStatus.ARCHIVED
+                );
+            } else if (s.contains(",")) {
+                parsedStatuses = new java.util.ArrayList<>();
+                for (String part : s.split(",")) {
+                    try {
+                        parsedStatuses.add(com.wbscouting.api.enums.TalentLifecycleStatus.valueOf(part.trim()));
+                    } catch (Exception ignored) {}
+                }
+            } else {
+                try {
+                    parsedStatuses = List.of(com.wbscouting.api.enums.TalentLifecycleStatus.valueOf(s));
+                } catch (IllegalArgumentException e) {
+                    if (isActive == null) {
+                        isActive = "ACTIVE".equalsIgnoreCase(s) || "true".equalsIgnoreCase(s);
+                    }
+                }
+            }
         }
 
         final boolean anyFilterApplied = (gender != null)
                 || (isStar != null)
                 || (isActive != null)
+                || (parsedStatuses != null && !parsedStatuses.isEmpty())
                 || StringUtils.hasText(search);
 
-        log.info("[DIAGNOSTICO-BD] [CONTROLLER] filtros aplicados? anyFilterApplied={} (gender={}, isStar={}, isActive={}, search='{}')",
-                anyFilterApplied, gender, isStar, isActive, search);
+        log.info("[DIAGNOSTICO-BD] [CONTROLLER] filtros aplicados? anyFilterApplied={} (gender={}, isStar={}, isActive={}, status='{}', statuses={}, search='{}')",
+                anyFilterApplied, gender, isStar, isActive, status, parsedStatuses, search);
 
-        Page<ModelAdminResponseDto> result = modelService.listAdminModels(gender, isStar, isActive, search, pageable);
+        Page<ModelAdminResponseDto> result = (parsedStatuses != null && !parsedStatuses.isEmpty())
+                ? modelService.listAdminModels(gender, isStar, isActive, parsedStatuses, search, pageable)
+                : modelService.listAdminModels(gender, isStar, isActive, search, pageable);
+
 
         // ============================================================
         // 🔥 LOG OBRIGATORIO DA TASK: apos a service retornar, qual o totalElements

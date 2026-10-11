@@ -249,7 +249,7 @@ class AdminCandidateServiceImplTest {
     }
 
     @Test
-    @DisplayName("Deve promover candidato a modelo, migrar fotos para ModelMedia e remover registro original de candidates")
+    @DisplayName("Deve promover candidato a modelo, migrar fotos para ModelMedia e vincular convertedToModel")
     void promoteToModel_Success() {
         UUID newModelId = UUID.randomUUID();
         when(candidateRepository.findWithPhotosById(candidateId)).thenReturn(Optional.of(candidate));
@@ -264,7 +264,9 @@ class AdminCandidateServiceImplTest {
         assertThat(resultId).isEqualTo(newModelId);
         verify(modelRepository).save(any(com.wbscouting.api.entity.Model.class));
         verify(modelMediaRepository, atLeastOnce()).save(any(com.wbscouting.api.entity.ModelMedia.class));
-        verify(candidateRepository).delete(candidate);
-        verify(candidateRepository).flush();
+        verify(candidateRepository).save(candidate);
+        assertThat(candidate.getStatus()).isEqualTo(com.wbscouting.api.enums.CandidateStatus.APPROVED);
+        assertThat(candidate.getConvertedToModel()).isNotNull();
+        assertThat(candidate.getConvertedToModel().getId()).isEqualTo(newModelId);
     }
 }

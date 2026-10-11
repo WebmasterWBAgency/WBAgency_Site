@@ -20,6 +20,18 @@ public class ModelAdminResponseDto {
     private UUID id;
     private String stageName;
     private GenderType gender;
+    private com.wbscouting.api.enums.TalentLifecycleStatus status;
+    private String protocol;
+    private String fullName;
+    private String email;
+    private String phone;
+    private Integer age;
+    private String state;
+    private BigDecimal weightKg;
+    private String legalGuardianName;
+    private String legalGuardianContact;
+    private Boolean lgpdAccepted;
+    private String internalNotes;
     private Boolean isStar;
     private Boolean isFeaturedHome;
     private Integer featuredOrder;
@@ -39,4 +51,16 @@ public class ModelAdminResponseDto {
     private String eyesColor;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+
+    @Builder.Default
+    private java.util.List<com.wbscouting.api.dto.media.MediaUploadResponseDto> media = new java.util.ArrayList<>();
+
+    public java.util.List<com.wbscouting.api.dto.media.MediaUploadResponseDto> getMedia() {
+        if (this.media == null) this.media = new java.util.ArrayList<>();
+        return this.media;
+    }
+    public void setMedia(java.util.List<com.wbscouting.api.dto.media.MediaUploadResponseDto> media) {
+        this.media = media != null ? media : new java.util.ArrayList<>();
+    }
 }
+

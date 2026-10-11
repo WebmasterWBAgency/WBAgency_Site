@@ -66,5 +66,29 @@ describe('SecureContactService', () => {
       'noopener,noreferrer'
     );
   });
+
+  it('should deduplicate social channels and exclude redundant Instagram when official handle exists', () => {
+    const rawChannels = [
+      { name: 'Instagram', url: 'https://www.instagram.com/infowbagency/' },
+      { name: 'LinkedIn', url: 'https://www.linkedin.com/company/wbagency/' },
+      { name: 'LinkedIn Official', url: 'https://linkedin.com/company/wbagency' },
+      { name: 'TikTok', url: 'https://www.tiktok.com/@infowbagency' }
+    ];
+
+    const deduplicated = service.deduplicateSocialChannels(rawChannels);
+
+    // O Instagram oficial já existe como canal dedicado (@wbagency), então não deve duplicar em socialMediaList
+    expect(deduplicated.find(s => s.normalizedKey === 'instagram')).toBeUndefined();
+
+    // LinkedIn duplicado deve ser consolidado para 1 único registro
+    const linkedinList = deduplicated.filter(s => s.normalizedKey === 'linkedin');
+    expect(linkedinList.length).toBe(1);
+
+    // TikTok deve ter handle limpo e URL completa
+    const tiktok = deduplicated.find(s => s.normalizedKey === 'tiktok');
+    expect(tiktok).toBeDefined();
+    expect(tiktok?.displayValue).toBe('@infowbagency');
+  });
 });
+
 

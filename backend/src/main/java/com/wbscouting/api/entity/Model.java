@@ -1,6 +1,7 @@
 package com.wbscouting.api.entity;
 
 import com.wbscouting.api.enums.GenderType;
+import com.wbscouting.api.enums.TalentLifecycleStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -35,6 +36,45 @@ public class Model {
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", length = 30, nullable = false)
     private GenderType gender;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 50, nullable = false)
+    @Builder.Default
+    private TalentLifecycleStatus status = TalentLifecycleStatus.CAST_PUBLIC;
+
+    @Column(name = "protocol", length = 50)
+    private String protocol;
+
+    @Column(name = "full_name", length = 200)
+    private String fullName;
+
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @Column(name = "phone", length = 50)
+    private String phone;
+
+    @Column(name = "age")
+    private Integer age;
+
+    @Column(name = "state", length = 50)
+    private String state;
+
+    @Column(name = "weight_kg", precision = 5, scale = 2)
+    private BigDecimal weightKg;
+
+    @Column(name = "legal_guardian_name", length = 200)
+    private String legalGuardianName;
+
+    @Column(name = "legal_guardian_contact", length = 50)
+    private String legalGuardianContact;
+
+    @Column(name = "lgpd_accepted", nullable = false)
+    @Builder.Default
+    private Boolean lgpdAccepted = true;
+
+    @Column(name = "internal_notes", columnDefinition = "TEXT")
+    private String internalNotes;
 
     @Column(name = "is_star", nullable = false)
     @Builder.Default
@@ -93,8 +133,9 @@ public class Model {
     private String eyesColor;
 
     @OneToMany(mappedBy = "model", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("displayOrder ASC")
     @Builder.Default
-    private List<ModelMedia> media = new ArrayList<>();
+    private List<ModelMedia> mediaList = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -110,6 +151,18 @@ public class Model {
     public UUID getId() { return this.id; }
     public String getStageName() { return this.stageName; }
     public GenderType getGender() { return this.gender; }
+    public TalentLifecycleStatus getStatus() { return this.status; }
+    public String getProtocol() { return this.protocol; }
+    public String getFullName() { return this.fullName; }
+    public String getEmail() { return this.email; }
+    public String getPhone() { return this.phone; }
+    public Integer getAge() { return this.age; }
+    public String getState() { return this.state; }
+    public BigDecimal getWeightKg() { return this.weightKg; }
+    public String getLegalGuardianName() { return this.legalGuardianName; }
+    public String getLegalGuardianContact() { return this.legalGuardianContact; }
+    public Boolean getLgpdAccepted() { return this.lgpdAccepted; }
+    public String getInternalNotes() { return this.internalNotes; }
     public Boolean getIsStar() { return this.isStar; }
     public Boolean getIsFeaturedHome() { return this.isFeaturedHome; }
     public Integer getFeaturedOrder() { return this.featuredOrder; }
@@ -126,9 +179,9 @@ public class Model {
     public BigDecimal getWaistCm() { return this.waistCm; }
     public BigDecimal getHipsCm() { return this.hipsCm; }
     public String getHairColor() { return this.hairColor; }
-    // Entity tem campo eyes_color (PLURAL) na tabela. Nome do getter confere com o campo.
     public String getEyesColor() { return this.eyesColor; }
-    public List<ModelMedia> getMedia() { return this.media; }
+    public List<ModelMedia> getMediaList() { return this.mediaList; }
+    public List<ModelMedia> getMedia() { return this.mediaList; }
     public OffsetDateTime getCreatedAt() { return this.createdAt; }
     public OffsetDateTime getUpdatedAt() { return this.updatedAt; }
 
@@ -138,6 +191,28 @@ public class Model {
     public void setId(UUID id) { this.id = id; }
     public void setStageName(String stageName) { this.stageName = stageName; }
     public void setGender(GenderType gender) { this.gender = gender; }
+    public void setGender(String genderStr) {
+        if (genderStr != null) {
+            String g = genderStr.trim().toUpperCase();
+            if (g.contains("FEM") || g.equals("F")) {
+                this.gender = GenderType.FEMALE;
+            } else {
+                this.gender = GenderType.MALE;
+            }
+        }
+    }
+    public void setStatus(TalentLifecycleStatus status) { this.status = status; }
+    public void setProtocol(String protocol) { this.protocol = protocol; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public void setEmail(String email) { this.email = email; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public void setAge(Integer age) { this.age = age; }
+    public void setState(String state) { this.state = state; }
+    public void setWeightKg(BigDecimal weightKg) { this.weightKg = weightKg; }
+    public void setLegalGuardianName(String legalGuardianName) { this.legalGuardianName = legalGuardianName; }
+    public void setLegalGuardianContact(String legalGuardianContact) { this.legalGuardianContact = legalGuardianContact; }
+    public void setLgpdAccepted(Boolean lgpdAccepted) { this.lgpdAccepted = lgpdAccepted; }
+    public void setInternalNotes(String internalNotes) { this.internalNotes = internalNotes; }
     public void setIsStar(Boolean isStar) { this.isStar = isStar; }
     public void setIsFeaturedHome(Boolean isFeaturedHome) { this.isFeaturedHome = isFeaturedHome; }
     public void setFeaturedOrder(Integer featuredOrder) { this.featuredOrder = featuredOrder; }
@@ -155,7 +230,24 @@ public class Model {
     public void setHipsCm(BigDecimal hipsCm) { this.hipsCm = hipsCm; }
     public void setHairColor(String hairColor) { this.hairColor = hairColor; }
     public void setEyesColor(String eyesColor) { this.eyesColor = eyesColor; }
-    public void setMedia(List<ModelMedia> media) { this.media = media; }
+    public void setMediaList(List<ModelMedia> mediaList) {
+        if (this.mediaList == null) {
+            this.mediaList = new ArrayList<>();
+        } else {
+            this.mediaList.clear();
+        }
+        if (mediaList != null) {
+            this.mediaList.addAll(mediaList);
+        }
+    }
+    public void setMedia(List<ModelMedia> media) { this.setMediaList(media); }
+    public void addMedia(ModelMedia item) {
+        if (this.mediaList == null) this.mediaList = new ArrayList<>();
+        this.mediaList.add(item);
+        if (item != null) item.setModel(this);
+    }
+
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
+

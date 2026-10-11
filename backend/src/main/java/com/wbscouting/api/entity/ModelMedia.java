@@ -57,4 +57,46 @@ public class ModelMedia {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    // ============================================================
+    // 🔥 GETTERS/SETTERS EXPLICITOS
+    // ============================================================
+    public UUID getId() { return this.id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public Model getModel() { return this.model; }
+    public void setModel(Model model) { this.model = model; }
+
+    public MediaType getMediaType() { return this.mediaType; }
+    public void setMediaType(MediaType mediaType) { this.mediaType = mediaType; }
+    public void setMediaType(String mediaTypeStr) {
+        if (mediaTypeStr != null) {
+            try {
+                this.mediaType = MediaType.valueOf(mediaTypeStr.trim().toUpperCase());
+            } catch (Exception e) {
+                this.mediaType = MediaType.BOOK;
+            }
+        }
+    }
+
+    public String getFileUrl() { return this.fileUrl; }
+    public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+
+    public String getFilePath() { return this.filePath; }
+    public void setFilePath(String filePath) { this.filePath = filePath; }
+
+    public Integer getDisplayOrder() { return this.displayOrder != null ? this.displayOrder : 0; }
+    public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder; }
+
+    public Boolean getIsCover() { return Boolean.TRUE.equals(this.isCover); }
+    public void setIsCover(Boolean isCover) { this.isCover = isCover != null ? isCover : false; }
+
+    public Boolean getIsActive() { return this.isActive != null ? this.isActive : true; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive != null ? isActive : true; }
+
+    public OffsetDateTime getCreatedAt() { return this.createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+
+    public OffsetDateTime getUpdatedAt() { return this.updatedAt; }
+    public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
+

@@ -13,6 +13,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class SiteContentUpdateRequestDto {
 
+    @jakarta.validation.constraints.NotNull(message = "payloadPt é obrigatório")
     private Map<String, Object> payloadPt;
     private Map<String, Object> payloadEn;
     private Map<String, Object> mediaUrls;

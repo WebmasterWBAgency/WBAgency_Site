@@ -117,4 +117,56 @@ describe('ModelsMgmtComponent', () => {
     expect(component.filterStar()).toBeTrue();
     expect(component.loadModels).toHaveBeenCalled();
   });
+
+  it('deve alternar abas de ciclo de vida (Aplicantes, Elenco e Arquivados)', () => {
+    spyOn(component, 'loadModels');
+    component.setTab('APPLICANTS');
+    expect(component.activeTab()).toBe('APPLICANTS');
+    expect(component.page()).toBe(0);
+    expect(component.loadModels).toHaveBeenCalled();
+
+    component.setTab('ARCHIVED');
+    expect(component.activeTab()).toBe('ARCHIVED');
+    expect(component.page()).toBe(0);
+  });
+
+  it('deve aprovar aplicante e transicionar para CAST_PUBLIC', () => {
+    spyOn(adminModelService, 'updateTalentStatus').and.returnValue(of({ ...mockModel, status: 'CAST_PUBLIC' }));
+    spyOn(component, 'loadModels');
+
+    component.approveApplicant(mockModel);
+
+    expect(adminModelService.updateTalentStatus).toHaveBeenCalledWith('test-model-1', 'CAST_PUBLIC');
+    expect(component.loadModels).toHaveBeenCalled();
+  });
+
+  it('deve recusar aplicante e transicionar para APPLICANT_DECLINED', () => {
+    spyOn(adminModelService, 'updateTalentStatus').and.returnValue(of({ ...mockModel, status: 'APPLICANT_DECLINED' }));
+    spyOn(component, 'loadModels');
+
+    component.declineApplicant(mockModel);
+
+    expect(adminModelService.updateTalentStatus).toHaveBeenCalledWith('test-model-1', 'APPLICANT_DECLINED');
+    expect(component.loadModels).toHaveBeenCalled();
+  });
+
+  it('deve arquivar modelo e transicionar para ARCHIVED', () => {
+    spyOn(adminModelService, 'updateTalentStatus').and.returnValue(of({ ...mockModel, status: 'ARCHIVED' }));
+    spyOn(component, 'loadModels');
+
+    component.archiveModel(mockModel);
+
+    expect(adminModelService.updateTalentStatus).toHaveBeenCalledWith('test-model-1', 'ARCHIVED');
+    expect(component.loadModels).toHaveBeenCalled();
+  });
+
+  it('deve reativar modelo arquivado e transicionar para CAST_PUBLIC', () => {
+    spyOn(adminModelService, 'updateTalentStatus').and.returnValue(of({ ...mockModel, status: 'CAST_PUBLIC' }));
+    spyOn(component, 'loadModels');
+
+    component.reactivateModel(mockModel);
+
+    expect(adminModelService.updateTalentStatus).toHaveBeenCalledWith('test-model-1', 'CAST_PUBLIC');
+    expect(component.loadModels).toHaveBeenCalled();
+  });
 });

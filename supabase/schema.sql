@@ -76,6 +76,20 @@ CREATE TABLE IF NOT EXISTS public.models (
     primary_photo_url TEXT NULL,
     instagram_url VARCHAR(255) NULL,
 
+    -- Ciclo de Vida do Talento (Single-Table Lifecycle)
+    status VARCHAR(50) NOT NULL DEFAULT 'CAST_PUBLIC',
+    protocol VARCHAR(50) NULL,
+    full_name VARCHAR(200) NULL,
+    email VARCHAR(255) NULL,
+    phone VARCHAR(50) NULL,
+    age INTEGER NULL,
+    state VARCHAR(50) NULL,
+    weight_kg NUMERIC(5,2) NULL,
+    legal_guardian_name VARCHAR(200) NULL,
+    legal_guardian_contact VARCHAR(50) NULL,
+    lgpd_accepted BOOLEAN NOT NULL DEFAULT TRUE,
+    internal_notes TEXT NULL,
+
     -- Dados biométricos e profissionais (anuláveis para preenchimento flexível)
     birth_date DATE NULL,
     height_cm INTEGER NULL CHECK (height_cm IS NULL OR (height_cm >= 50 AND height_cm <= 250)),
@@ -166,9 +180,13 @@ CREATE TABLE IF NOT EXISTS public.candidates (
     lgpd_accepted BOOLEAN NOT NULL DEFAULT TRUE CHECK (lgpd_accepted IS TRUE),
     lgpd_accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Auditoria (Registro imutável de candidatura)
+    -- Vinculo de promocao a modelo oficial
+    converted_to_model_id UUID NULL REFERENCES public.models(id) ON DELETE SET NULL,
+
+    -- Auditoria (Registro de candidatura)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at TIMESTAMPTZ NULL
 );
 
 DROP TRIGGER IF EXISTS trg_candidates_updated_at ON public.candidates;
@@ -177,9 +195,11 @@ CREATE TRIGGER trg_candidates_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION public.fn_set_updated_at();
 
+CREATE INDEX IF NOT EXISTS idx_candidates_converted_model ON public.candidates(converted_to_model_id);
+
 -- ------------------------------------------------------------------------------
 -- 4.5. TABELA: candidate_photos
--- Fotografias submetidas pelos candidatos (mínimo 3, máximo 6 imagens no fluxo novo)
+-- Fotografias submetidas pelos candidatos (mínimo 3, máximo 8 imagens)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.candidate_photos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -196,6 +216,7 @@ CREATE TABLE IF NOT EXISTS public.candidate_photos (
         REFERENCES public.candidates(id)
         ON DELETE CASCADE
 );
+
 
 -- ------------------------------------------------------------------------------
 -- 4.6. TABELA: candidate_submissions (CANÔNICA - Backoffice & Triagem + Conversão)

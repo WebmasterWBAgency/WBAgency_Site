@@ -20,10 +20,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.wbscouting.api.dto.media.MediaUploadResponseDto;
 
 @Slf4j
 @Service
@@ -48,9 +50,14 @@ public class ModelServiceImpl implements ModelService {
     public ModelAdminResponseDto createModel(ModelCreateRequestDto dto) {
         log.info("Cadastrando novo modelo artístico: {}", dto.getStageName());
 
+        com.wbscouting.api.enums.TalentLifecycleStatus initialStatus = Boolean.TRUE.equals(dto.getIsStar())
+                ? com.wbscouting.api.enums.TalentLifecycleStatus.CAST_STAR
+                : com.wbscouting.api.enums.TalentLifecycleStatus.CAST_PUBLIC;
+
         Model model = Model.builder()
                 .stageName(dto.getStageName())
                 .gender(dto.getGender())
+                .status(initialStatus)
                 .isStar(Boolean.TRUE.equals(dto.getIsStar()))
                 .isFeaturedHome(Boolean.TRUE.equals(dto.getIsFeaturedHome()))
                 .featuredOrder(dto.getFeaturedOrder())
@@ -123,6 +130,35 @@ public class ModelServiceImpl implements ModelService {
 
     @Override
     @Transactional
+    public ModelAdminResponseDto updateTalentStatus(UUID id, com.wbscouting.api.dto.talent.TalentStatusPatchDto dto) {
+        log.info("Atualizando status do talento ID: {} para {}", id, dto.getStatus());
+
+        Model model = modelRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Talento / Modelo", "id", id));
+
+        model.setStatus(dto.getStatus());
+        if (dto.getStatus() == com.wbscouting.api.enums.TalentLifecycleStatus.CAST_STAR) {
+            model.setIsStar(true);
+            model.setIsActive(true);
+        } else if (dto.getStatus() == com.wbscouting.api.enums.TalentLifecycleStatus.CAST_PUBLIC
+                || dto.getStatus() == com.wbscouting.api.enums.TalentLifecycleStatus.CAST_INTERNAL) {
+            model.setIsActive(true);
+        } else if (dto.getStatus() == com.wbscouting.api.enums.TalentLifecycleStatus.ARCHIVED
+                || dto.getStatus() == com.wbscouting.api.enums.TalentLifecycleStatus.APPLICANT_DECLINED) {
+            model.setIsActive(false);
+        }
+
+        if (StringUtils.hasText(dto.getInternalNotes())) {
+            model.setInternalNotes(dto.getInternalNotes().trim());
+        }
+
+        Model saved = modelRepository.save(model);
+        log.info("Status do talento ID: {} atualizado com sucesso para {}", id, saved.getStatus());
+        return mapToAdminResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public ModelAdminResponseDto updateStar(UUID id, ModelStarPatchDto dto) {
         log.info("Atualizando status Star do modelo ID: {} para {}", id, dto.getIsStar());
 
@@ -153,6 +189,13 @@ public class ModelServiceImpl implements ModelService {
     @Transactional(readOnly = true)
     public Page<ModelAdminResponseDto> listAdminModels(
             GenderType gender, Boolean isStar, Boolean isActive, String search, Pageable pageable) {
+        return listAdminModels(gender, isStar, isActive, null, search, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ModelAdminResponseDto> listAdminModels(
+            GenderType gender, Boolean isStar, Boolean isActive, List<com.wbscouting.api.enums.TalentLifecycleStatus> statuses, String search, Pageable pageable) {
 
         // ============================================================
         // 🔥🔥 DIAGNOSTICO SQL PURO VIA JDBC DIRETO (SEM JPA/HIBERNATE)
@@ -177,28 +220,33 @@ public class ModelServiceImpl implements ModelService {
         final String sanitizedSearch = StringUtils.hasText(search) ? search.trim() : null;
 
         // 2. Verifica se ha algum filtro REAL aplicado (apos sanitizacao)
+        final boolean hasStatuses = (statuses != null && !statuses.isEmpty());
         final boolean hasFilters = (gender != null)
                 || (isStar != null)
                 || (isActive != null)
+                || hasStatuses
                 || (sanitizedSearch != null);
 
         // 3. LOGGER DE PARAMETROS (ajuda a identificar filtros corretamente)
-        log.info("[ADMIN MODEL] listAdminModels → gender={}, isStar={}, isActive={}, sanitizedSearch='{}', " +
+        log.info("[ADMIN MODEL] listAdminModels → gender={}, isStar={}, isActive={}, statuses={}, sanitizedSearch='{}', " +
                         "hasFilters={}, pageable.page={}, pageable.size={}, pageable.sort={}",
-                gender, isStar, isActive, sanitizedSearch,
+                gender, isStar, isActive, statuses, sanitizedSearch,
                 hasFilters,
                 pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
 
-        // ============================================================
-        // 🔥🔥 CORACAO DA CORRECAO — JPQLs PURAS (task requerida):
-        //    - NENHUMA Specification (evita join fetch/root.fetch indevido em specs)
-        //    - NENHUM @EntityGraph acoplado em collections (Model.media)
-        //    - countQuery EXPLICITA em ambas as queries (resolve totalElements=0)
-        //    - Warning HHH90003004 NAO ocorre mais aqui.
-        // ============================================================
         final Page<Model> pageResult;
 
-        if (hasFilters) {
+        if (hasStatuses) {
+            log.info("[ADMIN MODEL] Executando findAdminWithFiltersAndStatuses() com lista de statuses={}", statuses);
+            pageResult = modelRepository.findAdminWithFiltersAndStatuses(
+                    gender,
+                    isStar,
+                    isActive,
+                    statuses,
+                    sanitizedSearch,
+                    pageable
+            );
+        } else if (hasFilters) {
             log.info("[ADMIN MODEL] Executando findAdminWithFilters() (JPQL pura) com filtros.");
             pageResult = modelRepository.findAdminWithFilters(
                     gender,
@@ -211,6 +259,7 @@ public class ModelServiceImpl implements ModelService {
             log.info("[ADMIN MODEL] Executando findAllAdminPure() (JPQL pura) SEM filtros.");
             pageResult = modelRepository.findAllAdminPure(pageable);
         }
+
 
         // ============================================================
         // LOG DE RESULTADO.
@@ -323,15 +372,71 @@ public class ModelServiceImpl implements ModelService {
     }
 
     private ModelAdminResponseDto mapToAdminResponse(Model model) {
+        String resolvedPrimaryUrl = model.getPrimaryPhotoUrl();
+        List<ModelMedia> medias = null;
+        try {
+            if (model.getMedia() != null && !model.getMedia().isEmpty()) {
+                medias = model.getMedia();
+            }
+        } catch (Exception ignored) {
+            // Previne LazyInitializationException
+        }
+        if (medias == null && model.getId() != null) {
+            try {
+                medias = modelMediaRepository.findByModelIdOrderByDisplayOrderAsc(model.getId());
+            } catch (Exception ignored) {}
+        }
+
+        List<MediaUploadResponseDto> mediaDtos = new ArrayList<>();
+        if (medias != null && !medias.isEmpty()) {
+            mediaDtos = medias.stream()
+                    .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
+                    .map(m -> MediaUploadResponseDto.builder()
+                            .id(m.getId())
+                            .modelId(model.getId())
+                            .mediaType(m.getMediaType())
+                            .fileUrl(m.getFileUrl())
+                            .filePath(m.getFilePath())
+                            .displayOrder(m.getDisplayOrder())
+                            .isCover(m.getIsCover())
+                            .createdAt(m.getCreatedAt())
+                            .build())
+                    .collect(Collectors.toList());
+
+            if (!StringUtils.hasText(resolvedPrimaryUrl)) {
+                resolvedPrimaryUrl = medias.stream()
+                        .filter(m -> Boolean.TRUE.equals(m.getIsCover()) && StringUtils.hasText(m.getFileUrl()))
+                        .map(ModelMedia::getFileUrl)
+                        .findFirst()
+                        .orElse(medias.stream()
+                                .map(ModelMedia::getFileUrl)
+                                .filter(StringUtils::hasText)
+                                .findFirst()
+                                .orElse(null));
+            }
+        }
+
         return ModelAdminResponseDto.builder()
                 .id(model.getId())
                 .stageName(model.getStageName())
                 .gender(model.getGender())
+                .status(model.getStatus())
+                .protocol(model.getProtocol())
+                .fullName(model.getFullName())
+                .email(model.getEmail())
+                .phone(model.getPhone())
+                .age(model.getAge())
+                .state(model.getState())
+                .weightKg(model.getWeightKg())
+                .legalGuardianName(model.getLegalGuardianName())
+                .legalGuardianContact(model.getLegalGuardianContact())
+                .lgpdAccepted(model.getLgpdAccepted())
+                .internalNotes(model.getInternalNotes())
                 .isStar(model.getIsStar())
                 .isFeaturedHome(model.getIsFeaturedHome())
                 .featuredOrder(model.getFeaturedOrder())
                 .isActive(model.getIsActive())
-                .primaryPhotoUrl(model.getPrimaryPhotoUrl())
+                .primaryPhotoUrl(resolvedPrimaryUrl)
                 .instagramUrl(model.getInstagramUrl())
                 .birthDate(model.getBirthDate())
                 .heightCm(model.getHeightCm())
@@ -346,16 +451,30 @@ public class ModelServiceImpl implements ModelService {
                 .eyesColor(model.getEyesColor())
                 .createdAt(model.getCreatedAt())
                 .updatedAt(model.getUpdatedAt())
+                .media(mediaDtos)
                 .build();
     }
 
+
     private ModelDTO.SummaryResponse mapToSummary(Model model) {
+        String resolvedPrimaryUrl = model.getPrimaryPhotoUrl();
+        if (!StringUtils.hasText(resolvedPrimaryUrl) && model.getId() != null) {
+            try {
+                resolvedPrimaryUrl = modelMediaRepository.findAllByModelIdAndIsCoverTrue(model.getId())
+                        .stream()
+                        .map(ModelMedia::getFileUrl)
+                        .filter(StringUtils::hasText)
+                        .findFirst()
+                        .orElse(null);
+            } catch (Exception ignored) {}
+        }
+
         return ModelDTO.SummaryResponse.builder()
                 .id(model.getId())
                 .stageName(model.getStageName())
                 .gender(model.getGender())
                 .isStar(model.getIsStar())
-                .primaryPhotoUrl(model.getPrimaryPhotoUrl())
+                .primaryPhotoUrl(resolvedPrimaryUrl)
                 .heightCm(model.getHeightCm())
                 .dressSize(model.getDressSize())
                 .shoeSize(model.getShoeSize())
@@ -364,16 +483,43 @@ public class ModelServiceImpl implements ModelService {
     }
 
     private ModelDTO.DetailResponse mapToDetail(Model model) {
-        List<ModelDTO.MediaResponse> mediaResponses = model.getMedia()
-                .stream()
-                .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
-                .map(m -> ModelDTO.MediaResponse.builder()
-                        .id(m.getId())
-                        .mediaType(m.getMediaType())
-                        .fileUrl(m.getFileUrl())
-                        .displayOrder(m.getDisplayOrder())
-                        .build())
-                .collect(Collectors.toList());
+        String resolvedPrimaryUrl = model.getPrimaryPhotoUrl();
+        List<ModelMedia> medias = null;
+        try {
+            if (model.getMedia() != null && !model.getMedia().isEmpty()) {
+                medias = model.getMedia();
+            }
+        } catch (Exception ignored) {}
+        if (medias == null && model.getId() != null) {
+            try {
+                medias = modelMediaRepository.findByModelIdOrderByDisplayOrderAsc(model.getId());
+            } catch (Exception ignored) {}
+        }
+
+        List<ModelDTO.MediaResponse> mediaResponses = new ArrayList<>();
+        if (medias != null && !medias.isEmpty()) {
+            mediaResponses = medias.stream()
+                    .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
+                    .map(m -> ModelDTO.MediaResponse.builder()
+                            .id(m.getId())
+                            .mediaType(m.getMediaType())
+                            .fileUrl(m.getFileUrl())
+                            .displayOrder(m.getDisplayOrder())
+                            .build())
+                    .collect(Collectors.toList());
+
+            if (!StringUtils.hasText(resolvedPrimaryUrl)) {
+                resolvedPrimaryUrl = medias.stream()
+                        .filter(m -> Boolean.TRUE.equals(m.getIsCover()) && StringUtils.hasText(m.getFileUrl()))
+                        .map(ModelMedia::getFileUrl)
+                        .findFirst()
+                        .orElse(medias.stream()
+                                .map(ModelMedia::getFileUrl)
+                                .filter(StringUtils::hasText)
+                                .findFirst()
+                                .orElse(null));
+            }
+        }
 
         return ModelDTO.DetailResponse.builder()
                 .id(model.getId())
@@ -381,7 +527,7 @@ public class ModelServiceImpl implements ModelService {
                 .gender(model.getGender())
                 .isStar(model.getIsStar())
                 .isFeaturedHome(model.getIsFeaturedHome())
-                .primaryPhotoUrl(model.getPrimaryPhotoUrl())
+                .primaryPhotoUrl(resolvedPrimaryUrl)
                 .instagramUrl(model.getInstagramUrl())
                 .birthDate(model.getBirthDate())
                 .heightCm(model.getHeightCm())
@@ -398,3 +544,4 @@ public class ModelServiceImpl implements ModelService {
                 .build();
     }
 }
+

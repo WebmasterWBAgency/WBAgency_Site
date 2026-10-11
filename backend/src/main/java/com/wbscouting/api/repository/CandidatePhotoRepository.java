@@ -12,18 +12,24 @@ import java.util.UUID;
 @Repository
 public interface CandidatePhotoRepository extends JpaRepository<CandidatePhoto, UUID> {
 
-    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.submission.id = :submissionId ORDER BY cp.displayOrder ASC")
-    List<CandidatePhoto> findBySubmissionIdOrderByDisplayOrderAsc(@Param("submissionId") UUID submissionId);
-
-    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.submission.id = :candidateId ORDER BY cp.displayOrder ASC")
+    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.candidate.id = :candidateId ORDER BY cp.displayOrder ASC")
     List<CandidatePhoto> findByCandidateIdOrderByDisplayOrderAsc(@Param("candidateId") UUID candidateId);
 
-    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.submission.id = :candidateId ORDER BY cp.displayOrder ASC")
+    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.candidate.id = :candidateId ORDER BY cp.displayOrder ASC")
     List<CandidatePhoto> findByCandidate_IdOrderByDisplayOrderAsc(@Param("candidateId") UUID candidateId);
 
-    @Query("SELECT cp.submission.id, COUNT(cp) FROM CandidatePhoto cp WHERE cp.submission.id IN :candidateIds GROUP BY cp.submission.id")
+    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.candidate.id = :submissionId ORDER BY cp.displayOrder ASC")
+    List<CandidatePhoto> findBySubmissionIdOrderByDisplayOrderAsc(@Param("submissionId") UUID submissionId);
+
+    @Query("SELECT COUNT(cp) FROM CandidatePhoto cp WHERE cp.candidate.id = :candidateId")
+    long countByCandidateId(@Param("candidateId") UUID candidateId);
+
+    @Query("SELECT COUNT(cp) FROM CandidatePhoto cp WHERE cp.candidate.id = :submissionId")
+    long countBySubmissionId(@Param("submissionId") UUID submissionId);
+
+    @Query("SELECT cp.candidate.id, COUNT(cp) FROM CandidatePhoto cp WHERE cp.candidate.id IN :candidateIds GROUP BY cp.candidate.id")
     List<Object[]> countPhotosByCandidateIds(@Param("candidateIds") List<UUID> candidateIds);
 
-    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.submission.id IN :submissionIds ORDER BY cp.displayOrder ASC")
+    @Query("SELECT cp FROM CandidatePhoto cp WHERE cp.candidate.id IN :submissionIds ORDER BY cp.displayOrder ASC")
     List<CandidatePhoto> findBySubmissionIdInOrderByDisplayOrderAsc(@Param("submissionIds") List<UUID> submissionIds);
 }

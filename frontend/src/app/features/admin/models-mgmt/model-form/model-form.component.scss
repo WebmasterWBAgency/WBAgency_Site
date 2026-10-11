@@ -13,26 +13,52 @@ $text-muted: #66666e;
 $danger: #e05252;
 $success: #4ec985;
 
-.model-form-container {
+.model-form-container,
+.modal-dialog-container {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 1100px;
+  height: 100%;
+  max-height: 90vh;
   margin: 0 auto;
   color: $text-main;
+  background: #FFFFFF;
+  border-radius: 0px !important; // Regra AGENTS.md: rounded-none estrito
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   animation: fadeIn 0.3s ease-out;
+  position: relative;
+}
 
-  /* ============================================================
-     BARRA DE ROLAGEM VERTICAL VISÍVEL E APARENTE
-     (Janela do formulário, modal ou página standalone)
-     ============================================================ */
-  max-height: 85vh;
+:host-context(.drawer-panel) {
+  .model-form-container,
+  .modal-dialog-container {
+    max-height: 100vh;
+    height: 100vh;
+    box-shadow: none;
+    border-radius: 0px !important;
+  }
+}
+
+.modal-form,
+.model-reactive-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0; /* Imprescindível para permitir que filhos encolham no flex */
+  overflow: hidden;
+}
+
+.modal-body-scrollable {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-
-  // Margem/Padding generoso no rodapé para os campos nunca ficarem sob a barra
-  padding: 1.5rem 1.5rem 6.5rem 1.5rem;
+  -webkit-overflow-scrolling: touch;
+  padding: 1.5rem 2rem 3rem 2rem;
+  scrollbar-gutter: stable;
 
   /* =================== SCROLLBAR VISÍVEL E APARENTE =================== */
   scrollbar-width: thin;
@@ -46,7 +72,7 @@ $success: #4ec985;
   }
   &::-webkit-scrollbar-thumb {
     background-color: #D1D5D1;
-    border-radius: 0px;
+    border-radius: 0px !important;
     transition: background-color 0.2s ease;
 
     &:hover {
@@ -111,20 +137,22 @@ $success: #4ec985;
 // 🔥 CABEÇALHO FIXO NO TOPO (breadcrumb + titulo + botoes)
 //    Sticky durante scroll das secoes.
 // ============================================================
-.form-header {
+.form-header,
+.modal-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1.5rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 0;
+  padding: 1.5rem 2rem 1.25rem 2rem;
   border-bottom: 1px solid #E8EBE8;
+  background: #FFFFFF;
   position: relative;
-  z-index: 4;
+  z-index: 20;
 
   @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
+    padding: 1rem 1.25rem;
   }
 
   .breadcrumb {
@@ -135,31 +163,33 @@ $success: #4ec985;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin-bottom: 0.5rem;
-    color: $text-muted;
+    color: #5F6661;
 
     .breadcrumb-link {
       cursor: pointer;
-      color: $text-secondary;
+      color: #5F6661;
       transition: color 0.2s;
-      &:hover { color: $gold-light; }
+      &:hover { color: #222624; }
     }
 
     .breadcrumb-current {
-      color: $gold;
+      color: #4B584E;
+      font-weight: 600;
     }
   }
 
-  .form-title {
-    font-size: 2rem;
-    font-weight: 400;
+  .form-title,
+  .modal-title {
+    font-size: 1.75rem;
+    font-weight: 600;
     letter-spacing: -0.02em;
-    color: #fff;
+    color: #222624;
     margin: 0 0 0.4rem 0;
   }
 
   .form-subtitle {
-    font-size: 0.95rem;
-    color: $text-secondary;
+    font-size: 0.875rem;
+    color: #5F6661;
     margin: 0;
   }
 
@@ -167,6 +197,21 @@ $success: #4ec985;
     display: flex;
     gap: 0.75rem;
     flex-shrink: 0;
+  }
+
+  .btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    color: #5F6661;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
+    transition: color 0.2s;
+
+    &:hover {
+      color: #222624;
+    }
   }
 }
 
@@ -767,36 +812,38 @@ $success: #4ec985;
 // BARRA DE AÇÕES (CANCELAR / SALVAR) FIXADA NO RODAPÉ
 // Sticky bottom com fundo claro, sem cantos arredondados
 // ============================================================
+.modal-footer-fixed,
 .form-footer-bar {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 1rem;
   border-top: 1px solid #E8EBE8;
-
-  position: sticky;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 30;
-  margin: 2rem -1.5rem -6.5rem -1.5rem;
-  padding: 0.875rem 1.5rem;
+  background-color: #FFFFFF;
+  margin: 0 !important;
+  padding: 1rem 2rem;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
 
   .btn {
     border-radius: 0px !important;
-  }
-
-  .btn-outline {
-    background: #FFFFFF;
-    border: 1px solid #E8EBE8;
-    color: #5F6661;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    padding: 0.625rem 1.5rem;
+    padding: 0.75rem 1.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-outline,
+  .btn-secondary {
+    background: #FFFFFF;
+    border: 1px solid #E8EBE8;
+    color: #5F6661;
 
     &:hover:not(:disabled) {
       border-color: #222624;
@@ -805,27 +852,29 @@ $success: #4ec985;
     }
   }
 
-  .btn-gold {
+  .btn-gold,
+  .btn-primary {
     background: #4B584E;
     color: #FFFFFF;
     border: 1px solid #4B584E;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 0.625rem 1.5rem;
     box-shadow: none;
 
     &:hover:not(:disabled) {
-      background: #3B473E;
-      border-color: #3B473E;
+      background: #38433B;
+      border-color: #38433B;
       filter: none;
       transform: none;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 
   @media (max-width: 640px) {
     flex-direction: column-reverse;
+    padding: 1rem 1.25rem;
 
     .btn {
       width: 100%;

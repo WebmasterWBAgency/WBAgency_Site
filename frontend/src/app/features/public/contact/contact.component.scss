@@ -502,6 +502,60 @@
       }
     }
   }
+
+  // Estilo específico do LinkedIn
+  &.btn-linkedin {
+    .btn-protected-icon {
+      background: rgba(10, 102, 194, 0.08);
+      color: #0A66C2;
+      border: 1px solid rgba(10, 102, 194, 0.2);
+    }
+
+    &:hover {
+      border-color: #0A66C2;
+
+      .btn-click-hint {
+        color: #0A66C2;
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  // Estilo específico do TikTok
+  &.btn-tiktok {
+    .btn-protected-icon {
+      background: rgba(0, 0, 0, 0.06);
+      color: #000000;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+    }
+
+    &:hover {
+      border-color: #000000;
+
+      .btn-click-hint {
+        color: #000000;
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  // Estilo específico do Facebook
+  &.btn-facebook {
+    .btn-protected-icon {
+      background: rgba(24, 119, 242, 0.08);
+      color: #1877F2;
+      border: 1px solid rgba(24, 119, 242, 0.2);
+    }
+
+    &:hover {
+      border-color: #1877F2;
+
+      .btn-click-hint {
+        color: #1877F2;
+        transform: translateX(3px);
+      }
+    }
+  }
 }
 
 // -------------------------------------------------------------
@@ -516,7 +570,7 @@
   padding: 3rem;
   background: #ffffff;
   border: 1px solid var(--border-subtle); // #E8EBE8
-  border-radius: 2px;
+  border-radius: 0;
   box-shadow: 0 8px 30px rgba(75, 88, 78, 0.06);
 
   @media (max-width: 640px) {

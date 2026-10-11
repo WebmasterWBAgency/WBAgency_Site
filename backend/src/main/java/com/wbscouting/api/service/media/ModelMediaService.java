@@ -18,6 +18,10 @@ public interface ModelMediaService {
 
     void setCoverMedia(UUID modelId, UUID mediaId);
 
+    default void setCoverPhoto(UUID modelId, UUID mediaId) {
+        setCoverMedia(modelId, mediaId);
+    }
+
     List<MediaUploadResponseDto> listModelMedia(UUID modelId);
 
     com.wbscouting.api.dto.media.ModelCompositeResponseDto getComposite(UUID modelId);

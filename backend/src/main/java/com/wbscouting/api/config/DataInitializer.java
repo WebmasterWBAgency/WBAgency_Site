@@ -463,30 +463,38 @@ public class DataInitializer implements CommandLineRunner {
                 UPDATE public.institutional_settings SET content_json = content_data WHERE content_json IS NULL AND content_data IS NOT NULL;
             """);
 
-            // Garante que candidate_photos referencie 'candidates' (e não a tabela legada 'candidate_submissions')
+            // Garante que candidate_photos referencie 'candidate_submissions' (e remove constraint legada para 'candidates')
             jdbcTemplate.execute("""
                 DO $$
                 BEGIN
+                    -- 1. Remove a constraint legada que aponta para candidates
                     IF EXISTS (
-                        SELECT 1 FROM information_schema.table_constraints
-                        WHERE table_schema = 'public'
-                          AND table_name = 'candidate_photos'
-                          AND constraint_name = 'fk_candidate_photos_submission'
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'fk_candidate_photos_candidate'
+                    ) THEN
+                        ALTER TABLE public.candidate_photos DROP CONSTRAINT fk_candidate_photos_candidate;
+                    END IF;
+
+                    -- 2. Remove versão anterior se existir com outro nome
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'fk_candidate_photos_submission'
                     ) THEN
                         ALTER TABLE public.candidate_photos DROP CONSTRAINT fk_candidate_photos_submission;
                     END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.table_constraints
-                        WHERE table_schema = 'public'
-                          AND table_name = 'candidate_photos'
-                          AND constraint_name = 'fk_candidate_photos_candidate'
-                    ) THEN
-                        ALTER TABLE public.candidate_photos
-                        ADD CONSTRAINT fk_candidate_photos_candidate
-                        FOREIGN KEY (candidate_id) REFERENCES public.candidates(id) ON DELETE CASCADE;
-                    END IF;
                 END $$;
+
+                -- Limpeza preventiva de registros em candidate_photos cujo candidate_id não exista em candidate_submissions
+                DELETE FROM public.candidate_photos 
+                WHERE candidate_id IS NOT NULL 
+                  AND NOT EXISTS (SELECT 1 FROM public.candidate_submissions cs WHERE cs.id = candidate_photos.candidate_id);
+
+                -- 3. Cria a chave estrangeira correta apontando para candidate_submissions com exclusão em cascata
+                ALTER TABLE public.candidate_photos
+                ADD CONSTRAINT fk_candidate_photos_submission
+                FOREIGN KEY (candidate_id) 
+                REFERENCES public.candidate_submissions(id) 
+                ON DELETE CASCADE;
             """);
 
             // 🔄 MIGRAÇÃO AUTOMÁTICA: Sincroniza registros legados de candidate_submissions para candidates
@@ -584,7 +592,7 @@ public class DataInitializer implements CommandLineRunner {
             if (low.contains("prod") || low.contains("render") || low.contains("prd") || low.contains("hostinger") || low.contains("staging") || low.contains("cloud")) {
                 return false;
             }
-            if (low.contains("local") || low.contains("dev") || low.contains("h2") || low.contains("development")) {
+            if (low.contains("local") || low.contains("dev") || low.contains("h2") || low.contains("development") || low.contains("test")) {
                 return true;
             }
         }

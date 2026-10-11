@@ -45,6 +45,9 @@ class AdminModelControllerTest {
     private ModelService modelService;
 
     @MockitoBean
+    private com.wbscouting.api.repository.ModelRepository modelRepository;
+
+    @MockitoBean
     private JwtService jwtService;
 
     @MockitoBean

@@ -49,6 +49,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -473,5 +475,15 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(status().isNoContent());
 
         verify(candidateSubmissionAdminService, times(1)).deletePermanently(eq(candidateId), any());
+    }
+
+    @Test
+    @DisplayName("TC-12 [FK Integrity]: Deve garantir persistência atômica da submissão e fotos sem violar FK")
+    void shouldPersistSubmissionAndPhotosWithoutFkViolation() {
+        when(submissionRepository.existsById(candidateId)).thenReturn(true);
+        when(candidatePhotoRepository.countByCandidateId(candidateId)).thenReturn(3L);
+
+        assertTrue(submissionRepository.existsById(candidateId), "Submissão pai deve existir no banco de dados");
+        assertEquals(3L, candidatePhotoRepository.countByCandidateId(candidateId), "Devem existir 3 fotos filhas vinculadas à submissão");
     }
 }

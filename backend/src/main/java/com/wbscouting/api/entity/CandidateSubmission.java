@@ -101,7 +101,7 @@ public class CandidateSubmission {
     @Builder.Default
     private SubmissionStatus status = SubmissionStatus.PENDING;
 
-    @OneToMany(mappedBy = "submission", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Transient
     @Builder.Default
     private List<CandidatePhoto> photos = new ArrayList<>();
 

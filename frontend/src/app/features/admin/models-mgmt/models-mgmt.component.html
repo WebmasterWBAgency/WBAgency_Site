@@ -11,8 +11,8 @@
   <!-- Cabeçalho de Gestão (Harmonizado com a diagramação editorial da Triagem) -->
   <div class="mgmt-top">
     <div>
-      <h1 class="font-serif mgmt-title">Casting & Stars</h1>
-      <p class="text-secondary">Cadastro, edição de medidas biométricas, classificação Stars e status dos modelos da WB Agency.</p>
+      <h1 class="font-serif mgmt-title">Gestão Unificada de Talentos</h1>
+      <p class="text-secondary">Acompanhamento canônico do ciclo de vida: candidatos em triagem, elenco de modelos ativos e arquivo morto.</p>
     </div>
     <div class="flex items-center gap-3">
       <a routerLink="/admin/destaques-home" class="btn btn-outline">
@@ -22,6 +22,37 @@
         + Novo Modelo
       </button>
     </div>
+  </div>
+
+  <!-- Abas de Ciclo de Vida do Talento (Single-Table Lifecycle) -->
+  <div class="tabs-lifecycle">
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'CAST'"
+      (click)="setTab('CAST')"
+    >
+      <span class="tab-label">Elenco Principal</span>
+      <span class="tab-sublabel">Modelos ativos e stars no casting</span>
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'APPLICANTS'"
+      (click)="setTab('APPLICANTS')"
+    >
+      <span class="tab-label">Aplicantes & Triagem</span>
+      <span class="tab-sublabel">Novas candidaturas pendentes</span>
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'ARCHIVED'"
+      (click)="setTab('ARCHIVED')"
+    >
+      <span class="tab-label">Arquivados & Declinados</span>
+      <span class="tab-sublabel">Histórico de inativos e recusas</span>
+    </button>
   </div>
 
   <!-- Barra de Filtros e Busca -->
@@ -104,113 +135,268 @@
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Modelo</th>
-              <th>Gênero</th>
-              <th>Stars</th>
-              <th>Altura / Medidas</th>
-              <th>Localização</th>
-              <th>Status</th>
-              <th>Ações</th>
+              @if (activeTab() === 'APPLICANTS') {
+                <th>Candidato / Protocolo</th>
+                <th>Contato</th>
+                <th>Idade / Biometria</th>
+                <th>Cidade / Estado</th>
+                <th>Status</th>
+                <th>Ações de Triagem</th>
+              } @else if (activeTab() === 'ARCHIVED') {
+                <th>Modelo</th>
+                <th>Gênero</th>
+                <th>Classificação</th>
+                <th>Localização</th>
+                <th>Status</th>
+                <th>Ações</th>
+              } @else {
+                <th>Modelo</th>
+                <th>Gênero</th>
+                <th>Stars</th>
+                <th>Altura / Medidas</th>
+                <th>Localização</th>
+                <th>Status</th>
+                <th>Ações</th>
+              }
             </tr>
           </thead>
           <tbody>
             @for (model of models(); track model.id) {
               <tr>
-                <!-- Coluna: Modelo (Foto + Nome) -->
-                <td class="model-profile-cell">
-                  <div class="model-thumb">
-                    @if (model.primaryPhotoUrl && !hasBrokenThumb(model.id)) {
-                      <img
-                        [src]="model.primaryPhotoUrl"
-                        [alt]="'Miniatura do modelo ' + model.stageName"
-                        loading="lazy"
-                        decoding="async"
-                        (error)="onThumbError(model.id)"
-                      />
-                    } @else {
-                      <div class="thumb-fallback" [title]="model.primaryPhotoUrl ? 'Foto indisponivel. Clique em Editar para re-enviar.' : 'Sem foto cadastrada. Clique em Editar para enviar.'">
-                        WB
-                      </div>
-                    }
-                  </div>
-                  <div>
-                    <strong class="model-name">{{ model.stageName }}</strong>
-                    @if (model.instagramUrl) {
-                      <span class="instagram-sub">{{ model.instagramUrl }}</span>
-                    }
-                  </div>
-                </td>
+                @if (activeTab() === 'APPLICANTS') {
+                  <!-- Coluna: Candidato (Foto + Nome Completo + Protocolo) -->
+                  <td class="model-profile-cell">
+                    <div class="model-thumb">
+                      @if (model.primaryPhotoUrl && !hasBrokenThumb(model.id)) {
+                        <img
+                          [src]="model.primaryPhotoUrl"
+                          [alt]="'Foto de ' + (model.fullName || model.stageName)"
+                          loading="lazy"
+                          decoding="async"
+                          (error)="onThumbError(model.id)"
+                        />
+                      } @else {
+                        <div class="thumb-fallback">WB</div>
+                      }
+                    </div>
+                    <div>
+                      <strong class="model-name">{{ model.fullName || model.stageName }}</strong>
+                      @if (model.protocol) {
+                        <span class="protocol-badge">#{{ model.protocol }}</span>
+                      }
+                    </div>
+                  </td>
 
-                <!-- Coluna: Gênero -->
-                <td>
-                  <span class="badge-cat" [class.badge-male]="model.gender === 'MALE'">
-                    {{ model.gender === 'MALE' ? 'Masculino' : 'Feminino' }}
-                  </span>
-                </td>
+                  <!-- Coluna: Contato -->
+                  <td>
+                    <div class="contact-sub-cell">
+                      <span class="contact-email">{{ model.email || '--' }}</span>
+                      <span class="contact-phone">{{ model.phone || '--' }}</span>
+                    </div>
+                  </td>
 
-                <!-- Coluna: Switch / Tag Stars -->
-                <td>
-                  <button
-                    type="button"
-                    class="star-toggle-btn"
-                    [class.is-star]="model.isStar"
-                    (click)="toggleStar(model)"
-                    [title]="model.isStar ? 'Remover de Stars' : 'Classificar como Star'"
-                  >
-                    <span class="star-glyph">&starf;</span>
-                    {{ model.isStar ? 'STAR' : 'Normal' }}
-                  </button>
-                </td>
-
-                <!-- Coluna: Medidas -->
-                <td>
-                  <div class="measurements-cell">
-                    <span class="height-highlight">{{ model.heightCm ? model.heightCm + ' cm' : '--' }}</span>
-                    @if (model.bustChestCm || model.waistCm || model.hipsCm) {
+                  <!-- Coluna: Idade / Biometria -->
+                  <td>
+                    <div class="measurements-cell">
+                      <span class="height-highlight">{{ model.age ? model.age + ' anos' : '--' }}</span>
                       <span class="bwh-line">
-                        {{ model.bustChestCm || '--' }} / {{ model.waistCm || '--' }} / {{ model.hipsCm || '--' }}
+                        {{ model.heightCm ? model.heightCm + 'cm' : '--' }}
+                        {{ model.weightKg ? ' • ' + model.weightKg + 'kg' : '' }}
                       </span>
-                    }
-                  </div>
-                </td>
+                    </div>
+                  </td>
 
-                <!-- Coluna: Localização -->
-                <td>
-                  <span class="city-text">{{ model.city || model.nationality || '--' }}</span>
-                </td>
+                  <!-- Coluna: Cidade / Estado -->
+                  <td>
+                    <span class="city-text">{{ model.city ? model.city + (model.state ? ' / ' + model.state : '') : '--' }}</span>
+                  </td>
 
-                <!-- Coluna: Status Ativo/Inativo -->
-                <td>
-                  <span class="status-pill" [class.status-active]="model.isActive">
-                    {{ model.isActive ? 'Ativo' : 'Inativo' }}
-                  </span>
-                </td>
+                  <!-- Coluna: Status -->
+                  <td>
+                    <span class="status-pill status-pending">Em Triagem</span>
+                  </td>
 
-                <!-- Coluna: Ações -->
-                <td class="action-cell">
-                  <button class="action-btn text-gold" (click)="openEditForm(model)">
-                    Editar
-                  </button>
-                  <button class="action-btn" (click)="toggleStatus(model)">
-                    {{ model.isActive ? 'Desativar' : 'Ativar' }}
-                  </button>
-                  <!-- ============================================================
-                       🗑️ BOTÃO APAGAR MODELO (abre modal de confirmação)
-                       ============================================================ -->
-                  <button
-                    type="button"
-                    class="action-btn action-btn-danger"
-                    title="Mover este modelo para o Arquivo Morto"
-                    (click)="confirmDelete(model)"
-                  >
-                    Apagar
-                  </button>
-                </td>
+                  <!-- Coluna: Ações de Triagem -->
+                  <td class="action-cell">
+                    <button type="button" class="action-btn text-success" title="Aprovar e migrar para o Elenco Oficial" (click)="approveApplicant(model)">
+                      ✓ Aprovar no Elenco
+                    </button>
+                    <button type="button" class="action-btn action-btn-danger" title="Recusar candidatura" (click)="declineApplicant(model)">
+                      ✕ Recusar
+                    </button>
+                    <button type="button" class="action-btn text-gold" title="Ver ficha cadastral completa" (click)="openEditForm(model)">
+                      Ver Ficha
+                    </button>
+                  </td>
+
+                } @else if (activeTab() === 'ARCHIVED') {
+                  <!-- Coluna: Modelo -->
+                  <td class="model-profile-cell">
+                    <div class="model-thumb">
+                      @if (model.primaryPhotoUrl && !hasBrokenThumb(model.id)) {
+                        <img
+                          [src]="model.primaryPhotoUrl"
+                          [alt]="'Foto de ' + model.stageName"
+                          loading="lazy"
+                          decoding="async"
+                          (error)="onThumbError(model.id)"
+                        />
+                      } @else {
+                        <div class="thumb-fallback">WB</div>
+                      }
+                    </div>
+                    <div>
+                      <strong class="model-name">{{ model.stageName }}</strong>
+                      @if (model.protocol) {
+                        <span class="protocol-badge">#{{ model.protocol }}</span>
+                      }
+                    </div>
+                  </td>
+
+                  <!-- Coluna: Gênero -->
+                  <td>
+                    <span class="badge-cat" [class.badge-male]="model.gender === 'MALE'">
+                      {{ model.gender === 'MALE' ? 'Masculino' : 'Feminino' }}
+                    </span>
+                  </td>
+
+                  <!-- Coluna: Classificação -->
+                  <td>
+                    <span class="archived-reason-badge">
+                      {{ model.status === 'APPLICANT_DECLINED' ? 'Recusado na Triagem' : 'Desativado do Elenco' }}
+                    </span>
+                  </td>
+
+                  <!-- Coluna: Localização -->
+                  <td>
+                    <span class="city-text">{{ model.city || model.nationality || '--' }}</span>
+                  </td>
+
+                  <!-- Coluna: Status -->
+                  <td>
+                    <span class="status-pill status-archived">Arquivado</span>
+                  </td>
+
+                  <!-- Coluna: Ações -->
+                  <td class="action-cell">
+                    <button type="button" class="action-btn text-success" title="Restaurar e ativar no Elenco" (click)="reactivateModel(model)">
+                      ↺ Reativar no Elenco
+                    </button>
+                    <button type="button" class="action-btn text-gold" (click)="openEditForm(model)">
+                      Editar
+                    </button>
+                    <button type="button" class="action-btn action-btn-danger" (click)="confirmDelete(model)">
+                      Excluir
+                    </button>
+                  </td>
+
+                } @else {
+                  <!-- ELENCO PRINCIPAL -->
+                  <!-- Coluna: Modelo (Foto + Nome) -->
+                  <td class="model-profile-cell">
+                    <div class="model-thumb">
+                      @if (model.primaryPhotoUrl && !hasBrokenThumb(model.id)) {
+                        <img
+                          [src]="model.primaryPhotoUrl"
+                          [alt]="'Miniatura do modelo ' + model.stageName"
+                          loading="lazy"
+                          decoding="async"
+                          (error)="onThumbError(model.id)"
+                        />
+                      } @else {
+                        <div class="thumb-fallback" [title]="model.primaryPhotoUrl ? 'Foto indisponivel. Clique em Editar para re-enviar.' : 'Sem foto cadastrada. Clique em Editar para enviar.'">
+                          WB
+                        </div>
+                      }
+                    </div>
+                    <div>
+                      <strong class="model-name">{{ model.stageName }}</strong>
+                      @if (model.instagramUrl) {
+                        <span class="instagram-sub">{{ model.instagramUrl }}</span>
+                      }
+                    </div>
+                  </td>
+
+                  <!-- Coluna: Gênero -->
+                  <td>
+                    <span class="badge-cat" [class.badge-male]="model.gender === 'MALE'">
+                      {{ model.gender === 'MALE' ? 'Masculino' : 'Feminino' }}
+                    </span>
+                  </td>
+
+                  <!-- Coluna: Switch / Tag Stars -->
+                  <td>
+                    <button
+                      type="button"
+                      class="star-toggle-btn"
+                      [class.is-star]="model.isStar"
+                      (click)="toggleStar(model)"
+                      [title]="model.isStar ? 'Remover de Stars' : 'Classificar como Star'"
+                    >
+                      <span class="star-glyph">&starf;</span>
+                      {{ model.isStar ? 'STAR' : 'Normal' }}
+                    </button>
+                  </td>
+
+                  <!-- Coluna: Medidas -->
+                  <td>
+                    <div class="measurements-cell">
+                      <span class="height-highlight">{{ model.heightCm ? model.heightCm + ' cm' : '--' }}</span>
+                      @if (model.bustChestCm || model.waistCm || model.hipsCm) {
+                        <span class="bwh-line">
+                          {{ model.bustChestCm || '--' }} / {{ model.waistCm || '--' }} / {{ model.hipsCm || '--' }}
+                        </span>
+                      }
+                    </div>
+                  </td>
+
+                  <!-- Coluna: Localização -->
+                  <td>
+                    <span class="city-text">{{ model.city || model.nationality || '--' }}</span>
+                  </td>
+
+                  <!-- Coluna: Status Ativo/Inativo -->
+                  <td>
+                    <span class="status-pill" [class.status-active]="model.isActive">
+                      {{ model.isActive ? 'Ativo' : 'Inativo' }}
+                    </span>
+                  </td>
+
+                  <!-- Coluna: Ações -->
+                  <td class="action-cell">
+                    <button class="action-btn text-gold" (click)="openEditForm(model)">
+                      Editar
+                    </button>
+                    <button class="action-btn" (click)="toggleStatus(model)">
+                      {{ model.isActive ? 'Desativar' : 'Ativar' }}
+                    </button>
+                    <button type="button" class="action-btn text-secondary" title="Mover para Arquivados" (click)="archiveModel(model)">
+                      Arquivar
+                    </button>
+                    <!-- ============================================================
+                         🗑️ BOTÃO APAGAR MODELO (abre modal de confirmação)
+                         ============================================================ -->
+                    <button
+                      type="button"
+                      class="action-btn action-btn-danger"
+                      title="Mover este modelo para o Arquivo Morto"
+                      (click)="confirmDelete(model)"
+                    >
+                      Apagar
+                    </button>
+                  </td>
+                }
               </tr>
             } @empty {
               <tr>
                 <td colspan="7" class="empty-state">
-                  Nenhum modelo encontrado com os filtros selecionados.
+                  @if (activeTab() === 'APPLICANTS') {
+                    Nenhuma candidatura de aplicante pendente no momento.
+                  } @else if (activeTab() === 'ARCHIVED') {
+                    Nenhum modelo arquivado ou candidatura declinada.
+                  } @else {
+                    Nenhum modelo encontrado no elenco com os filtros selecionados.
+                  }
                 </td>
               </tr>
             }
@@ -224,10 +410,7 @@
   <!-- Drawer Lateral / Modal do Formulário de Modelo (4.2.2) -->
   @if (isFormOpen()) {
     <div class="drawer-backdrop" (click)="closeForm()">
-      <div class="drawer-panel" (click)="$event.stopPropagation()">
-        <button type="button" class="drawer-close-btn" (click)="closeForm()" title="Fechar">
-          &times;
-        </button>
+      <div class="drawer-panel modal-dialog-container" (click)="$event.stopPropagation()">
         <app-model-form
           [modelIdInput]="editingModelId()"
           (saved)="onModelSaved($event)"

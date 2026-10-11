@@ -77,13 +77,30 @@ public class ModelMediaServiceImpl implements ModelMediaService {
             }
         }
 
-        // Se marcada como capa, reseta a capa atual atomicamente
+        // Se marcada como capa, valida tipo BOOK e reseta a capa atual atomicamente
         if (isCover) {
-            modelMediaRepository.findByModelIdAndIsCoverTrue(modelId).ifPresent(oldCover -> {
+            if (mediaType != MediaType.BOOK) {
+                throw new IllegalArgumentException("Apenas mídias do tipo BOOK podem ser marcadas como capa.");
+            }
+            Optional<ModelMedia> existingCover = modelMediaRepository.findByModelIdAndIsCoverTrue(modelId);
+            if (existingCover.isPresent()) {
+                ModelMedia oldCover = existingCover.get();
                 oldCover.setIsCover(false);
                 modelMediaRepository.save(oldCover);
-            });
+            }
+            try {
+                List<ModelMedia> existingCovers = modelMediaRepository.findAllByModelIdAndIsCoverTrue(modelId);
+                if (existingCovers != null) {
+                    for (ModelMedia oldCover : existingCovers) {
+                        if (Boolean.TRUE.equals(oldCover.getIsCover())) {
+                            oldCover.setIsCover(false);
+                            modelMediaRepository.save(oldCover);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
         }
+
 
         // Cálculo da próxima ordem de exibição
         Integer nextOrder = modelMediaRepository.findNextDisplayOrder(modelId, mediaType);
@@ -164,19 +181,25 @@ public class ModelMediaServiceImpl implements ModelMediaService {
         modelMediaRepository.delete(media);
         modelMediaRepository.flush();
 
-        // 3. Se a mídia deletada for a capa (is_cover = true), promove a mais antiga remanescente do tipo BOOK
+        // 3. Se a mídia deletada for a capa (is_cover = true), promove a mais prioritária remanescente do tipo BOOK
         if (wasCover) {
             Model model = media.getModel();
-            Optional<ModelMedia> oldestBookOpt = modelMediaRepository.findFirstByModelIdAndMediaTypeOrderByCreatedAtAsc(modelId, MediaType.BOOK);
-            if (oldestBookOpt.isPresent()) {
-                ModelMedia promotedCover = oldestBookOpt.get();
+            Optional<ModelMedia> nextCoverOpt = modelMediaRepository.findFirstByModelIdAndMediaTypeOrderByCreatedAtAsc(modelId, MediaType.BOOK);
+            if (nextCoverOpt.isEmpty()) {
+                nextCoverOpt = modelMediaRepository.findFirstByModelIdAndMediaTypeOrderByDisplayOrderAsc(modelId, MediaType.BOOK);
+            }
+            if (nextCoverOpt.isEmpty()) {
+                nextCoverOpt = modelMediaRepository.findFirstByModelIdOrderByDisplayOrderAsc(modelId);
+            }
+            if (nextCoverOpt.isPresent()) {
+                ModelMedia promotedCover = nextCoverOpt.get();
                 promotedCover.setIsCover(true);
                 modelMediaRepository.save(promotedCover);
                 model.setPrimaryPhotoUrl(promotedCover.getFileUrl());
                 log.info("Mídia id='{}' promovida automaticamente a nova capa do modelo id='{}'", promotedCover.getId(), modelId);
             } else {
                 model.setPrimaryPhotoUrl(null);
-                log.info("Nenhuma mídia BOOK remanescente para capa do modelo id='{}'", modelId);
+                log.info("Nenhuma mídia remanescente para capa do modelo id='{}'", modelId);
             }
             modelRepository.save(model);
         }
@@ -210,8 +233,8 @@ public class ModelMediaServiceImpl implements ModelMediaService {
 
     @Override
     @Transactional
-    public void setCoverMedia(UUID modelId, UUID mediaId) {
-        log.info("Definindo mídia id='{}' como capa do modelo id='{}'", mediaId, modelId);
+    public void setCoverPhoto(UUID modelId, UUID mediaId) {
+        log.info("Sincronizando foto de capa transacional: modelId='{}', mediaId='{}'", modelId, mediaId);
 
         Model model = modelRepository.findById(modelId)
                 .orElseThrow(() -> new ResourceNotFoundException("Modelo", "id", modelId));
@@ -219,28 +242,28 @@ public class ModelMediaServiceImpl implements ModelMediaService {
         ModelMedia targetMedia = modelMediaRepository.findByIdAndModelId(mediaId, modelId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mídia", "id", mediaId));
 
-        if (targetMedia.getMediaType() != MediaType.BOOK) {
-            throw new IllegalArgumentException("Apenas mídias do tipo BOOK podem ser marcadas como capa.");
-        }
+        // 1. Reseta is_cover = false para todas as mídias do modelo
+        modelMediaRepository.resetCovers(modelId);
 
-        // Desmarca a capa anterior se houver
-        modelMediaRepository.findByModelIdAndIsCoverTrue(modelId).ifPresent(oldCover -> {
-            if (!oldCover.getId().equals(mediaId)) {
-                oldCover.setIsCover(false);
-                modelMediaRepository.save(oldCover);
-            }
-        });
-
-        // Define a nova capa
+        // 2. Define is_cover = true na mídia selecionada
         targetMedia.setIsCover(true);
         modelMediaRepository.save(targetMedia);
 
-        // Atualiza a foto principal do modelo
+        // 3. Atualiza model.setPrimaryPhotoUrl(media.getFileUrl()) e salva o modelo
         model.setPrimaryPhotoUrl(targetMedia.getFileUrl());
         modelRepository.save(model);
 
-        log.info("Mídia id='{}' definida como capa com sucesso para o modelo id='{}'", mediaId, modelId);
+        log.info("Mídia id='{}' definida como capa com sucesso para o modelo id='{}' (URL={})",
+                mediaId, modelId, targetMedia.getFileUrl());
     }
+
+    @Override
+    @Transactional
+    public void setCoverMedia(UUID modelId, UUID mediaId) {
+        setCoverPhoto(modelId, mediaId);
+    }
+
+
 
     @Override
     @Transactional(readOnly = true)

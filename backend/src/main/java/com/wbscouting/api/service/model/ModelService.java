@@ -23,7 +23,11 @@ public interface ModelService {
 
     Page<ModelAdminResponseDto> listAdminModels(GenderType gender, Boolean isStar, Boolean isActive, String search, Pageable pageable);
 
+    Page<ModelAdminResponseDto> listAdminModels(GenderType gender, Boolean isStar, Boolean isActive, List<com.wbscouting.api.enums.TalentLifecycleStatus> statuses, String search, Pageable pageable);
+
     ModelAdminResponseDto getAdminModelById(UUID id);
+
+    ModelAdminResponseDto updateTalentStatus(UUID id, com.wbscouting.api.dto.talent.TalentStatusPatchDto dto);
 
     void deleteModel(UUID id);
 

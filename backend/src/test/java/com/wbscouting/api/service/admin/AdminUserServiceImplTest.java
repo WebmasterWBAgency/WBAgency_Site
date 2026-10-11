@@ -74,9 +74,9 @@ class AdminUserServiceImplTest {
     void shouldBlockDeactivationWhenOnlyOneSuperAdminRemains() {
         Admin otherWebmaster = Admin.builder()
                 .id(UUID.randomUUID())
-                .name("Outro Webmaster")
+                .name("Outro SuperAdmin")
                 .email("outro@wbagency.com.br")
-                .role(AdminRole.WEBMASTER)
+                .role(AdminRole.SUPER_ADMIN)
                 .isActive(true)
                 .build();
 
@@ -93,9 +93,17 @@ class AdminUserServiceImplTest {
     @Test
     @DisplayName("Deve bloquear rebaixamento do próprio papel de Webmaster")
     void shouldBlockSelfDemotion() {
-        when(adminRepository.findById(webmaster.getId())).thenReturn(Optional.of(webmaster));
+        Admin superAdmin = Admin.builder()
+                .id(UUID.randomUUID())
+                .name("Super Admin")
+                .email("super@wbagency.com.br")
+                .role(AdminRole.SUPER_ADMIN)
+                .isActive(true)
+                .build();
 
-        assertThatThrownBy(() -> adminUserService.updateRole(webmaster.getId(), AdminRole.ADMIN, "webmaster@wbagency.com.br"))
+        when(adminRepository.findById(superAdmin.getId())).thenReturn(Optional.of(superAdmin));
+
+        assertThatThrownBy(() -> adminUserService.updateRole(superAdmin.getId(), AdminRole.ADMIN, "super@wbagency.com.br"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Não é permitido rebaixar seu próprio papel");
 
@@ -109,7 +117,7 @@ class AdminUserServiceImplTest {
                 .id(UUID.randomUUID())
                 .name("Outro Webmaster")
                 .email("outro@wbagency.com.br")
-                .role(AdminRole.WEBMASTER)
+                .role(AdminRole.SUPER_ADMIN)
                 .isActive(true)
                 .build();
 
@@ -142,7 +150,7 @@ class AdminUserServiceImplTest {
                 .id(UUID.randomUUID())
                 .name("Outro Webmaster")
                 .email("outro@wbagency.com.br")
-                .role(AdminRole.WEBMASTER)
+                .role(AdminRole.SUPER_ADMIN)
                 .isActive(true)
                 .build();
 

@@ -1,4 +1,4 @@
-<div class="model-form-container">
+<div class="model-form-container modal-dialog-container">
   <!-- Toast de Notificação -->
   @if (toast()) {
     <div class="toast-alert" [class.toast-success]="toast()?.type === 'success'" [class.toast-error]="toast()?.type === 'error'">
@@ -10,7 +10,7 @@
   }
 
   <!-- Barra de Navegação e Título -->
-  <header class="form-header">
+  <header class="form-header modal-header">
     <div class="header-left">
       <nav class="breadcrumb">
         <a (click)="onCancel()" class="breadcrumb-link">Painel</a>
@@ -19,94 +19,83 @@
         <span class="breadcrumb-sep">/</span>
         <span class="breadcrumb-current">{{ isEditMode() ? 'Editar Modelo' : 'Novo Modelo' }}</span>
       </nav>
-      <h1 class="font-serif form-title">
-        {{ isEditMode() ? 'Editar Cadastro de Modelo' : 'Novo Cadastro no Elenco' }}
-      </h1>
+      <h2 class="modal-title font-serif form-title">
+        {{ isEditMode() ? 'Editar Cadastro de Modelo' : 'Cadastrar Modelo' }}
+      </h2>
       <p class="form-subtitle">
         Preencha os dados profissionais, medidas biométricas de alta precisão e parametrize as tags de visibilidade.
       </p>
     </div>
 
     <div class="header-actions">
-      <button type="button" class="btn btn-outline" (click)="onCancel()">
-        &times; Cancelar
-      </button>
-      <button
-        type="button"
-        class="btn btn-gold"
-        [disabled]="modelForm.invalid || isSaving()"
-        (click)="onSubmit()"
-      >
-        @if (isSaving()) {
-          <span class="spinner-inline"></span> Salvando...
-        } @else {
-          {{ isEditMode() ? 'Atualizar Modelo' : 'Cadastrar Modelo' }}
-        }
-      </button>
+      <button type="button" class="btn-close" (click)="onCancel()" title="Fechar">✕</button>
     </div>
   </header>
 
-  <!-- Card de Pré-visualização Dinâmica (Live Editorial Preview) -->
-  <div class="editorial-preview-card" [class.preview-star]="modelForm.get('isStar')?.value">
-    <div class="preview-avatar-wrapper">
-      <!-- 🟢 CORREÇÃO: Usa fotoCapaPreviewSafe() que remonta URL incompleta ou cai na 1a FOTO DA GALERIA REAL -->
-      @if (fotoCapaPreviewSafe()) {
-        <img
-          [src]="fotoCapaPreviewSafe()!"
-          [alt]="modelForm.get('stageName')?.value || 'Preview da foto de capa do modelo'"
-          class="preview-avatar"
-          (error)="onErroCarregarCapaPreview()"
-          loading="eager"
-          decoding="async"
-        />
-      } @else {
-        <!-- Placeholder WB so aparece SE NAO TIVER NENHUMA FOTO NO BANCO (condicao extrema) -->
-        <div class="preview-avatar-placeholder" title="Nenhuma foto de capa informada. Envie uma foto na seção 03 abaixo." role="img" aria-label="PlaceHolder da agência WB, nenhuma foto de capa foi enviada ainda.">
-          <span>WB</span>
-        </div>
-      }
-      @if (modelForm.get('isStar')?.value) {
-        <div class="star-glow-badge" title="Modelo Categoria Stars">
-          &starf; STAR
-        </div>
-      }
-    </div>
-
-    <div class="preview-info">
-      <div class="preview-headline">
-        <h2 class="preview-name font-serif">
-          {{ modelForm.get('stageName')?.value || 'Nome Artístico do Modelo' }}
-        </h2>
-        <div class="preview-tags">
-          <span class="tag-gender" [class.tag-male]="modelForm.get('gender')?.value === 'MALE'">
-            {{ modelForm.get('gender')?.value === 'MALE' ? 'Masculino' : 'Feminino' }}
-          </span>
-          @if (computedAge()) {
-            <span class="tag-age">{{ computedAge() }} anos</span>
-          }
-          @if (modelForm.get('isActive')?.value) {
-            <span class="tag-active">Ativo no Casting</span>
+  <!-- Formulário Reativo Principal com Scroll Isolado e Rodapé Fixo -->
+  <form [formGroup]="modelForm" (ngSubmit)="onSubmit()" class="modal-form model-reactive-form">
+    
+    <!-- Área de Conteúdo com Scroll Próprio -->
+    <div class="modal-body-scrollable">
+      
+      <!-- Card de Pré-visualização Dinâmica (Live Editorial Preview) -->
+      <div class="editorial-preview-card" [class.preview-star]="modelForm.get('isStar')?.value">
+        <div class="preview-avatar-wrapper">
+          <!-- 🟢 CORREÇÃO: Usa fotoCapaPreviewSafe() que remonta URL incompleta ou cai na 1a FOTO DA GALERIA REAL -->
+          @if (fotoCapaPreviewSafe()) {
+            <img
+              [src]="fotoCapaPreviewSafe()!"
+              [alt]="modelForm.get('stageName')?.value || 'Preview da foto de capa do modelo'"
+              class="preview-avatar"
+              (error)="onErroCarregarCapaPreview()"
+              loading="eager"
+              decoding="async"
+            />
           } @else {
-            <span class="tag-inactive">Inativo</span>
+            <!-- Placeholder WB so aparece SE NAO TIVER NENHUMA FOTO NO BANCO (condicao extrema) -->
+            <div class="preview-avatar-placeholder" title="Nenhuma foto de capa informada. Envie uma foto na seção 03 abaixo." role="img" aria-label="PlaceHolder da agência WB, nenhuma foto de capa foi enviada ainda.">
+              <span>WB</span>
+            </div>
           }
-          @if (modelForm.get('isFeaturedHome')?.value) {
-            <span class="tag-featured">Vitrine Home #{{ modelForm.get('featuredOrder')?.value || 1 }}</span>
+          @if (modelForm.get('isStar')?.value) {
+            <div class="star-glow-badge" title="Modelo Categoria Stars">
+              &starf; STAR
+            </div>
           }
         </div>
-      </div>
 
-      <div class="preview-measurements">
-        <span class="measurements-label">Perfil Técnico:</span>
-        <span class="measurements-value">{{ computedMeasurements() }}</span>
-        @if (modelForm.get('city')?.value) {
-          <span class="measurements-city">&bull; {{ modelForm.get('city')?.value }}</span>
-        }
-      </div>
-    </div>
-  </div>
+        <div class="preview-info">
+          <div class="preview-headline">
+            <h3 class="preview-name font-serif">
+              {{ modelForm.get('stageName')?.value || 'Nome Artístico do Modelo' }}
+            </h3>
+            <div class="preview-tags">
+              <span class="tag-gender" [class.tag-male]="modelForm.get('gender')?.value === 'MALE'">
+                {{ modelForm.get('gender')?.value === 'MALE' ? 'Masculino' : 'Feminino' }}
+              </span>
+              @if (computedAge()) {
+                <span class="tag-age">{{ computedAge() }} anos</span>
+              }
+              @if (modelForm.get('isActive')?.value) {
+                <span class="tag-active">Ativo no Casting</span>
+              } @else {
+                <span class="tag-inactive">Inativo</span>
+              }
+              @if (modelForm.get('isFeaturedHome')?.value) {
+                <span class="tag-featured">Vitrine Home #{{ modelForm.get('featuredOrder')?.value || 1 }}</span>
+              }
+            </div>
+          </div>
 
-  <!-- Formulário Reativo Principal -->
-  <form [formGroup]="modelForm" (ngSubmit)="onSubmit()" class="model-reactive-form">
+          <div class="preview-measurements">
+            <span class="measurements-label">Perfil Técnico:</span>
+            <span class="measurements-value">{{ computedMeasurements() }}</span>
+            @if (modelForm.get('city')?.value) {
+              <span class="measurements-city">&bull; {{ modelForm.get('city')?.value }}</span>
+            }
+          </div>
+        </div>
+      </div>
     
     <!-- SEÇÃO 1: Identidade Artística e Mídia de Capa -->
     <section class="form-section card-editorial">
@@ -532,22 +521,24 @@
       </div>
     </section>
 
-    <!-- Barra de Rodapé com Ações -->
-    <div class="form-footer-bar">
-      <button type="button" class="btn btn-outline" (click)="onCancel()">
-        Cancelar
+    </div>
+
+    <!-- Barra de Rodapé Fixada (Action Bar / Footer) -->
+    <footer class="modal-footer-fixed form-footer-bar">
+      <button type="button" class="btn btn-outline btn-secondary" (click)="onCancel()">
+        CANCELAR
       </button>
       <button
         type="submit"
-        class="btn btn-gold"
+        class="btn btn-gold btn-primary"
         [disabled]="modelForm.invalid || isSaving()"
       >
         @if (isSaving()) {
           <span class="spinner-inline"></span> Salvando...
         } @else {
-          {{ isEditMode() ? 'Salvar Alterações' : 'Cadastrar Modelo no Elenco' }}
+          {{ isEditMode() ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR MODELO NO ELENCO' }}
         }
       </button>
-    </div>
+    </footer>
   </form>
 </div>

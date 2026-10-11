@@ -151,4 +151,45 @@ describe('ModelFormComponent', () => {
     component.onCancel();
     expect(component.cancelled.emit).toHaveBeenCalled();
   });
+
+  it('deve conter estrutura com scroll isolado no body e rodapé com flex-shrink zero', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const scrollBody = compiled.querySelector('.modal-body-scrollable');
+    const fixedFooter = compiled.querySelector('.modal-footer-fixed');
+    const cancelButton = compiled.querySelector('.modal-footer-fixed button:first-child');
+    const submitButton = compiled.querySelector('.modal-footer-fixed button:last-child');
+
+    expect(scrollBody).toBeTruthy();
+    expect(fixedFooter).toBeTruthy();
+    expect(cancelButton?.textContent).toContain('CANCELAR');
+    expect(submitButton?.textContent).toContain('CADASTRAR MODELO NO ELENCO');
+
+    const bodyComputedStyle = window.getComputedStyle(scrollBody!);
+    expect(['auto', 'scroll']).toContain(bodyComputedStyle.overflowY);
+  });
+
+  it('deve encadear a criação do modelo e o upload de fotos via switchMap e uploadBatch', () => {
+    const dummyFile1 = new File(['dummy1'], 'foto1.jpg', { type: 'image/jpeg' });
+    const dummyFile2 = new File(['dummy2'], 'foto2.jpg', { type: 'image/jpeg' });
+    const dummyFile3 = new File(['dummy3'], 'foto3.jpg', { type: 'image/jpeg' });
+    component.selectedFiles = [dummyFile1, dummyFile2, dummyFile3];
+
+    component.modelForm.patchValue({
+      stageName: 'Nova Modelo',
+      gender: 'FEMALE'
+    });
+
+    const createdModelResult = { ...mockModel, id: 'new-uuid-456', stageName: 'Nova Modelo' };
+    spyOn(adminModelService, 'createModel').and.returnValue(of(createdModelResult));
+    spyOn(adminModelService, 'uploadBatch').and.returnValue(of([]));
+    spyOn(component.saved, 'emit');
+
+    component.onSubmit();
+
+    expect(adminModelService.createModel).toHaveBeenCalled();
+    expect(adminModelService.uploadBatch).toHaveBeenCalledWith('new-uuid-456', [dummyFile1, dummyFile2, dummyFile3]);
+    expect(component.saved.emit).toHaveBeenCalledWith(createdModelResult);
+  });
 });
+

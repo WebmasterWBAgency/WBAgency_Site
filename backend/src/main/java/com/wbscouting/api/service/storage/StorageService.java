@@ -23,6 +23,20 @@ public interface StorageService {
     void deleteFile(String bucket, String path);
 
     /**
+     * Remove múltiplos arquivos do bucket especificado.
+     *
+     * @param bucket Nome do bucket
+     * @param paths Lista de caminhos dos objetos a serem removidos
+     */
+    default void deleteFiles(String bucket, java.util.List<String> paths) {
+        if (paths != null) {
+            for (String path : paths) {
+                deleteFile(bucket, path);
+            }
+        }
+    }
+
+    /**
      * Constrói a URL pública direta para acesso ao arquivo no Supabase Storage.
      * Aplicável aos buckets públicos (ex: site-assets, models-media).
      *

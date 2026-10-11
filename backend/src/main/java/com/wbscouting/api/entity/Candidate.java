@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@Deprecated
 @Entity
 @Table(name = "candidates", schema = "public")
 @Getter
@@ -170,7 +169,12 @@ public class Candidate {
     @Column(name = "lgpd_accepted_at", nullable = false, updatable = false)
     private OffsetDateTime lgpdAcceptedAt;
 
-    @Transient
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "converted_to_model_id")
+    private Model convertedToModel;
+
+    @OneToMany(mappedBy = "candidate", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("displayOrder ASC")
     @Builder.Default
     private List<CandidatePhoto> photos = new ArrayList<>();
 
@@ -178,8 +182,15 @@ public class Candidate {
         if (this.photos == null) {
             this.photos = new ArrayList<>();
         }
-        this.photos.add(photo);
+        if (photo != null) {
+            photo.setCandidate(this);
+            this.photos.add(photo);
+        }
     }
+
+    public Model getConvertedToModel() { return this.convertedToModel; }
+    public void setConvertedToModel(Model convertedToModel) { this.convertedToModel = convertedToModel; }
+    public UUID getConvertedToModelId() { return this.convertedToModel != null ? this.convertedToModel.getId() : null; }
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -197,6 +208,7 @@ public class Candidate {
     public void setArchivedAt(java.time.LocalDateTime archivedAt) {
         this.archivedAt = archivedAt != null ? archivedAt.atOffset(java.time.ZoneOffset.UTC) : null;
     }
+
 
     // ============================================================
     // 🔥 GETTERS/SETTERS complementares (garantir build sem Lombok)
@@ -234,6 +246,7 @@ public class Candidate {
     public static class CandidateBuilder {
         private final Candidate c = new Candidate();
         public CandidateBuilder id(UUID v) { c.setId(v); return this; }
+        public CandidateBuilder protocol(String v) { c.setProtocol(v); return this; }
         public CandidateBuilder fullName(String v) { c.setFullName(v); return this; }
         public CandidateBuilder email(String v) { c.setEmail(v); return this; }
         public CandidateBuilder phone(String v) { c.setPhone(v); return this; }
@@ -244,6 +257,7 @@ public class Candidate {
         public CandidateBuilder legalGuardianContact(String v) { c.setLegalGuardianContact(v); return this; }
         public CandidateBuilder gender(String v) { c.setGender(v); return this; }
         public CandidateBuilder heightCm(BigDecimal v) { c.setHeightCm(v); return this; }
+        public CandidateBuilder heightCm(Integer v) { if (v != null) c.setHeightCm(BigDecimal.valueOf(v)); return this; }
         public CandidateBuilder city(String v) { c.setCity(v); return this; }
         public CandidateBuilder state(String v) { c.setState(v); return this; }
         public CandidateBuilder weightKg(BigDecimal v) { c.setWeightKg(v); return this; }
@@ -257,7 +271,9 @@ public class Candidate {
         public CandidateBuilder tiktokHandle(String v) { if (c.tiktokHandle == null) c.tiktokHandle = v; return this; }
         public CandidateBuilder status(CandidateStatus v) { c.setStatus(v); return this; }
         public CandidateBuilder lgpdAccepted(Boolean v) { c.setLgpdAccepted(v); return this; }
+        public CandidateBuilder convertedToModel(Model v) { c.setConvertedToModel(v); return this; }
         public CandidateBuilder photos(List<CandidatePhoto> v) { c.setPhotos(v); return this; }
         public Candidate build() { return c; }
+
     }
 }

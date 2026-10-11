@@ -53,6 +53,15 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
     private final SupabaseProperties supabaseProperties;
     private final ProtocolGeneratorService protocolGeneratorService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.wbscouting.api.repository.CandidateRepository candidateRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.wbscouting.api.repository.ModelRepository modelRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.wbscouting.api.repository.ModelMediaRepository modelMediaRepository;
+
     @org.springframework.beans.factory.annotation.Autowired
     public CandidateSubmissionServiceImpl(CandidateSubmissionRepository repository,
                                           CandidatePhotoRepository candidatePhotoRepository,
@@ -194,19 +203,158 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
             log.info("[SUBMIT] Candidatura gravada com sucesso em 'candidate_submissions' — ID={} | Protocolo={}",
                     saved.getId(), saved.getProtocol());
 
-            // 7. Associação de TODAS as fotos filhas na tabela candidate_photos apontando para candidate_submissions(id)
+            // Espelha no repositório canônico Candidate para manter integridade com candidate_photos(candidate_id)
+            if (candidateRepository != null) {
+                try {
+                    com.wbscouting.api.entity.Candidate canonicalCandidate = com.wbscouting.api.entity.Candidate.builder()
+                            .id(saved.getId())
+                            .protocol(saved.getProtocol())
+                            .fullName(saved.getFullName())
+                            .email(saved.getEmail())
+                            .phone(saved.getPhone())
+                            .birthDate(saved.getBirthDate())
+                            .age(saved.getAge())
+                            .gender(saved.getGender() != null ? saved.getGender().name() : null)
+                            .city(saved.getCity())
+                            .state(saved.getState())
+                            .heightCm(saved.getHeight() != null ? saved.getHeight().multiply(BigDecimal.valueOf(100)) : null)
+                            .bustChestCm(saved.getBust())
+                            .waistCm(saved.getWaist())
+                            .hipsCm(saved.getHips())
+                            .shoeSize(saved.getShoeSize() != null ? String.valueOf(saved.getShoeSize()) : null)
+                            .instagramHandle(saved.getInstagramHandle())
+                            .legalGuardianName(saved.getGuardianName())
+                            .legalGuardianContact(saved.getGuardianPhone())
+                            .lgpdAccepted(Boolean.TRUE.equals(saved.getLgpdConsent()))
+                            .status(com.wbscouting.api.enums.CandidateStatus.PENDING)
+                            .build();
+                    candidateRepository.saveAndFlush(canonicalCandidate);
+                    log.info("[SUBMIT] Candidato canônico espelhado com sucesso — ID={}", saved.getId());
+                } catch (Exception ex) {
+                    log.warn("[SUBMIT] Aviso ao espelhar em candidates canônica: {}", ex.getMessage());
+                }
+            }
+
+            // Persistência direta no modelo canônico Model (Single-Table Lifecycle)
+            if (modelRepository != null) {
+                try {
+                    com.wbscouting.api.enums.GenderType modelGender = (saved.getGender() != null && saved.getGender().name().equalsIgnoreCase("MALE"))
+                            ? com.wbscouting.api.enums.GenderType.MALE
+                            : com.wbscouting.api.enums.GenderType.FEMALE;
+
+                    Integer hCm = null;
+                    if (saved.getHeight() != null) {
+                        hCm = saved.getHeight().compareTo(BigDecimal.valueOf(3)) < 0
+                                ? saved.getHeight().multiply(BigDecimal.valueOf(100)).intValue()
+                                : saved.getHeight().intValue();
+                    }
+
+                    com.wbscouting.api.entity.Model canonicalModel = com.wbscouting.api.entity.Model.builder()
+                            .id(saved.getId())
+                            .protocol(saved.getProtocol())
+                            .stageName(saved.getFullName())
+                            .fullName(saved.getFullName())
+                            .email(saved.getEmail())
+                            .phone(saved.getPhone())
+                            .birthDate(saved.getBirthDate())
+                            .age(saved.getAge())
+                            .gender(modelGender)
+                            .city(saved.getCity())
+                            .state(saved.getState())
+                            .heightCm(hCm)
+                            .bustChestCm(saved.getBust())
+                            .waistCm(saved.getWaist())
+                            .hipsCm(saved.getHips())
+                            .shoeSize(saved.getShoeSize() != null ? String.valueOf(saved.getShoeSize()) : null)
+                            .hairColor(saved.getHairColor())
+                            .eyesColor(saved.getEyeColor())
+                            .instagramUrl(saved.getInstagramHandle())
+                            .legalGuardianName(saved.getGuardianName())
+                            .legalGuardianContact(saved.getGuardianPhone())
+                            .lgpdAccepted(Boolean.TRUE.equals(saved.getLgpdConsent()))
+                            .status(com.wbscouting.api.enums.TalentLifecycleStatus.APPLICANT_PENDING)
+                            .isActive(true)
+                            .isStar(false)
+                            .primaryPhotoUrl(faceUrl)
+                            .build();
+
+                    modelRepository.saveAndFlush(canonicalModel);
+                    log.info("[SUBMIT][SINGLE-TABLE] Model canônico criado com sucesso com status APPLICANT_PENDING — ID={}", canonicalModel.getId());
+
+                    // Persiste mídias filhas em model_media
+                    if (modelMediaRepository != null) {
+                        List<com.wbscouting.api.entity.ModelMedia> mediaList = new ArrayList<>();
+                        int order = 1;
+
+                        // Foto 1 (face): marcada como capa oficial
+                        mediaList.add(com.wbscouting.api.entity.ModelMedia.builder()
+                                .model(canonicalModel)
+                                .mediaType(com.wbscouting.api.enums.MediaType.BOOK)
+                                .fileUrl(faceUrl)
+                                .filePath(facePath)
+                                .displayOrder(order++)
+                                .isCover(true)
+                                .isActive(true)
+                                .build());
+
+                        // Foto 2 (profile)
+                        mediaList.add(com.wbscouting.api.entity.ModelMedia.builder()
+                                .model(canonicalModel)
+                                .mediaType(com.wbscouting.api.enums.MediaType.BOOK)
+                                .fileUrl(profileUrl)
+                                .filePath(profilePath)
+                                .displayOrder(order++)
+                                .isCover(false)
+                                .isActive(true)
+                                .build());
+
+                        // Foto 3 (full body)
+                        mediaList.add(com.wbscouting.api.entity.ModelMedia.builder()
+                                .model(canonicalModel)
+                                .mediaType(com.wbscouting.api.enums.MediaType.BOOK)
+                                .fileUrl(fullBodyUrl)
+                                .filePath(fullBodyPath)
+                                .displayOrder(order++)
+                                .isCover(false)
+                                .isActive(true)
+                                .build());
+
+                        // Fotos adicionais (se houver)
+                        for (int i = 0; i < additionalPaths.size(); i++) {
+                            mediaList.add(com.wbscouting.api.entity.ModelMedia.builder()
+                                    .model(canonicalModel)
+                                    .mediaType(com.wbscouting.api.enums.MediaType.BOOK)
+                                    .fileUrl(additionalUrls.get(i))
+                                    .filePath(additionalPaths.get(i))
+                                    .displayOrder(order++)
+                                    .isCover(false)
+                                    .isActive(true)
+                                    .build());
+                        }
+
+                        modelMediaRepository.saveAll(mediaList);
+                        canonicalModel.setMediaList(mediaList);
+                        log.info("[SUBMIT][SINGLE-TABLE] {} mídias associadas à model_media(modelId={}) com foto 1 como is_cover=true", mediaList.size(), canonicalModel.getId());
+                    }
+                } catch (Exception ex) {
+                    log.warn("[SUBMIT][SINGLE-TABLE] Aviso ao gravar em models/model_media canônica: {}", ex.getMessage(), ex);
+                }
+            }
+
+            // 7. Associação de TODAS as fotos filhas na tabela candidate_photos
             List<CandidatePhoto> photos = new ArrayList<>();
-            photos.add(criarFotoFilha(saved, facePath, faceUrl, 1));
-            photos.add(criarFotoFilha(saved, profilePath, profileUrl, 2));
-            photos.add(criarFotoFilha(saved, fullBodyPath, fullBodyUrl, 3));
+            short position = 1;
+            photos.add(criarFotoFilha(saved, facePath, faceUrl, position++));
+            photos.add(criarFotoFilha(saved, profilePath, profileUrl, position++));
+            photos.add(criarFotoFilha(saved, fullBodyPath, fullBodyUrl, position++));
 
             for (int i = 0; i < additionalPaths.size(); i++) {
-                photos.add(criarFotoFilha(saved, additionalPaths.get(i), additionalUrls.get(i), i + 4));
+                photos.add(criarFotoFilha(saved, additionalPaths.get(i), additionalUrls.get(i), position++));
             }
 
             candidatePhotoRepository.saveAll(photos);
             saved.setPhotos(photos);
-            log.info("[SUBMIT][CANDIDATE_PHOTOS] {} fotos associadas a candidate_submissions(id={})", photos.size(), saved.getId());
+            log.info("[SUBMIT][CANDIDATE_PHOTOS] {} fotos associadas a candidate_submissions/candidates(id={})", photos.size(), saved.getId());
 
             return CandidateSubmissionResponseDto.builder()
                     .id(saved.getId())
@@ -233,6 +381,9 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
     }
 
     private void purgeUploadedStorageKeys(String bucket, List<String> uploadedStorageKeys) {
+        if (uploadedStorageKeys == null || uploadedStorageKeys.isEmpty()) {
+            return;
+        }
         for (String key : uploadedStorageKeys) {
             try {
                 storageService.deleteFile(bucket, key);
@@ -367,14 +518,19 @@ public class CandidateSubmissionServiceImpl implements CandidateSubmissionServic
     /**
      * Instancia e associa uma foto filha vinculada ao CandidateSubmission persistido.
      */
-    private CandidatePhoto criarFotoFilha(CandidateSubmission submission, String storagePath, String publicUrl, int displayOrder) {
-        CandidatePhoto photo = new CandidatePhoto();
-        photo.setSubmission(submission);
-        photo.setStoragePath(storagePath);
-        photo.setFilePath(storagePath);
-        photo.setFileUrl(publicUrl);
-        photo.setDisplayOrder(displayOrder);
-        photo.setPhotoPosition((short) displayOrder);
+    private CandidatePhoto criarFotoFilha(CandidateSubmission submission, String storagePath, String publicUrl, short position) {
+        CandidatePhoto photo = CandidatePhoto.builder()
+                .submission(submission)
+                .photoPosition(position)
+                .fileUrl(publicUrl)
+                .filePath(storagePath)
+                .storagePath(storagePath)
+                .displayOrder((int) position)
+                .uploadedAt(OffsetDateTime.now())
+                .build();
+        if (submission != null && submission.getId() != null) {
+            photo.setCandidateId(submission.getId());
+        }
         return photo;
     }
 }

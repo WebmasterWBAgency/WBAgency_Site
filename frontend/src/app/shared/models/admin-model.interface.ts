@@ -3,6 +3,11 @@ export type ModelGender = 'FEMALE' | 'MALE';
 export interface ModelAdminItem {
   id: string;
   stageName: string;
+  fullName?: string | null;
+  protocol?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  status?: string | null;
   gender: ModelGender;
   isStar: boolean;
   isFeaturedHome: boolean;
@@ -20,8 +25,11 @@ export interface ModelAdminItem {
   storagePath?: string | null;
   instagramUrl?: string | null;
   birthDate?: string | null;
+  age?: number | null;
   heightCm?: number | null;
+  weightKg?: number | null;
   city?: string | null;
+  state?: string | null;
   nationality?: string | null;
   dressSize?: string | null;
   shoeSize?: string | null;
@@ -30,6 +38,10 @@ export interface ModelAdminItem {
   hipsCm?: number | null;
   hairColor?: string | null;
   eyesColor?: string | null;
+  legalGuardianName?: string | null;
+  legalGuardianContact?: string | null;
+  lgpdAccepted?: boolean | null;
+  internalNotes?: string | null;
   createdAt?: string;
   updatedAt?: string;
   // Campos auxiliares para visualização
@@ -63,6 +75,7 @@ export interface AdminModelFilterParams {
   gender?: ModelGender | 'ALL';
   isStar?: boolean | null;
   isActive?: boolean | null;
+  status?: string;
   search?: string;
   page?: number;
   size?: number;

@@ -35,6 +35,15 @@ class ModelServiceImplTest {
     @Mock
     private ModelRepository modelRepository;
 
+    @Mock
+    private com.wbscouting.api.repository.ModelMediaRepository modelMediaRepository;
+
+    @Mock
+    private com.wbscouting.api.service.storage.StorageService storageService;
+
+    @Mock
+    private com.wbscouting.api.config.SupabaseProperties supabaseProperties;
+
     @InjectMocks
     private ModelServiceImpl modelService;
 
@@ -175,7 +184,7 @@ class ModelServiceImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<Model> page = new PageImpl<>(List.of(model), pageable, 1);
 
-        when(modelRepository.findAll(org.mockito.ArgumentMatchers.<Specification<Model>>any(), eq(pageable))).thenReturn(page);
+        when(modelRepository.findAdminWithFilters(eq(GenderType.FEMALE), eq(true), eq(true), eq("Gisele"), eq(pageable))).thenReturn(page);
 
         Page<ModelAdminResponseDto> result = modelService.listAdminModels(GenderType.FEMALE, true, true, "Gisele", pageable);
 
@@ -200,6 +209,8 @@ class ModelServiceImplTest {
     @DisplayName("Deve excluir modelo com sucesso")
     void shouldDeleteModelSuccessfully() {
         when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+        when(modelMediaRepository.findByModelIdOrderByDisplayOrderAsc(modelId)).thenReturn(List.of());
+        when(supabaseProperties.resolveBucketModelsMedia()).thenReturn("models-media");
 
         modelService.deleteModel(modelId);
 

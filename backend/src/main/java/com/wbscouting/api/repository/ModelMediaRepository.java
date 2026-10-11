@@ -18,12 +18,18 @@ public interface ModelMediaRepository extends JpaRepository<ModelMedia, UUID> {
 
     Optional<ModelMedia> findByModelIdAndIsCoverTrue(UUID modelId);
 
+    List<ModelMedia> findAllByModelIdAndIsCoverTrue(UUID modelId);
+
     Optional<ModelMedia> findByIdAndModelId(UUID mediaId, UUID modelId);
 
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) + 1 FROM ModelMedia m WHERE m.model.id = :modelId AND m.mediaType = :mediaType")
     Integer findNextDisplayOrder(@Param("modelId") UUID modelId, @Param("mediaType") MediaType mediaType);
 
     Optional<ModelMedia> findFirstByModelIdAndMediaTypeOrderByCreatedAtAsc(UUID modelId, MediaType mediaType);
+
+    Optional<ModelMedia> findFirstByModelIdAndMediaTypeOrderByDisplayOrderAsc(UUID modelId, MediaType mediaType);
+
+    Optional<ModelMedia> findFirstByModelIdOrderByDisplayOrderAsc(UUID modelId);
 
     List<ModelMedia> findByModelIdAndModelIsActiveTrueOrderByDisplayOrderAsc(UUID modelId);
 
@@ -34,6 +40,12 @@ public interface ModelMediaRepository extends JpaRepository<ModelMedia, UUID> {
     List<ModelMedia> findByModelIdInAndIsActiveTrueOrderByDisplayOrderAsc(List<UUID> modelIds);
 
     List<ModelMedia> findByModelIdOrderByDisplayOrderAsc(UUID modelId);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE ModelMedia m SET m.isCover = false WHERE m.model.id = :modelId")
+    void resetCovers(@Param("modelId") UUID modelId);
 }
+
+
 
 

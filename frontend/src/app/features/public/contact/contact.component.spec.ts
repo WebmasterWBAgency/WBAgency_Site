@@ -141,5 +141,31 @@ describe('ContactComponent (SITE-004 Anti-Scraping & CyberSecurity)', () => {
       expect(compiled.querySelector('.booking-form-section')).toBeFalsy();
       expect(compiled.querySelector('.booking-form-card')).toBeFalsy();
     });
+
+    it('should deduplicate social channels and prevent duplicate Instagram cards', () => {
+      const rawChannels = [
+        { name: 'Instagram', url: 'https://www.instagram.com/infowbagency/' },
+        { name: 'IG Oficial', url: 'https://instagram.com/infowbagency' },
+        { name: 'LinkedIn', url: 'https://www.linkedin.com/company/wbagency/' },
+        { name: 'LinkedIn Vagas', url: 'https://linkedin.com/company/wbagency-jobs' },
+        { name: 'TikTok', url: 'https://tiktok.com/@infowbagency' }
+      ];
+
+      const deduplicated = component.deduplicateSocialChannels(rawChannels);
+      expect(deduplicated.length).toBe(3);
+
+      const igEntries = deduplicated.filter(c => (c.name || '').toLowerCase().includes('instagram') || c.url.includes('instagram.com'));
+      expect(igEntries.length).toBe(1);
+
+      const linkedinEntries = deduplicated.filter(c => (c.name || '').toLowerCase().includes('linkedin') || c.url.includes('linkedin.com'));
+      expect(linkedinEntries.length).toBe(1);
+    });
+
+    it('should NOT render duplicate Instagram in DOM when official button exists', () => {
+      const compiled = fixture.nativeElement as HTMLElement;
+      const allInstagramElements = compiled.querySelectorAll('#btn-secure-instagram, .btn-instagram');
+      expect(allInstagramElements.length).toBe(1);
+    });
   });
 });
+

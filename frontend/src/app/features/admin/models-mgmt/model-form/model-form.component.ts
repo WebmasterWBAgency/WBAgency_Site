@@ -58,6 +58,8 @@ export class ModelFormComponent implements OnInit {
   readonly isSaving = signal<boolean>(false);
   readonly toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  selectedFiles: File[] = [];
+
   // Predefinições de fotos editoriais para facilidade de demonstração
   readonly samplePhotos: string[] = [
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=800&auto=format&fit=crop',
@@ -283,8 +285,11 @@ export class ModelFormComponent implements OnInit {
   }
 
   onPhotoRemoved(excluida: GalleryPhoto): void {
-    if (!excluida || !excluida.id) return;
-    if (String(excluida.id).startsWith('temp-')) return;
+    if (!excluida) return;
+    if (excluida.file) {
+      this.selectedFiles = this.selectedFiles.filter(f => f !== excluida.file);
+    }
+    if (!excluida.id || String(excluida.id).startsWith('temp-')) return;
     // Evento direto: marca de qualquer jeito, e depois detectIdsRemovedFromDatabase valida.
     const nova = new Set(this.pendingDeleteIds());
     nova.add(String(excluida.id));
@@ -454,12 +459,14 @@ export class ModelFormComponent implements OnInit {
 
   onFilesUploaded(files: File[]): void {
     if (!files || files.length === 0) return;
-    this.showToast(`${files.length} arquivo(s) selecionado(s). Fazendo upload via Backend para o Supabase...`, 'success');
     const current = this.modelId();
     if (!current) {
-      this.showToast('Primeiro salve os DADOS BÁSICOS do modelo (modelo novo ainda sem ID no banco). Depois envie as fotos.', 'error');
+      this.selectedFiles = [...this.selectedFiles, ...files];
+      this.showToast(`${files.length} foto(s) selecionada(s). Serão salvas ao cadastrar o modelo.`, 'success');
       return;
     }
+
+    this.showToast(`${files.length} arquivo(s) selecionado(s). Fazendo upload via Backend para o Supabase...`, 'success');
 
     let enviadosOk = 0;
     let falhas = 0;
@@ -623,6 +630,44 @@ export class ModelFormComponent implements OnInit {
     };
 
     const currentId = this.modelId();
+
+    // 🚀 NOVO MODELO: Criação textual encadeada com upload das fotos selecionadas via switchMap
+    if (!currentId) {
+      const filesToSend = this.selectedFiles.length > 0
+        ? this.selectedFiles
+        : this.galleryPhotos()
+            .map(p => (p as any).file)
+            .filter((f): f is File => f instanceof File);
+
+      this.adminModelService.createModel(payload).pipe(
+        switchMap(createdModel => {
+          if (filesToSend.length === 0) return of(createdModel);
+          return this.adminModelService.uploadBatch(createdModel.id, filesToSend).pipe(
+            map(() => createdModel)
+          );
+        })
+      ).subscribe({
+        next: (createdModel) => {
+          this.isSaving.set(false);
+          this.showToast('✅ Modelo e fotos cadastrados com sucesso!', 'success');
+          this.saved.emit(createdModel);
+          this.selectedFiles = [];
+          setTimeout(() => {
+            if (this.route.snapshot.url.some(s => s.path === 'new') || this.route.snapshot.paramMap.get('id')) {
+              this.router.navigate(['/admin/models']);
+            }
+          }, 1000);
+        },
+        error: (err) => {
+          this.isSaving.set(false);
+          const msg = err?.error?.detail || err?.error?.message || err?.message || 'Erro ao cadastrar modelo ou fotos.';
+          this.showToast(msg, 'error');
+          console.error('[onSubmit] Erro:', err);
+        }
+      });
+      return;
+    }
+
     // 🔴 Todos os IDs reais a excluir. Nao confia so no click de photoRemoved: usa PENDING + diff original.
     const todosIdsParaApagar: string[] = Array.from(new Set([
       ...Array.from(this.pendingDeleteIds()),

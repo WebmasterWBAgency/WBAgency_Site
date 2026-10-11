@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpEvent, HttpEventType, HttpParams } from '@angular/common/http';
-import { Observable, catchError, map, of, tap, throwError } from 'rxjs';
+import { Observable, catchError, concatMap, from, map, of, tap, throwError, toArray } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { GalleryPhoto } from '../../shared/models/gallery.model';
 import {
@@ -44,6 +44,9 @@ export class AdminModelService {
     }
     if (filters.isActive !== undefined && filters.isActive !== null) {
       params = params.set('isActive', String(filters.isActive));
+    }
+    if (filters.status && filters.status.trim()) {
+      params = params.set('status', filters.status.trim());
     }
     if (filters.search && filters.search.trim()) {
       params = params.set('search', filters.search.trim());
@@ -313,6 +316,41 @@ export class AdminModelService {
       tap(_ => console.info(`[admin-model] Nova capa definida: model=${modelId}, media=${mediaId}`)),
       catchError((err) => {
         console.error(`Erro ao definir capa model=${modelId} media=${mediaId}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * Upload de múltiplas fotos em lote ordenado para novo modelo ou galeria.
+   * A primeira foto do lote é configurada como capa (isCover = true).
+   */
+  uploadBatch(modelId: string, files: File[]): Observable<MediaUploadedResult[]> {
+    if (!files || files.length === 0) return of([]);
+    return from(files).pipe(
+      concatMap((file, index) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('mediaType', 'BOOK');
+        if (index === 0) formData.append('isCover', 'true');
+        return this.http.post<MediaUploadedResult>(`${this.apiUrl}/${modelId}/media`, formData);
+      }),
+      toArray()
+    );
+  }
+
+  /**
+   * Transição de estado de talento via máquina de estados canônica
+   * (PATCH /api/v1/admin/talents/{id}/status).
+   */
+  updateTalentStatus(id: string, status: string, internalNotes?: string): Observable<ModelAdminItem> {
+    const talentApiUrl = `${environment.apiUrl}/admin/talents/${id}/status`;
+    const body: any = { status };
+    if (internalNotes) body.internalNotes = internalNotes;
+    return this.http.patch<ModelAdminItem>(talentApiUrl, body).pipe(
+      map(m => this._resolveAdminCoverUrl(m)),
+      catchError((err) => {
+        console.error(`[admin-model] 🔴 ERRO ao atualizar status de talento ${id}:`, err);
         return throwError(() => err);
       })
     );

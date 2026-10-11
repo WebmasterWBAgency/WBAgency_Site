@@ -20,7 +20,7 @@ spring:
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0}
-    username: ${DB_USER:postgres.PROJECT_REF}
+    username: ${DB_USER:postgres.stmytwsdlonpnirqiufq}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
@@ -29,7 +29,8 @@ spring:
       minimum-idle: 1
       idle-timeout: 30000
       max-lifetime: 60000
-      connection-timeout: 20000
+      connection-timeout: 30000
+      initialization-fail-timeout: 10000
 
   jpa:
     open-in-view: false

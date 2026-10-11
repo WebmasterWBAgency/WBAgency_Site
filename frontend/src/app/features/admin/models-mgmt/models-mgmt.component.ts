@@ -41,9 +41,16 @@ export class ModelsMgmtComponent implements OnInit {
   readonly filterStar = signal<boolean | null>(null);
   readonly filterStatus = signal<boolean | null>(null);
   readonly searchTerm = signal<string>('');
+  readonly activeTab = signal<'CAST' | 'APPLICANTS' | 'ARCHIVED'>('CAST');
 
   readonly toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);
   readonly brokenPhotoIds = signal<Set<string>>(new Set());
+
+  setTab(tab: 'CAST' | 'APPLICANTS' | 'ARCHIVED'): void {
+    this.activeTab.set(tab);
+    this.page.set(0);
+    this.loadModels();
+  }
 
   onThumbError(modelId: string): void {
     if (!modelId) return;
@@ -66,6 +73,7 @@ export class ModelsMgmtComponent implements OnInit {
       gender: this.filterGender(),
       isStar: this.filterStar(),
       isActive: this.filterStatus(),
+      status: this.activeTab(),
       search: this.searchTerm()
     };
 
@@ -186,6 +194,50 @@ export class ModelsMgmtComponent implements OnInit {
     setTimeout(() => {
       this.toast.set(null);
     }, 4000);
+  }
+
+  // ============================================================
+  // ⚡ TRANSIÇÃO DE ESTADOS DO CICLO DE VIDA DO TALENTO
+  // ============================================================
+
+  approveApplicant(model: ModelAdminItem): void {
+    this.adminModelService.updateTalentStatus(model.id, 'CAST_PUBLIC').subscribe({
+      next: () => {
+        this.showToast(`Talento "${model.fullName || model.stageName}" aprovado e adicionado ao Elenco!`, 'success');
+        this.loadModels();
+      },
+      error: (err) => this.showToast(err?.error?.message || 'Erro ao aprovar aplicante.', 'error')
+    });
+  }
+
+  declineApplicant(model: ModelAdminItem): void {
+    this.adminModelService.updateTalentStatus(model.id, 'APPLICANT_DECLINED').subscribe({
+      next: () => {
+        this.showToast(`Candidatura de "${model.fullName || model.stageName}" arquivada como recusada.`, 'success');
+        this.loadModels();
+      },
+      error: (err) => this.showToast(err?.error?.message || 'Erro ao recusar aplicante.', 'error')
+    });
+  }
+
+  archiveModel(model: ModelAdminItem): void {
+    this.adminModelService.updateTalentStatus(model.id, 'ARCHIVED').subscribe({
+      next: () => {
+        this.showToast(`Modelo "${model.stageName}" movido para Arquivados.`, 'success');
+        this.loadModels();
+      },
+      error: (err) => this.showToast(err?.error?.message || 'Erro ao arquivar modelo.', 'error')
+    });
+  }
+
+  reactivateModel(model: ModelAdminItem): void {
+    this.adminModelService.updateTalentStatus(model.id, 'CAST_PUBLIC').subscribe({
+      next: () => {
+        this.showToast(`Modelo "${model.stageName}" reativado no Elenco com sucesso!`, 'success');
+        this.loadModels();
+      },
+      error: (err) => this.showToast(err?.error?.message || 'Erro ao reativar modelo.', 'error')
+    });
   }
 
   // ============================================================

@@ -28,9 +28,10 @@ public class JwtService {
     public JwtService(
             @Value("${app.security.jwt.secret:d2Itc2NvdXRpbmctYWdlbmN5LXNlY3JldC1rZXktZm9yLWxvY2FsLWRldmVsb3BtZW50LW9ubHktMjU2Yml0cw==}") String secret,
             @Value("${app.security.jwt.expiration-ms:28800000}") long jwtExpirationMs) {
-        String safeSecret = Objects.requireNonNullElse(secret,
-                "d2Itc2NvdXRpbmctYWdlbmN5LXNlY3JldC1rZXktZm9yLWxvY2FsLWRldmVsb3BtZW50LW9ubHktMjU2Yml0cw==");
-        this.signingKey = buildSigningKey(safeSecret);
+        if (secret == null) {
+            throw new IllegalArgumentException("JWT secret cannot be null");
+        }
+        this.signingKey = buildSigningKey(secret);
         this.jwtExpirationMs = jwtExpirationMs;
     }
 

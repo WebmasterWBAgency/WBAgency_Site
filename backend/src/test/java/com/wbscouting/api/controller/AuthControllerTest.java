@@ -49,6 +49,15 @@ class AuthControllerTest {
     @MockitoBean
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
+    @MockitoBean
+    private com.wbscouting.api.service.audit.AuditLogService auditLogService;
+
+    @MockitoBean
+    private com.wbscouting.api.repository.AdminLoginHistoryRepository adminLoginHistoryRepository;
+
+    @MockitoBean
+    private com.wbscouting.api.repository.AdminRepository adminRepository;
+
     @Test
     @DisplayName("Deve autenticar administrador com sucesso (HTTP 200)")
     void shouldAuthenticateAdminSuccessfully() throws Exception {

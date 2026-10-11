@@ -18,6 +18,12 @@ public class PublicModelSpecification {
             // Predicado fixo: apenas modelos ativos
             predicates.add(root.get("isActive").in(true));
 
+            // Predicado fixo: apenas status CAST_PUBLIC ou CAST_STAR
+            predicates.add(root.get("status").in(
+                    com.wbscouting.api.enums.TalentLifecycleStatus.CAST_PUBLIC,
+                    com.wbscouting.api.enums.TalentLifecycleStatus.CAST_STAR
+            ));
+
             // Predicado opcional: gender
             if (gender != null) {
                 predicates.add(cb.equal(root.get("gender"), gender));

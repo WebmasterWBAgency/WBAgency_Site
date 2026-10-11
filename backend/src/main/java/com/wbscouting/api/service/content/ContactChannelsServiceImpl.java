@@ -41,12 +41,12 @@ public class ContactChannelsServiceImpl implements ContactChannelsService {
             contentOpt = siteContentRepository.findBySectionKey("contact");
         }
 
-        String email = null;
-        String whatsappNumber = null;
-        String defaultMessage = null;
-        String instagramHandle = null;
-        String address = null;
-        String officeHours = null;
+        String email = "info@wbagency.com.br";
+        String whatsappNumber = "5511970656003";
+        String defaultMessage = isEn ? "Hello WB Agency!" : "Olá WB Agency!";
+        String instagramHandle = "@wbagency";
+        String address = isEn ? "Sao Paulo - SP, Brazil" : "São Paulo - SP, Brasil";
+        String officeHours = isEn ? "Monday to Friday, 9:00 AM - 6:00 PM" : "Segunda a Sexta, das 09h às 18h";
 
         // Se a tabela dedicada contact_channels tiver registros ativos, sobrepõe os dados institucionais
         if (contactChannelRepository != null) {

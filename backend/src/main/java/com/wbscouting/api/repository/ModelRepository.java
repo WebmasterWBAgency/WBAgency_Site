@@ -81,18 +81,63 @@ public interface ModelRepository extends JpaRepository<Model, UUID>, JpaSpecific
                     "(:gender IS NULL OR m.gender = :gender) AND " +
                     "(:isStar IS NULL OR m.isStar = :isStar) AND " +
                     "(:isActive IS NULL OR m.isActive = :isActive) AND " +
-                    "(:search IS NULL OR LOWER(m.stageName) LIKE LOWER(CONCAT('%', :search, '%')))",
+                    "(:status IS NULL OR m.status = :status) AND " +
+                    "(:search IS NULL OR LOWER(m.stageName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(COALESCE(m.fullName, '')) LIKE LOWER(CONCAT('%', :search, '%')))",
             countQuery = "SELECT count(m) FROM Model m WHERE " +
                     "(:gender IS NULL OR m.gender = :gender) AND " +
                     "(:isStar IS NULL OR m.isStar = :isStar) AND " +
                     "(:isActive IS NULL OR m.isActive = :isActive) AND " +
-                    "(:search IS NULL OR LOWER(m.stageName) LIKE LOWER(CONCAT('%', :search, '%')))"
+                    "(:status IS NULL OR m.status = :status) AND " +
+                    "(:search IS NULL OR LOWER(m.stageName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(COALESCE(m.fullName, '')) LIKE LOWER(CONCAT('%', :search, '%')))"
     )
     Page<Model> findAdminWithFilters(
             @org.springframework.data.repository.query.Param("gender") GenderType gender,
             @org.springframework.data.repository.query.Param("isStar") Boolean isStar,
             @org.springframework.data.repository.query.Param("isActive") Boolean isActive,
+            @org.springframework.data.repository.query.Param("status") com.wbscouting.api.enums.TalentLifecycleStatus status,
             @org.springframework.data.repository.query.Param("search") String search,
+            Pageable pageable
+    );
+
+    default Page<Model> findAdminWithFilters(
+            GenderType gender,
+            Boolean isStar,
+            Boolean isActive,
+            String search,
+            Pageable pageable
+    ) {
+        return findAdminWithFilters(gender, isStar, isActive, null, search, pageable);
+    }
+
+    @Query(
+            value = "SELECT m FROM Model m WHERE " +
+                    "(:gender IS NULL OR m.gender = :gender) AND " +
+                    "(:isStar IS NULL OR m.isStar = :isStar) AND " +
+                    "(:isActive IS NULL OR m.isActive = :isActive) AND " +
+                    "(:statuses IS NULL OR m.status IN :statuses) AND " +
+                    "(:search IS NULL OR LOWER(m.stageName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(COALESCE(m.fullName, '')) LIKE LOWER(CONCAT('%', :search, '%')))",
+            countQuery = "SELECT count(m) FROM Model m WHERE " +
+                    "(:gender IS NULL OR m.gender = :gender) AND " +
+                    "(:isStar IS NULL OR m.isStar = :isStar) AND " +
+                    "(:isActive IS NULL OR m.isActive = :isActive) AND " +
+                    "(:statuses IS NULL OR m.status IN :statuses) AND " +
+                    "(:search IS NULL OR LOWER(m.stageName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(COALESCE(m.fullName, '')) LIKE LOWER(CONCAT('%', :search, '%')))"
+    )
+    Page<Model> findAdminWithFiltersAndStatuses(
+            @org.springframework.data.repository.query.Param("gender") GenderType gender,
+            @org.springframework.data.repository.query.Param("isStar") Boolean isStar,
+            @org.springframework.data.repository.query.Param("isActive") Boolean isActive,
+            @org.springframework.data.repository.query.Param("statuses") List<com.wbscouting.api.enums.TalentLifecycleStatus> statuses,
+            @org.springframework.data.repository.query.Param("search") String search,
+            Pageable pageable
+    );
+
+    @Query(
+            value = "SELECT m FROM Model m WHERE m.status IN :statuses",
+            countQuery = "SELECT count(m) FROM Model m WHERE m.status IN :statuses"
+    )
+    Page<Model> findByStatusIn(
+            @org.springframework.data.repository.query.Param("statuses") List<com.wbscouting.api.enums.TalentLifecycleStatus> statuses,
             Pageable pageable
     );
 
@@ -102,4 +147,5 @@ public interface ModelRepository extends JpaRepository<Model, UUID>, JpaSpecific
     @EntityGraph(attributePaths = {"media"})
     Optional<Model> findByIdAndIsActiveTrue(UUID id);
 }
+
 

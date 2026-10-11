@@ -22,7 +22,7 @@ spring:
   datasource:
     # Pooler Supabase IPv4 (aws-0-sa-east-1.pooler.supabase.com:6543) com Transaction Mode
     url: "${DB_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0}}"
-    username: "${DB_USER:${SPRING_DATASOURCE_USERNAME:postgres.PROJECT_REF}}"
+    username: "${DB_USER:${SPRING_DATASOURCE_USERNAME:postgres.stmytwsdlonpnirqiufq}}"
     password: "${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}"
     driver-class-name: org.postgresql.Driver
     hikari:
@@ -31,7 +31,8 @@ spring:
       minimum-idle: 1
       idle-timeout: 30000
       max-lifetime: 60000            # OBRIGATÓRIO 60s (PgBouncer / Supavisor timeout)
-      connection-timeout: 20000
+      connection-timeout: 30000
+      initialization-fail-timeout: 10000
 
   jpa:
     open-in-view: false
