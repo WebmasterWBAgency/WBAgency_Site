@@ -63,6 +63,9 @@
     "hours": "Horário de Atendimento"
   },
   "models": {
+    "tab_all": "Todos",
+    "all_title": "Casting WB Agency",
+    "all_subtitle": "Talentos que definem o padrão visual contemporâneo no mercado editorial e de luxo.",
     "female_title": "Casting Feminino",
     "female_subtitle": "Talentos femininos com presença editorial e padrão internacional.",
     "male_title": "Casting Masculino",

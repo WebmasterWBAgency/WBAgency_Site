@@ -63,6 +63,9 @@
     "hours": "Business Hours"
   },
   "models": {
+    "tab_all": "All",
+    "all_title": "WB Agency Casting",
+    "all_subtitle": "Talents defining the contemporary visual standard across editorial and luxury fashion.",
     "female_title": "Female Casting",
     "female_subtitle": "Female talents with editorial prestige and international presence.",
     "male_title": "Male Casting",

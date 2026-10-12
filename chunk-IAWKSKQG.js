@@ -1,0 +1,1 @@
+import{b as a}from"./chunk-L4YYYOL5.js";import"./chunk-5QL7WYC2.js";import"./chunk-SY4CZ5HJ.js";import"./chunk-F6KMQ6SD.js";import"./chunk-L5YV4BDY.js";import"./chunk-UBVAZKA6.js";export{a as ModelFormComponent};
