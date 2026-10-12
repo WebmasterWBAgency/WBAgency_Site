@@ -1,0 +1,175 @@
+<div class="first-access-container min-h-screen w-full flex items-center justify-center bg-[#FBFBF9] px-4 py-12 selection:bg-[#4B584E] selection:text-white">
+  <div class="w-full max-w-md bg-white border border-[#E8EBE8] p-8 md:p-10 shadow-sm rounded-none">
+    
+    <!-- Header Institucional -->
+    <div class="text-center mb-8">
+      <img src="assets/images/logo-wb-agency.jpeg" alt="WB Agency" class="h-20 mx-auto mb-4 object-contain">
+      <h1 class="text-xl font-serif text-[#222624] tracking-wider uppercase">Primeiro Acesso</h1>
+      <p class="text-xs text-[#5F6661] tracking-[0.2em] uppercase mt-1">Definição de Senha Definitiva</p>
+    </div>
+
+    <!-- Identificação do Usuário / Modo -->
+    <div *ngIf="email && !isCompleted()" class="mb-6 p-3 bg-[#FBFBF9] border border-[#E8EBE8] flex items-center justify-between text-xs">
+      <span class="text-[#5F6661] uppercase tracking-wider text-[10px]">Administrador:</span>
+      <span class="font-medium text-[#222624]">{{ email }}</span>
+    </div>
+
+    <!-- Mensagem de Erro -->
+    <div *ngIf="errorMessage()" class="p-4 bg-red-50 border-l-2 border-red-600 text-red-700 text-xs mb-6">
+      <p class="font-semibold uppercase tracking-wider mb-1">Atenção</p>
+      {{ errorMessage() }}
+      <div *ngIf="mode === 'email-token'" class="mt-3">
+        <a routerLink="/admin/forgot-password" class="underline font-semibold uppercase tracking-wider text-[#4B584E]">
+          Solicitar novo link de acesso
+        </a>
+      </div>
+    </div>
+
+    <!-- Mensagem de Sucesso -->
+    <div *ngIf="isCompleted()" class="p-5 bg-[#F4F5F4] border-l-2 border-[#4B584E] text-[#222624] text-xs mb-6">
+      <p class="font-semibold uppercase tracking-wider text-sm mb-2 text-[#4B584E]">Sucesso!</p>
+      <p class="text-xs leading-relaxed mb-4">{{ successMessage() }}</p>
+      <div>
+        <button
+          type="button"
+          (click)="goToNext()"
+          class="inline-block py-2.5 px-5 bg-[#4B584E] text-white tracking-[0.2em] uppercase text-[10px] hover:bg-[#38433B] transition-colors rounded-none border-0 cursor-pointer"
+        >
+          {{ mode === 'forced-login' ? 'Ir para o Painel de Controle' : 'Fazer Login' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Formulário -->
+    <form *ngIf="!isCompleted()" [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-5">
+      
+      <!-- Senha Provisória (Apenas Modo Login Forçado) -->
+      <div *ngIf="mode === 'forced-login'">
+        <label for="currentPassword" class="block text-xs font-sans tracking-[0.15em] uppercase text-[#222624] mb-2">
+          Senha Provisória
+        </label>
+        <div class="relative">
+          <input
+            id="currentPassword"
+            [type]="showCurrentPassword() ? 'text' : 'password'"
+            formControlName="currentPassword"
+            placeholder="Senha recebida para o primeiro login"
+            class="w-full px-4 py-3 bg-[#FBFBF9] border border-[#E8EBE8] text-[#222624] text-sm focus:outline-none focus:border-[#4B584E] focus:bg-white transition-all rounded-none pr-10"
+          />
+          <button
+            type="button"
+            (click)="showCurrentPassword.set(!showCurrentPassword())"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-[#5F6661] hover:text-[#222624] text-xs bg-transparent border-0 cursor-pointer"
+            aria-label="Alternar visibilidade da senha"
+          >
+            {{ showCurrentPassword() ? 'Ocultar' : 'Exibir' }}
+          </button>
+        </div>
+        <span *ngIf="form.get('currentPassword')?.invalid && form.get('currentPassword')?.touched" class="text-[11px] text-red-600 mt-1 block">
+          A senha provisória é obrigatória.
+        </span>
+      </div>
+
+      <!-- Nova Senha Definitiva -->
+      <div>
+        <label for="newPassword" class="block text-xs font-sans tracking-[0.15em] uppercase text-[#222624] mb-2">
+          Nova Senha Definitiva
+        </label>
+        <div class="relative">
+          <input
+            id="newPassword"
+            [type]="showNewPassword() ? 'text' : 'password'"
+            formControlName="newPassword"
+            placeholder="Mínimo de 8 caracteres"
+            class="w-full px-4 py-3 bg-[#FBFBF9] border border-[#E8EBE8] text-[#222624] text-sm focus:outline-none focus:border-[#4B584E] focus:bg-white transition-all rounded-none pr-10"
+          />
+          <button
+            type="button"
+            (click)="showNewPassword.set(!showNewPassword())"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-[#5F6661] hover:text-[#222624] text-xs bg-transparent border-0 cursor-pointer"
+            aria-label="Alternar visibilidade da senha"
+          >
+            {{ showNewPassword() ? 'Ocultar' : 'Exibir' }}
+          </button>
+        </div>
+
+        <!-- Checklist de Complexidade de Senha -->
+        <div class="mt-3 p-3 bg-[#FBFBF9] border border-[#E8EBE8] space-y-1 text-[11px] text-[#5F6661]">
+          <p class="text-[10px] uppercase tracking-wider font-semibold text-[#222624] mb-1">Requisitos de Segurança:</p>
+          <div class="flex items-center gap-1.5" [class.text-[#4B584E]]="hasMinLength" [class.font-medium]="hasMinLength">
+            <span>{{ hasMinLength ? '✓' : '○' }}</span>
+            <span>Mínimo de 8 caracteres</span>
+          </div>
+          <div class="flex items-center gap-1.5" [class.text-[#4B584E]]="hasUpper" [class.font-medium]="hasUpper">
+            <span>{{ hasUpper ? '✓' : '○' }}</span>
+            <span>Pelo menos uma letra maiúscula</span>
+          </div>
+          <div class="flex items-center gap-1.5" [class.text-[#4B584E]]="hasLower" [class.font-medium]="hasLower">
+            <span>{{ hasLower ? '✓' : '○' }}</span>
+            <span>Pelo menos uma letra minúscula</span>
+          </div>
+          <div class="flex items-center gap-1.5" [class.text-[#4B584E]]="hasNumber" [class.font-medium]="hasNumber">
+            <span>{{ hasNumber ? '✓' : '○' }}</span>
+            <span>Pelo menos um número</span>
+          </div>
+          <div class="flex items-center gap-1.5" [class.text-[#4B584E]]="hasSpecial" [class.font-medium]="hasSpecial">
+            <span>{{ hasSpecial ? '✓' : '○' }}</span>
+            <span>Pelo menos um caractere especial (!&#64;#$%...)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmar Nova Senha -->
+      <div>
+        <label for="confirmPassword" class="block text-xs font-sans tracking-[0.15em] uppercase text-[#222624] mb-2">
+          Confirmar Nova Senha
+        </label>
+        <div class="relative">
+          <input
+            id="confirmPassword"
+            [type]="showConfirmPassword() ? 'text' : 'password'"
+            formControlName="confirmPassword"
+            placeholder="Repita a nova senha"
+            class="w-full px-4 py-3 bg-[#FBFBF9] border border-[#E8EBE8] text-[#222624] text-sm focus:outline-none focus:border-[#4B584E] focus:bg-white transition-all rounded-none pr-10"
+          />
+          <button
+            type="button"
+            (click)="showConfirmPassword.set(!showConfirmPassword())"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-[#5F6661] hover:text-[#222624] text-xs bg-transparent border-0 cursor-pointer"
+            aria-label="Alternar visibilidade da senha"
+          >
+            {{ showConfirmPassword() ? 'Ocultar' : 'Exibir' }}
+          </button>
+        </div>
+        <span *ngIf="form.errors?.['mismatch'] && form.get('confirmPassword')?.touched" class="text-[11px] text-red-600 mt-1 block">
+          As senhas não coincidem.
+        </span>
+      </div>
+
+      <!-- Botão de Ação -->
+      <button
+        type="submit"
+        [disabled]="form.invalid || isLoading()"
+        class="w-full py-3.5 bg-[#4B584E] text-white text-xs tracking-[0.25em] uppercase font-sans hover:bg-[#38433B] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer shadow-sm rounded-none border-0 mt-2"
+      >
+        <span *ngIf="!isLoading()">Definir Senha &amp; Acessar</span>
+        <span *ngIf="isLoading()" class="flex items-center justify-center gap-2">
+          <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          Processando...
+        </span>
+      </button>
+    </form>
+
+    <!-- Rodapé -->
+    <div class="mt-8 text-center border-t border-[#E8EBE8] pt-6 flex justify-between items-center text-[11px] tracking-[0.15em] uppercase text-[#5F6661]">
+      <a routerLink="/admin/login" class="hover:text-[#4B584E] transition-colors">
+        ← Voltar ao Login
+      </a>
+      <span class="text-[10px] text-[#5F6661]/60">WB Agency &copy; 2026</span>
+    </div>
+
+  </div>
+</div>

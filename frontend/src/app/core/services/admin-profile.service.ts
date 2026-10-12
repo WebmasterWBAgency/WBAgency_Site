@@ -11,8 +11,9 @@ export interface ChangePasswordPayload {
 
 export interface TwoFactorSetupData {
   secret: string;
-  otpauthUrl: string;
-  qrCodeDataUrl: string;
+  otpauthUrl?: string;
+  qrCodeDataUrl?: string;
+  qrCodeUri?: string;
 }
 
 export interface TwoFactorConfirmData {

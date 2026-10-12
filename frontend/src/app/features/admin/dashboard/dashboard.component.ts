@@ -24,7 +24,7 @@ export class DashboardComponent {
   }
 
   get userEmail(): string {
-    return this.authService.currentUser()?.email || 'webmaster@wbagency.com.br';
+    return this.authService.currentUser()?.email || '';
   }
 
   get userRole(): string {

@@ -21,6 +21,7 @@ export interface AuthResponse {
   user?: AdminUser;
   requires2fa?: boolean;
   tempToken?: string;
+  mustChangePassword?: boolean;
   // Campos de compatibilidade com backend Spring Boot
   accessToken?: string;
   tokenType?: string;
@@ -43,6 +44,7 @@ export interface ForgotPasswordRequest {
 }
 
 export interface ResetPasswordRequest {
+  email?: string;
   token: string;
   newPassword: string;
   confirmPassword?: string;
@@ -50,4 +52,19 @@ export interface ResetPasswordRequest {
 
 export interface MessageResponse {
   message: string;
+}
+
+export interface ActivateAccountRequest {
+  email: string;
+  token: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface ApiResponse<T = any> {
+  message?: string;
+  data?: T;
+  secret?: string;
+  qrCodeUri?: string;
+  status?: number;
 }

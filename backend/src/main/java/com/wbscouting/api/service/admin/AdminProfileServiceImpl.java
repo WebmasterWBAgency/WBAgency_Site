@@ -33,7 +33,18 @@ public class AdminProfileServiceImpl implements AdminProfileService {
     @Transactional
     public void changePassword(String email, ChangePasswordRequestDto request) {
         Admin admin = getAdminByEmail(email);
+        processPasswordChange(admin, request);
+    }
 
+    @Override
+    @Transactional
+    public void changePassword(java.util.UUID userId, ChangePasswordRequestDto request) {
+        Admin admin = adminRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Administrador não encontrado com o ID: " + userId));
+        processPasswordChange(admin, request);
+    }
+
+    private void processPasswordChange(Admin admin, ChangePasswordRequestDto request) {
         if (!passwordEncoder.matches(request.getCurrentPassword(), admin.getPasswordHash())) {
             throw new BadCredentialsException("A senha atual informada está incorreta.");
         }
@@ -73,6 +84,7 @@ public class AdminProfileServiceImpl implements AdminProfileService {
                 .secret(secret)
                 .otpauthUrl(otpauthUrl)
                 .qrCodeDataUrl(qrCodeDataUrl)
+                .qrCodeUri(otpauthUrl)
                 .build();
     }
 
@@ -82,12 +94,12 @@ public class AdminProfileServiceImpl implements AdminProfileService {
         Admin admin = getAdminByEmail(email);
 
         if (admin.getTotpSecret() == null || admin.getTotpSecret().isBlank()) {
-            throw new IllegalStateException("O setup de 2FA ainda não foi iniciado.");
+            throw new com.wbscouting.api.exception.BusinessException("O setup de 2FA ainda não foi iniciado.");
         }
 
         boolean valid = totpService.verifyCode(admin.getTotpSecret(), request.getCode());
         if (!valid) {
-            throw new IllegalArgumentException("Código de autenticação inválido ou expirado. Tente novamente.");
+            throw new com.wbscouting.api.exception.BusinessException("Código de autenticação inválido.");
         }
 
         List<String> rawBackupCodes = totpService.generateBackupCodes(8);
@@ -112,7 +124,7 @@ public class AdminProfileServiceImpl implements AdminProfileService {
     public void disable2fa(String email, TwoFactorDisableRequestDto request) {
         Admin admin = getAdminByEmail(email);
 
-        if (!passwordEncoder.matches(request.getPassword(), admin.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.getEffectivePassword(), admin.getPasswordHash())) {
             throw new BadCredentialsException("Senha incorreta. Não foi possível desativar a autenticação em duas etapas.");
         }
 

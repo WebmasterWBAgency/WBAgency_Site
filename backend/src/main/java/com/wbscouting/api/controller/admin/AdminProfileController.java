@@ -34,7 +34,7 @@ public class AdminProfileController {
         throw new org.springframework.security.access.AccessDeniedException("Usuário não autenticado.");
     }
 
-    @PutMapping("/password")
+    @RequestMapping(value = "/password", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<Map<String, String>> changePassword(
             @Valid @RequestBody ChangePasswordRequestDto request,
             java.security.Principal principal) {

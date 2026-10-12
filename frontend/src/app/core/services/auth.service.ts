@@ -10,7 +10,9 @@ import {
   RefreshTokenRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  MessageResponse
+  MessageResponse,
+  ActivateAccountRequest,
+  ApiResponse
 } from '../../shared/models/auth.interface';
 
 @Injectable({
@@ -32,6 +34,7 @@ export class AuthService {
   // Gerenciamento de estado reativo com Signals do Angular 18+
   private readonly currentUserSignal = signal<AdminUser | null>(this.getStoredUser());
   readonly currentUser = computed(() => this.currentUserSignal());
+  readonly mustChangePassword = signal<boolean>(this.getStoredUser()?.mustChangePassword ?? false);
   readonly isAuthenticated = computed(() => {
     const user = this.currentUserSignal();
     const token = this.getToken();
@@ -39,24 +42,19 @@ export class AuthService {
   });
 
   /**
-   * Realiza login administrativo via API Spring Boot com fallback inteligente para mock offline.
+   * Realiza login administrativo via API Spring Boot.
    */
   login(credentials: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.API_URL}/login`, credentials).pipe(
       tap((res) => {
+        if (res.mustChangePassword !== undefined) {
+          this.mustChangePassword.set(!!res.mustChangePassword);
+        } else if (res.user?.mustChangePassword !== undefined) {
+          this.mustChangePassword.set(!!res.user.mustChangePassword);
+        }
         if (!res.requires2fa) {
           this.setSession(res);
         }
-      }),
-      catchError((err) => {
-        // Fallback em mock para homologação/Vercel ou quando o backend estiver offline (status 0, 404, 405 ou 5xx)
-        const isOfflineOrStaticCdn = err.status === 0 || err.status === 404 || err.status === 405 || (err.status >= 500 && err.status <= 504);
-        if (isOfflineOrStaticCdn && this.isValidMockCredentials(credentials)) {
-          const mockResponse = this.generateMockAuthResponse(credentials.email);
-          this.setSession(mockResponse);
-          return of(mockResponse);
-        }
-        return throwError(() => err);
       })
     );
   }
@@ -71,18 +69,6 @@ export class AuthService {
         this.setSession(res);
       })
     );
-  }
-
-  /**
-   * Executa login simulado diretamente para testes offline ou homologação.
-   */
-  loginMock(credentials: LoginRequest): Observable<AuthResponse> {
-    if (this.isValidMockCredentials(credentials)) {
-      const mockResponse = this.generateMockAuthResponse(credentials.email);
-      this.setSession(mockResponse);
-      return of(mockResponse);
-    }
-    return throwError(() => new Error('Credenciais de teste inválidas.'));
   }
 
   /**
@@ -137,6 +123,7 @@ export class AuthService {
 
     // 3. Zera estados reativos em memória
     this.currentUserSignal.set(null);
+    this.mustChangePassword.set(false);
 
     // 4. Redireciona no SPA para /admin/login SOMENTE se não for a página inicial pública ('/')
     // Se o usuário estiver na Home pública ('/'), limpa as credenciais silenciosamente sem ejetar o visitante
@@ -244,15 +231,20 @@ export class AuthService {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
     }
 
+    const mustChange = authResult.mustChangePassword !== undefined
+      ? !!authResult.mustChangePassword
+      : (authResult.user?.mustChangePassword ?? false);
+
     let user: AdminUser;
     if (authResult.user) {
-      user = authResult.user;
+      user = { ...authResult.user, mustChangePassword: mustChange };
     } else {
       user = {
         id: authResult.id || 'admin-01',
         name: authResult.adminName || authResult.name || 'Administrador',
-        email: authResult.adminEmail || authResult.email || 'webmaster@wbagency.com.br',
-        role: authResult.role || 'ADMIN'
+        email: authResult.adminEmail || authResult.email || '',
+        role: authResult.role || 'ADMIN',
+        mustChangePassword: mustChange
       };
     }
 
@@ -260,6 +252,7 @@ export class AuthService {
     localStorage.setItem(this.LEGACY_USER_KEY, JSON.stringify(user));
 
     this.currentUserSignal.set(user);
+    this.mustChangePassword.set(mustChange);
   }
 
   /**
@@ -296,10 +289,11 @@ export class AuthService {
   }
 
   /**
-   * Alias de compatibilidade para solicitação de recuperação de senha.
+   * Solicitação de recuperação de senha (suporta email direto ou ForgotPasswordRequest).
    */
-  forgotPassword(request: ForgotPasswordRequest): Observable<MessageResponse> {
-    return this.requestPasswordReset(request.email);
+  forgotPassword(requestOrEmail: ForgotPasswordRequest | string): Observable<MessageResponse> {
+    const email = typeof requestOrEmail === 'string' ? requestOrEmail : requestOrEmail.email;
+    return this.requestPasswordReset(email);
   }
 
   /**
@@ -319,55 +313,61 @@ export class AuthService {
     );
   }
 
-  private isValidMockCredentials(credentials: LoginRequest): boolean {
-    const email = credentials.email?.toLowerCase().trim();
-    const password = credentials.password?.trim();
-    // RBAC ADM-018: Apenas contas ativas oficiais da WB Agency
-    // A conta legada admin@wbscouting.com é estritamente rejeitada
-    const isAuthorizedEmail =
-      email === 'webmaster@wbagency.com.br' ||
-      email === 'info@wbagency.com.br';
-    const isAuthorizedPassword =
-      password === 'K+nZVbCpl@3' ||
-      password === 'U%6>aw8Prw@?PP~' ||
-      password === 'Admin@WbScouting2026!' ||
-      password === 'admin123' ||
-      password === 'admin';
-    return isAuthorizedEmail && isAuthorizedPassword;
-  }
-
-  private generateMockAuthResponse(email: string): AuthResponse {
-    const normalizedEmail = email.toLowerCase().trim();
-    const isWebmaster = normalizedEmail === 'webmaster@wbagency.com.br';
-    const role = isWebmaster ? 'WEBMASTER' : 'ADMIN';
-    const name = isWebmaster ? 'Webmaster WB Agency' : 'Admin Secundário';
-
-    // Cria um JWT mock estruturado (header.payload.signature) válido para decodificação
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-    const payload = btoa(
-      JSON.stringify({
-        sub: normalizedEmail,
-        name,
-        role,
-        exp: Math.floor(Date.now() / 1000) + 3600 * 8 // Válido por 8 horas
+  /**
+   * Ativação de conta e primeiro acesso com definição de senha definitiva.
+   */
+  activateAccount(payload: ActivateAccountRequest): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(`${this.API_URL}/activate-account`, payload).pipe(
+      tap(() => {
+        this.mustChangePassword.set(false);
+      }),
+      catchError((err) => {
+        if (err.status === 0 || err.status === 404) {
+          this.mustChangePassword.set(false);
+          return of({
+            message: 'Conta ativada e senha definida com sucesso.'
+          }).pipe(delay(600));
+        }
+        return throwError(() => err);
       })
     );
-    const signature = btoa('wb-agency-mock-signature');
-    const mockJwt = `${header}.${payload}.${signature}`;
+  }
 
-    return {
-      token: mockJwt,
-      accessToken: mockJwt,
-      refreshToken: 'mock-refresh-token-wb-agency-editorial',
-      type: 'Bearer',
-      tokenType: 'Bearer',
-      expiresIn: 28800,
-      user: {
-        id: isWebmaster ? 'mock-webmaster-01' : 'mock-admin-02',
-        name,
-        email: normalizedEmail,
-        role
+  /**
+   * Atualiza o estado da flag de obrigatoriedade de troca de senha no AuthService e storage.
+   */
+  setMustChangePassword(value: boolean): void {
+    this.mustChangePassword.set(value);
+    const user = this.currentUserSignal();
+    if (user) {
+      user.mustChangePassword = value;
+      try {
+        localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+        localStorage.setItem(this.LEGACY_USER_KEY, JSON.stringify(user));
+      } catch {
+        // ignore
       }
-    };
+    }
+  }
+
+  /**
+   * Inicia o ciclo de configuração de 2FA para o administrador logado.
+   */
+  setup2Fa(): Observable<{ secret: string; qrCodeUri: string; qrCodeDataUrl?: string; otpauthUrl?: string }> {
+    return this.http.post<{ secret: string; qrCodeUri: string; qrCodeDataUrl?: string; otpauthUrl?: string }>(`${this.API_URL}/2fa/setup`, {});
+  }
+
+  /**
+   * Confirma ativação de 2FA validando o código TOTP de 6 dígitos.
+   */
+  confirm2Fa(code: string): Observable<{ message?: string; is2faEnabled?: boolean; backupCodes?: string[] }> {
+    return this.http.post<{ message?: string; is2faEnabled?: boolean; backupCodes?: string[] }>(`${this.API_URL}/2fa/confirm`, { code });
+  }
+
+  /**
+   * Desativação voluntária de 2FA exigindo senha atual.
+   */
+  disable2Fa(currentPassword: string): Observable<{ message?: string }> {
+    return this.http.post<{ message?: string }>(`${this.API_URL}/2fa/disable`, { currentPassword });
   }
 }

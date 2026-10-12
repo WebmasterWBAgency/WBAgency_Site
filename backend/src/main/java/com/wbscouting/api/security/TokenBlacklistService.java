@@ -23,6 +23,43 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TokenBlacklistService {
 
     private final Map<String, Instant> blacklist = new ConcurrentHashMap<>();
+    private final Map<String, Instant> userRevocations = new ConcurrentHashMap<>();
+
+    /**
+     * Invalida todas as sessões ativas do usuário identificado por e-mail ou username.
+     */
+    public void revokeAllUserTokens(String usernameOrEmail) {
+        if (usernameOrEmail != null && !usernameOrEmail.isBlank()) {
+            userRevocations.put(usernameOrEmail.trim().toLowerCase(java.util.Locale.ROOT), Instant.now());
+            log.info("Todas as sessões ativas do usuário {} foram revogadas.", usernameOrEmail);
+        }
+    }
+
+    /**
+     * Invalida todas as sessões ativas do usuário identificado por ID único (UUID).
+     */
+    public void revokeAllUserTokens(java.util.UUID userId) {
+        if (userId != null) {
+            revokeAllUserTokens(userId.toString());
+        }
+    }
+
+    /**
+     * Verifica se as sessões do usuário foram revogadas antes ou na data informada.
+     */
+    public boolean isUserRevoked(String usernameOrEmail, Date issuedAt) {
+        if (usernameOrEmail == null || usernameOrEmail.isBlank()) {
+            return false;
+        }
+        Instant revokedAt = userRevocations.get(usernameOrEmail.trim().toLowerCase(java.util.Locale.ROOT));
+        if (revokedAt == null) {
+            return false;
+        }
+        if (issuedAt == null) {
+            return true;
+        }
+        return issuedAt.toInstant().isBefore(revokedAt);
+    }
 
     /**
      * Adiciona o token informado à lista negra até o término de sua validade natural.
@@ -78,6 +115,7 @@ public class TokenBlacklistService {
     public void cleanupExpiredTokens() {
         Instant now = Instant.now();
         blacklist.entrySet().removeIf(entry -> now.isAfter(entry.getValue()));
+        userRevocations.entrySet().removeIf(entry -> now.isAfter(entry.getValue().plusSeconds(8 * 3600)));
         log.debug("Limpeza periódica de tokens expirados da blacklist concluída.");
     }
 

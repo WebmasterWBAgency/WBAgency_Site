@@ -43,6 +43,13 @@ public final class TokenHashUtils {
     }
 
     /**
+     * Alias para hashToken calculando SHA-256.
+     */
+    public static String sha256(String rawToken) {
+        return hashToken(rawToken);
+    }
+
+    /**
      * Compara o token em texto puro contra o hash persistido em tempo constante (MessageDigest.isEqual),
      * mitigando timing attacks.
      */

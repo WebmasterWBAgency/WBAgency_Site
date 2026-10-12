@@ -1,7 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import {
   passwordMatchValidator,
@@ -19,15 +19,18 @@ export class ResetPasswordComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   token: string | null = null;
+  email: string | null = null;
   tokenInvalid = false;
   isCompleted = false;
   isLoading = false;
+  successMessage = '';
 
   readonly resetForm: FormGroup = this.fb.group(
     {
-      password: ['', [Validators.required, Validators.minLength(8), strongPasswordValidator]],
+      newPassword: ['', [Validators.required, Validators.minLength(8), strongPasswordValidator]],
       confirmPassword: ['', [Validators.required]]
     },
     { validators: passwordMatchValidator }
@@ -35,23 +38,43 @@ export class ResetPasswordComponent implements OnInit {
 
   ngOnInit(): void {
     const rawToken = this.route.snapshot.queryParamMap.get('token');
+    const rawEmail = this.route.snapshot.queryParamMap.get('email');
+
     if (!rawToken || rawToken.trim() === '') {
       this.tokenInvalid = true;
       return;
     }
+
     this.token = rawToken.trim();
+    this.email = rawEmail ? rawEmail.trim() : null;
+  }
+
+  get passwordVal(): string {
+    return this.resetForm.get('newPassword')?.value || '';
   }
 
   get hasMinLength(): boolean {
-    const val = this.resetForm.get('password')?.value || '';
-    return val.length >= 8;
+    return this.passwordVal.length >= 8;
+  }
+
+  get hasUpperCase(): boolean {
+    return /[A-Z]/.test(this.passwordVal);
+  }
+
+  get hasLowerCase(): boolean {
+    return /[a-z]/.test(this.passwordVal);
+  }
+
+  get hasNumber(): boolean {
+    return /[0-9]/.test(this.passwordVal);
   }
 
   get hasSpecialChar(): boolean {
-    const val = this.resetForm.get('password')?.value || '';
-    const hasNumber = /[0-9]/.test(val);
-    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(val);
-    return hasNumber && hasSpecial;
+    return /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(this.passwordVal);
+  }
+
+  get isPasswordStrong(): boolean {
+    return this.hasMinLength && this.hasUpperCase && this.hasLowerCase && this.hasNumber && this.hasSpecialChar;
   }
 
   onSubmit(): void {
@@ -61,23 +84,32 @@ export class ResetPasswordComponent implements OnInit {
     }
 
     this.isLoading = true;
-    const { password, confirmPassword } = this.resetForm.value;
+    const { newPassword, confirmPassword } = this.resetForm.value;
 
     this.authService
       .resetPassword({
+        email: this.email || undefined,
         token: this.token,
-        newPassword: password,
+        newPassword: newPassword,
         confirmPassword: confirmPassword
       })
       .subscribe({
         next: () => {
           this.isLoading = false;
           this.isCompleted = true;
+          this.successMessage = 'Senha alterada com sucesso! Faça login com a nova senha.';
+          setTimeout(() => {
+            this.router.navigate(['/admin/login']);
+          }, 2500);
         },
         error: () => {
           this.isLoading = false;
           this.tokenInvalid = true;
         }
       });
+  }
+
+  navigateToLogin(): void {
+    this.router.navigate(['/admin/login']);
   }
 }

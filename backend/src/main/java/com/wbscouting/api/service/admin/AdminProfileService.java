@@ -12,6 +12,8 @@ public interface AdminProfileService {
 
     void changePassword(String email, ChangePasswordRequestDto request);
 
+    void changePassword(java.util.UUID userId, ChangePasswordRequestDto dto);
+
     TwoFactorSetupResponseDto setup2fa(String email);
 
     TwoFactorConfirmResponseDto confirm2fa(String email, TwoFactorConfirmRequestDto request);

@@ -35,10 +35,24 @@ public interface AuthService {
 
     void resetPassword(ResetPasswordRequestDto request);
 
+    void activateAccount(com.wbscouting.api.dto.auth.ActivateAccountRequestDto request);
+
     AuthDTO.MessageResponse forgotPassword(AuthDTO.ForgotPasswordRequest request);
 
     AuthDTO.MessageResponse resetPassword(AuthDTO.ResetPasswordRequest request);
 
     void logout(jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response);
+
+    com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto setupTwoFactor(java.util.UUID userId);
+
+    com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto setupTwoFactor(String email);
+
+    void confirmTwoFactor(java.util.UUID userId, String code);
+
+    void confirmTwoFactor(String email, String code);
+
+    void disableTwoFactor(java.util.UUID userId, String currentPassword);
+
+    void disableTwoFactor(String email, String currentPassword);
 }
 

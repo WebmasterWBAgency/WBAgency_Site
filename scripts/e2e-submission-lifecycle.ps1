@@ -17,8 +17,8 @@
 param(
     [string]$BaseUrl = "http://localhost:8080",
     [string]$FrontendUrl = "http://localhost:4200",
-    [string]$AdminEmail = "admin@wbscouting.com",
-    [string]$AdminPassword = "Admin@WbScouting2026!",
+    [string]$AdminEmail = if ($env:E2E_ADMIN_EMAIL) { $env:E2E_ADMIN_EMAIL } else { "admin@wbagency.com.br" },
+    [string]$AdminPassword = if ($env:E2E_ADMIN_PASSWORD) { $env:E2E_ADMIN_PASSWORD } else { "Admin@Default123!" },
     [switch]$SkipCleanup = $false
 )
 

@@ -13,6 +13,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/admin/models/{modelId}/composite")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'WEBMASTER')")
 public class AdminModelCompositeController {
 
     private final ModelMediaService modelMediaService;

@@ -454,26 +454,10 @@ CREATE POLICY "Public Read Site Contents"
 -- ==============================================================================
 -- 6.3. POLÍTICAS DO FUNIL DE SCOUTING (Quero ser modelo)
 -- ==============================================================================
--- Candidatos anônimos podem inserir fichas (exigindo estritamente o aceite da LGPD)
+-- Inscrições e uploads de fotos são estritamente mediados pelo backend Spring Boot
+-- com a role service_role. Inserção direta via anon/authenticated é desativada por segurança.
 DROP POLICY IF EXISTS "Public Insert Candidate Application" ON public.candidates;
-CREATE POLICY "Public Insert Candidate Application"
-    ON public.candidates
-    FOR INSERT
-    TO anon, authenticated
-    WITH CHECK (lgpd_accepted IS TRUE);
-
--- Candidatos anônimos podem inserir suas fotos associadas à candidatura existente
 DROP POLICY IF EXISTS "Public Insert Candidate Photos" ON public.candidate_photos;
-CREATE POLICY "Public Insert Candidate Photos"
-    ON public.candidate_photos
-    FOR INSERT
-    TO anon, authenticated
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.candidates c
-            WHERE c.id = candidate_photos.candidate_id
-        )
-    );
 
 -- ==============================================================================
 -- 6.4. POLÍTICAS DE ADMIN_AUDIT_LOGS (RLS Imutável)

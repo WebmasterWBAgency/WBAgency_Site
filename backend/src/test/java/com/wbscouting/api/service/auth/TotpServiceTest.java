@@ -27,7 +27,8 @@ class TotpServiceTest {
         String otpauthUrl = totpService.getOtpauthUrl("admin@wbagency.com.br", secret);
         assertTrue(otpauthUrl.startsWith("otpauth://totp/"));
         assertTrue(otpauthUrl.contains("secret=" + secret));
-        assertTrue(otpauthUrl.contains("admin@wbagency.com.br"));
+        assertTrue(otpauthUrl.contains("WBAgency"));
+        assertTrue(otpauthUrl.contains("admin%40wbagency.com.br"));
     }
 
     @Test

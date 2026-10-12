@@ -13,8 +13,9 @@ describe('AdminLoginComponent', () => {
   beforeEach(async () => {
     localStorage.clear();
     sessionStorage.clear();
-    authServiceSpy = jasmine.createSpyObj('AuthService', ['login', 'loginMock']);
+    authServiceSpy = jasmine.createSpyObj('AuthService', ['login']);
     (authServiceSpy as any).isAuthenticated = jasmine.createSpy('isAuthenticated').and.returnValue(false);
+    (authServiceSpy as any).mustChangePassword = jasmine.createSpy('mustChangePassword').and.returnValue(false);
 
     await TestBed.configureTestingModule({
       imports: [AdminLoginComponent],
@@ -158,5 +159,25 @@ describe('AdminLoginComponent', () => {
     expect(component.showPassword()).toBeTrue();
     component.togglePasswordVisibility();
     expect(component.showPassword()).toBeFalse();
+  });
+
+  it('should redirect to /admin/primeiro-acesso when mustChangePassword is true', () => {
+    (authServiceSpy as any).mustChangePassword.and.returnValue(true);
+    spyOn(router, 'navigate');
+
+    authServiceSpy.login.and.returnValue(of({
+      token: 'jwt-temp',
+      mustChangePassword: true
+    }));
+
+    component.loginForm.setValue({
+      email: 'novo@wbagency.com.br',
+      password: 'provisional-pwd',
+      rememberMe: false
+    });
+
+    component.onSubmit();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/admin/primeiro-acesso']);
   });
 });

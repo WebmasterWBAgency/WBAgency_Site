@@ -13,4 +13,9 @@ public class TwoFactorSetupResponseDto {
     private String secret;
     private String otpauthUrl;
     private String qrCodeDataUrl;
+    private String qrCodeUri;
+
+    public String getQrCodeUri() {
+        return qrCodeUri != null ? qrCodeUri : otpauthUrl;
+    }
 }

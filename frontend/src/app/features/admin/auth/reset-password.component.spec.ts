@@ -15,7 +15,10 @@ describe('ResetPasswordComponent', () => {
     activatedRouteStub = {
       snapshot: {
         queryParamMap: {
-          get: jasmine.createSpy('get').and.returnValue('valid-token-abc-123')
+          get: jasmine.createSpy('get').and.callFake((param: string) => {
+            if (param === 'token') return 'valid-token-abc-123';
+            return null;
+          })
         }
       }
     };
@@ -50,7 +53,7 @@ describe('ResetPasswordComponent', () => {
   });
 
   it('should validate password complexity indicators (min 8 chars, numbers & special chars)', () => {
-    const passwordControl = component.resetForm.get('password');
+    const passwordControl = component.resetForm.get('newPassword');
 
     passwordControl?.setValue('abc');
     expect(component.hasMinLength).toBeFalse();
@@ -59,10 +62,14 @@ describe('ResetPasswordComponent', () => {
     passwordControl?.setValue('Abcdefgh1!');
     expect(component.hasMinLength).toBeTrue();
     expect(component.hasSpecialChar).toBeTrue();
+    expect(component.hasUpperCase).toBeTrue();
+    expect(component.hasLowerCase).toBeTrue();
+    expect(component.hasNumber).toBeTrue();
+    expect(component.isPasswordStrong).toBeTrue();
   });
 
-  it('should flag mismatch error when password and confirmPassword do not match', () => {
-    component.resetForm.get('password')?.setValue('NovaSenha@2026');
+  it('should flag mismatch error when newPassword and confirmPassword do not match', () => {
+    component.resetForm.get('newPassword')?.setValue('NovaSenha@2026');
     component.resetForm.get('confirmPassword')?.setValue('OutraSenha@2026');
 
     expect(component.resetForm.errors?.['mismatch']).toBeTrue();
@@ -79,13 +86,14 @@ describe('ResetPasswordComponent', () => {
     );
 
     component.resetForm.setValue({
-      password: 'NovaSenha@2026!',
+      newPassword: 'NovaSenha@2026!',
       confirmPassword: 'NovaSenha@2026!'
     });
 
     component.onSubmit();
 
     expect(authServiceSpy.resetPassword).toHaveBeenCalledWith({
+      email: undefined,
       token: 'valid-token-abc-123',
       newPassword: 'NovaSenha@2026!',
       confirmPassword: 'NovaSenha@2026!'
@@ -94,13 +102,46 @@ describe('ResetPasswordComponent', () => {
     expect(component.isCompleted).toBeTrue();
   });
 
+  it('should pass email when present in URL query params', () => {
+    activatedRouteStub.snapshot.queryParamMap.get = jasmine.createSpy('get').and.callFake((param: string) => {
+      if (param === 'token') return 'token-xyz-999';
+      if (param === 'email') return 'admin@wbagency.com.br';
+      return null;
+    });
+
+    const newFixture = TestBed.createComponent(ResetPasswordComponent);
+    const newComponent = newFixture.componentInstance;
+    newFixture.detectChanges();
+
+    expect(newComponent.token).toBe('token-xyz-999');
+    expect(newComponent.email).toBe('admin@wbagency.com.br');
+
+    authServiceSpy.resetPassword.and.returnValue(
+      of({ message: 'Senha atualizada com sucesso.' })
+    );
+
+    newComponent.resetForm.setValue({
+      newPassword: 'NovaSenha@2026!',
+      confirmPassword: 'NovaSenha@2026!'
+    });
+
+    newComponent.onSubmit();
+
+    expect(authServiceSpy.resetPassword).toHaveBeenCalledWith({
+      email: 'admin@wbagency.com.br',
+      token: 'token-xyz-999',
+      newPassword: 'NovaSenha@2026!',
+      confirmPassword: 'NovaSenha@2026!'
+    });
+  });
+
   it('should mark tokenInvalid as true when server rejects token', () => {
     authServiceSpy.resetPassword.and.returnValue(
       throwError(() => ({ status: 400, error: { message: 'Token inválido ou expirado.' } }))
     );
 
     component.resetForm.setValue({
-      password: 'NovaSenha@2026!',
+      newPassword: 'NovaSenha@2026!',
       confirmPassword: 'NovaSenha@2026!'
     });
 

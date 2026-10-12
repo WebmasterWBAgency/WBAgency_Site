@@ -38,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final com.wbscouting.api.security.TokenBlacklistService tokenBlacklistService;
     private final TotpService totpService;
+    private final com.wbscouting.api.service.audit.AuditLogService auditLogService;
 
     /**
      * Persiste o historico de login em admin_login_history.<br>
@@ -206,17 +207,36 @@ public class AuthServiceImpl implements AuthService {
 
         if (optionalAdmin.isPresent()) {
             Admin admin = optionalAdmin.get();
-            // Gera token criptográfico seguro de 32 bytes (64 caracteres hex)
-            String rawResetToken = TokenHashUtils.generateSecureToken();
-            // Persiste exclusivamente o hash SHA-256 no banco de dados (Item 14 da EAP-SEG-002)
-            String hashedToken = TokenHashUtils.hashToken(rawResetToken);
+            // Gere um token seguro (UUID.randomUUID().toString())
+            String rawResetToken = java.util.UUID.randomUUID().toString();
+            // Salve password_reset_token_hash = TokenHashUtils.sha256(token)
+            String hashedToken = TokenHashUtils.sha256(rawResetToken);
 
-            admin.setPasswordResetToken(hashedToken);
-            admin.setPasswordResetExpiresAt(OffsetDateTime.now().plusMinutes(30)); // 30 minutos de validade
+            admin.setPasswordResetTokenHash(hashedToken);
+            admin.setPasswordResetExpiresAt(OffsetDateTime.now().plus(15, java.time.temporal.ChronoUnit.MINUTES)); // 15 minutos de validade
             adminRepository.save(admin);
 
-            // O usuário recebe exclusivamente o token puro via e-mail
+            // Dispare emailService.sendPasswordResetEmail(admin.getEmail(), admin.getName(), rawResetToken)
             emailService.sendPasswordResetEmail(admin.getEmail(), admin.getName(), rawResetToken);
+
+            // Registre em auditoria (AUTH_PASSWORD_RESET_REQUESTED)
+            if (auditLogService != null) {
+                try {
+                    auditLogService.recordLogAsync(
+                            admin.getId(),
+                            admin.getEmail(),
+                            "AUTH_PASSWORD_RESET_REQUESTED",
+                            "AUTH",
+                            admin.getId() != null ? admin.getId().toString() : null,
+                            "Solicitação de redefinição de senha com token de 15 minutos de validade",
+                            java.util.Map.of("email", admin.getEmail()),
+                            null,
+                            null
+                    );
+                } catch (Exception ex) {
+                    log.warn("Falha ao registrar auditoria de solicitação de reset de senha: {}", ex.getMessage());
+                }
+            }
             log.info("Token de recuperação de senha gerado e enviado para admin ID: {}", admin.getId());
         } else {
             log.info("Solicitação de recuperação de senha para e-mail não cadastrado ou inativo: {}", email);
@@ -227,24 +247,36 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequestDto request) {
         String rawToken = request.getToken() != null ? request.getToken().trim() : "";
-        String hashedToken = TokenHashUtils.hashToken(rawToken);
+        if (rawToken.isBlank()) {
+            throw new InvalidTokenException("Token de recuperação inválido ou expirado.");
+        }
 
-        Admin admin = adminRepository.findByPasswordResetToken(hashedToken)
-                .orElseThrow(() -> new InvalidTokenException("O link de redefinição de senha é inválido ou expirou."));
+        Admin admin;
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String email = request.getEmail().trim().toLowerCase();
+            admin = adminRepository.findByEmailAndIsActiveTrue(email)
+                    .orElseThrow(() -> new InvalidTokenException("Token de recuperação inválido ou expirado."));
+        } else {
+            // Fallback para requisições sem e-mail explícito
+            String hashedToken = TokenHashUtils.sha256(rawToken);
+            admin = adminRepository.findByPasswordResetToken(hashedToken)
+                    .orElseThrow(() -> new InvalidTokenException("Token de recuperação inválido ou expirado."));
+        }
 
-        if (!TokenHashUtils.constantTimeVerify(rawToken, admin.getPasswordResetToken())) {
+        if (admin.getPasswordResetTokenHash() == null ||
+                !TokenHashUtils.constantTimeVerify(rawToken, admin.getPasswordResetTokenHash())) {
             log.warn("Falha na validação constante de tempo do token de reset para admin ID: {}", admin.getId());
-            throw new InvalidTokenException("O link de redefinição de senha é inválido ou expirou.");
+            throw new InvalidTokenException("Token de recuperação inválido ou expirado.");
         }
 
         if (!Boolean.TRUE.equals(admin.getIsActive())) {
             log.warn("Tentativa de redefinição de senha para administrador inativo: {}", admin.getEmail());
-            throw new InvalidTokenException("O link de redefinição de senha é inválido ou expirou.");
+            throw new InvalidTokenException("Token de recuperação inválido ou expirado.");
         }
 
         if (admin.getPasswordResetExpiresAt() == null || admin.getPasswordResetExpiresAt().isBefore(OffsetDateTime.now())) {
             log.warn("Tentativa de redefinição com token expirado para admin ID: {}", admin.getId());
-            throw new InvalidTokenException("O link de redefinição de senha é inválido ou expirou.");
+            throw new InvalidTokenException("Token de recuperação inválido ou expirado.");
         }
 
         if (request.getConfirmPassword() != null && !request.getConfirmPassword().isBlank()) {
@@ -256,11 +288,94 @@ public class AuthServiceImpl implements AuthService {
         validatePasswordComplexity(request.getNewPassword());
 
         admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        admin.setPasswordResetToken(null);
+        admin.setPasswordResetTokenHash(null);
         admin.setPasswordResetExpiresAt(null);
+        admin.setMustChangePassword(false);
         adminRepository.save(admin);
 
+        // Invalide todas as sessões anteriores via tokenBlacklistService.revokeAllUserTokens(admin.getId())
+        if (tokenBlacklistService != null) {
+            tokenBlacklistService.revokeAllUserTokens(admin.getId());
+            if (admin.getEmail() != null) {
+                tokenBlacklistService.revokeAllUserTokens(admin.getEmail());
+            }
+        }
+
+        // Registre auditoria (AUTH_PASSWORD_RESET_COMPLETED)
+        if (auditLogService != null) {
+            try {
+                auditLogService.recordLogAsync(
+                        admin.getId(),
+                        admin.getEmail(),
+                        "AUTH_PASSWORD_RESET_COMPLETED",
+                        "AUTH",
+                        admin.getId() != null ? admin.getId().toString() : null,
+                        "Senha administrativa redefinida com sucesso pelo usuário",
+                        java.util.Map.of("email", admin.getEmail()),
+                        null,
+                        null
+                );
+            } catch (Exception ex) {
+                log.warn("Falha ao registrar auditoria de redefinição de senha: {}", ex.getMessage());
+            }
+        }
+
         log.info("Senha redefinida com sucesso para o administrador ID: {}", admin.getId());
+    }
+
+    @Override
+    @Transactional
+    public void activateAccount(com.wbscouting.api.dto.auth.ActivateAccountRequestDto request) {
+        String email = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        String rawToken = request.getToken() != null ? request.getToken().trim() : "";
+
+        Admin admin = adminRepository.findByEmailAndIsActiveTrue(email)
+                .orElseThrow(() -> new InvalidTokenException("Link de ativação inválido ou administrador inativo."));
+
+        if (admin.getPasswordResetTokenHash() == null ||
+                !TokenHashUtils.constantTimeVerify(rawToken, admin.getPasswordResetTokenHash())) {
+            log.warn("Falha na validação do token de ativação para admin: {}", email);
+            throw new InvalidTokenException("O link de ativação é inválido ou expirou.");
+        }
+
+        if (admin.getPasswordResetExpiresAt() == null || admin.getPasswordResetExpiresAt().isBefore(OffsetDateTime.now())) {
+            log.warn("Tentativa de ativação com token expirado para admin: {}", email);
+            throw new InvalidTokenException("O link de ativação expirou. Solicite um novo acesso ao administrador.");
+        }
+
+        if (request.getConfirmPassword() != null && !request.getConfirmPassword().isBlank()) {
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new IllegalArgumentException("As senhas não coincidem.");
+            }
+        }
+
+        validatePasswordComplexity(request.getNewPassword());
+
+        admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        admin.setPasswordResetTokenHash(null);
+        admin.setPasswordResetExpiresAt(null);
+        admin.setMustChangePassword(false);
+        adminRepository.save(admin);
+
+        if (auditLogService != null) {
+            try {
+                auditLogService.recordLogAsync(
+                        admin.getId(),
+                        admin.getEmail(),
+                        "ACTIVATE_ACCOUNT",
+                        "AUTH",
+                        admin.getId() != null ? admin.getId().toString() : null,
+                        "Ativação de conta e primeiro acesso com definição de senha definitiva",
+                        java.util.Map.of("email", admin.getEmail(), "role", admin.getRole() != null ? admin.getRole().name() : ""),
+                        null,
+                        null
+                );
+            } catch (Exception ex) {
+                log.warn("Falha ao registrar auditoria de ativação de conta: {}", ex.getMessage());
+            }
+        }
+
+        log.info("Conta ativada e senha definitiva cadastrada com sucesso para: {}", admin.getEmail());
     }
 
     private void validatePasswordComplexity(String password) {
@@ -335,5 +450,133 @@ public class AuthServiceImpl implements AuthService {
         response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, deleteCookie.toString());
 
         log.info("Sessão administrativa encerrada e credenciais revogadas com sucesso (Hard Logout).");
+    }
+
+    @Override
+    @Transactional
+    public com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto setupTwoFactor(java.util.UUID userId) {
+        Admin admin = adminRepository.findById(userId)
+                .orElseThrow(() -> new com.wbscouting.api.exception.ResourceNotFoundException("Administrador não encontrado com o ID: " + userId));
+        return performSetupTwoFactor(admin);
+    }
+
+    @Override
+    @Transactional
+    public com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto setupTwoFactor(String email) {
+        String cleanEmail = email != null ? email.trim().toLowerCase(java.util.Locale.ROOT) : "";
+        Admin admin = adminRepository.findByEmailAndIsActiveTrue(cleanEmail)
+                .orElseThrow(() -> new com.wbscouting.api.exception.ResourceNotFoundException("Administrador não encontrado ou inativo: " + cleanEmail));
+        return performSetupTwoFactor(admin);
+    }
+
+    private com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto performSetupTwoFactor(Admin admin) {
+        String secret = totpService.generateSecret();
+        admin.setTotpSecret(secret);
+        admin.setIs2faEnabled(false);
+        adminRepository.save(admin);
+
+        String otpauthUrl = totpService.getOtpauthUrl(admin.getEmail(), secret);
+        String qrCodeDataUrl = totpService.generateQrCodeDataUrl(otpauthUrl);
+
+        log.info("Setup de 2FA gerado para o administrador ID: {} ({})", admin.getId(), admin.getEmail());
+
+        return com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto.builder()
+                .secret(secret)
+                .otpauthUrl(otpauthUrl)
+                .qrCodeDataUrl(qrCodeDataUrl)
+                .qrCodeUri(otpauthUrl)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void confirmTwoFactor(java.util.UUID userId, String code) {
+        Admin admin = adminRepository.findById(userId)
+                .orElseThrow(() -> new com.wbscouting.api.exception.ResourceNotFoundException("Administrador não encontrado com o ID: " + userId));
+        performConfirmTwoFactor(admin, code);
+    }
+
+    @Override
+    @Transactional
+    public void confirmTwoFactor(String email, String code) {
+        String cleanEmail = email != null ? email.trim().toLowerCase(java.util.Locale.ROOT) : "";
+        Admin admin = adminRepository.findByEmailAndIsActiveTrue(cleanEmail)
+                .orElseThrow(() -> new com.wbscouting.api.exception.ResourceNotFoundException("Administrador não encontrado ou inativo: " + cleanEmail));
+        performConfirmTwoFactor(admin, code);
+    }
+
+    private void performConfirmTwoFactor(Admin admin, String code) {
+        if (admin.getTotpSecret() == null || admin.getTotpSecret().isBlank()) {
+            throw new com.wbscouting.api.exception.BusinessException("O setup de 2FA ainda não foi iniciado.");
+        }
+
+        if (code == null || code.isBlank() || !totpService.verifyCode(admin.getTotpSecret(), code.trim())) {
+            throw new com.wbscouting.api.exception.BusinessException("Código de autenticação inválido.");
+        }
+
+        java.util.List<String> rawBackupCodes = totpService.generateBackupCodes(8);
+        java.util.List<String> hashedBackupCodes = rawBackupCodes.stream()
+                .map(totpService::hashBackupCode)
+                .toList();
+
+        admin.setIs2faEnabled(true);
+        admin.setBackupCodes(hashedBackupCodes);
+        adminRepository.save(admin);
+
+        auditLogService.recordLogAsync(
+                admin.getId(),
+                admin.getEmail(),
+                "2FA_ENABLE",
+                "ADMIN_USER",
+                admin.getId().toString(),
+                "Autenticação em duas etapas (2FA/TOTP) ativada com sucesso pelo usuário",
+                java.util.Map.of("email", admin.getEmail()),
+                null,
+                null
+        );
+
+        log.info("2FA ativado com sucesso para o administrador ID: {} ({})", admin.getId(), admin.getEmail());
+    }
+
+    @Override
+    @Transactional
+    public void disableTwoFactor(java.util.UUID userId, String currentPassword) {
+        Admin admin = adminRepository.findById(userId)
+                .orElseThrow(() -> new com.wbscouting.api.exception.ResourceNotFoundException("Administrador não encontrado com o ID: " + userId));
+        performDisableTwoFactor(admin, currentPassword);
+    }
+
+    @Override
+    @Transactional
+    public void disableTwoFactor(String email, String currentPassword) {
+        String cleanEmail = email != null ? email.trim().toLowerCase(java.util.Locale.ROOT) : "";
+        Admin admin = adminRepository.findByEmailAndIsActiveTrue(cleanEmail)
+                .orElseThrow(() -> new com.wbscouting.api.exception.ResourceNotFoundException("Administrador não encontrado ou inativo: " + cleanEmail));
+        performDisableTwoFactor(admin, currentPassword);
+    }
+
+    private void performDisableTwoFactor(Admin admin, String currentPassword) {
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, admin.getPasswordHash())) {
+            throw new BadCredentialsException("Senha atual informada está incorreta.");
+        }
+
+        admin.setIs2faEnabled(false);
+        admin.setTotpSecret(null);
+        admin.setBackupCodes(new java.util.ArrayList<>());
+        adminRepository.save(admin);
+
+        auditLogService.recordLogAsync(
+                admin.getId(),
+                admin.getEmail(),
+                "2FA_DISABLE",
+                "ADMIN_USER",
+                admin.getId().toString(),
+                "Autenticação em duas etapas (2FA/TOTP) desativada pelo usuário",
+                java.util.Map.of("email", admin.getEmail()),
+                null,
+                null
+        );
+
+        log.info("2FA desativado pelo usuário para o administrador ID: {} ({})", admin.getId(), admin.getEmail());
     }
 }

@@ -21,7 +21,7 @@ export class AdminHeaderComponent implements OnInit {
   pendingCandidatesCount = 0;
 
   get userEmail(): string {
-    return this.authService.currentUser()?.email || 'webmaster@wbagency.com.br';
+    return this.authService.currentUser()?.email || '';
   }
 
   get userName(): string {

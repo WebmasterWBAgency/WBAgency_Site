@@ -25,7 +25,7 @@ public class TotpService {
     private static final int SECRET_BYTE_LENGTH = 20; // 160 bits (recomendado RFC 4226/6238)
     private static final int TIME_STEP_SECONDS = 30;
     private static final int WINDOW_SIZE = 1; // Permite passo anterior, atual e seguinte
-    private static final String ISSUER = "WB Agency";
+    private static final String ISSUER = "WBAgency";
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -42,9 +42,10 @@ public class TotpService {
      * Monta a URI otpauth:// conforme padrão do Google Authenticator.
      */
     public String getOtpauthUrl(String email, String secret) {
-        String encodedIssuer = URLEncoder.encode(ISSUER, StandardCharsets.UTF_8).replace("+", "%20");
+        String issuer = URLEncoder.encode(ISSUER, StandardCharsets.UTF_8).replace("+", "%20");
+        String account = URLEncoder.encode(email != null ? email : "", StandardCharsets.UTF_8).replace("+", "%20");
         return String.format("otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30",
-                encodedIssuer, email, secret, encodedIssuer);
+                issuer, account, secret, issuer);
     }
 
     /**

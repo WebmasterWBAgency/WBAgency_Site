@@ -431,6 +431,13 @@ public class DataInitializer implements CommandLineRunner {
             // Garante coluna is_cover em model_media
             jdbcTemplate.execute("ALTER TABLE public.model_media ADD COLUMN IF NOT EXISTS is_cover BOOLEAN NOT NULL DEFAULT FALSE;");
 
+            // Garante índice único parcial para Webmaster único em public.admins
+            jdbcTemplate.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_single_webmaster 
+                ON public.admins (role) 
+                WHERE role = 'WEBMASTER';
+            """);
+
             // Garante conversão de media_type em model_media para varchar(30) se ainda for tipo enum nativo
             jdbcTemplate.execute("""
                 DO $$

@@ -16,18 +16,35 @@
       </p>
     </div>
 
+    <!-- Toast Notificação Flutuante -->
+    @if (toast(); as t) {
+      <div class="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div
+          [class.bg-[#222624]]="t.type === 'success'"
+          [class.border-[#4B584E]]="t.type === 'success'"
+          [class.bg-red-950]="t.type === 'error'"
+          [class.border-red-600]="t.type === 'error'"
+          class="border text-white text-xs px-5 py-3 shadow-2xl rounded-none flex items-center gap-3 max-w-md"
+        >
+          <div class="w-2 h-2 rounded-full" [class.bg-emerald-400]="t.type === 'success'" [class.bg-red-400]="t.type === 'error'"></div>
+          <span class="font-medium tracking-wide flex-1">{{ t.message }}</span>
+          <button type="button" (click)="toast.set(null)" class="text-white/60 hover:text-white ml-2 text-sm leading-none cursor-pointer">&times;</button>
+        </div>
+      </div>
+    }
+
     <!-- Alertas Globais -->
     @if (errorMessage()) {
       <div class="bg-red-50 border-l-2 border-red-600 p-4 text-xs text-red-800 rounded-none flex items-start justify-between">
         <span>{{ errorMessage() }}</span>
-        <button type="button" (click)="errorMessage.set(null)" class="text-red-500 hover:text-red-700 ml-4 font-bold">&times;</button>
+        <button type="button" (click)="errorMessage.set(null)" class="text-red-500 hover:text-red-700 ml-4 font-bold cursor-pointer">&times;</button>
       </div>
     }
 
     @if (successMessage()) {
       <div class="bg-emerald-50 border-l-2 border-[#4B584E] p-4 text-xs text-[#222624] rounded-none flex items-start justify-between">
         <span>{{ successMessage() }}</span>
-        <button type="button" (click)="successMessage.set(null)" class="text-[#4B584E] hover:text-neutral-900 ml-4 font-bold">&times;</button>
+        <button type="button" (click)="successMessage.set(null)" class="text-[#4B584E] hover:text-neutral-900 ml-4 font-bold cursor-pointer">&times;</button>
       </div>
     }
 
@@ -239,12 +256,12 @@
               @if (is2faEnabled()) {
                 <span class="inline-flex items-center gap-1.5 text-emerald-800 bg-emerald-50 border border-emerald-200 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-none">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                  Ativado
+                  2FA Ativo e Protegido
                 </span>
               } @else {
                 <span class="inline-flex items-center gap-1.5 text-neutral-500 bg-neutral-100 border border-neutral-200 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-none">
                   <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>
-                  Desativado
+                  Inativo
                 </span>
               }
             </div>
@@ -258,25 +275,100 @@
             </p>
           </div>
 
-          <!-- Ação Principal de 2FA -->
-          @if (!is2faEnabled()) {
-            <button
-              type="button"
-              (click)="start2faSetup()"
-              [disabled]="isLoading()"
-              class="w-full py-2.5 bg-[#4B584E] hover:bg-[#3D473F] text-white text-xs uppercase tracking-widest font-medium transition-all cursor-pointer rounded-none"
-            >
-              Configurar 2FA (TOTP)
-            </button>
-          } @else {
+          <!-- Tratamento de Estado do 2FA -->
+          @if (is2faEnabled()) {
+            <!-- 2FA Ativo: Opção de Desativação com Confirmação de Senha -->
             <button
               type="button"
               (click)="openDisable2faModal()"
               [disabled]="isLoading()"
               class="w-full py-2.5 border border-red-300 text-red-700 hover:bg-red-700 hover:text-white text-xs uppercase tracking-widest font-medium transition-all cursor-pointer rounded-none"
             >
-              Desativar Autenticação em 2 Etapas
+              Desativar 2FA
             </button>
+          } @else if (!isSetupActive()) {
+            <!-- 2FA Inativo: Botão para Iniciar Configuração -->
+            <button
+              type="button"
+              (click)="start2faSetup()"
+              [disabled]="isLoading()"
+              class="w-full py-2.5 bg-[#4B584E] hover:bg-[#3D473F] text-white text-xs uppercase tracking-widest font-medium transition-all cursor-pointer rounded-none"
+            >
+              {{ isLoading() ? 'Gerando QR Code...' : 'Ativar 2FA' }}
+            </button>
+          } @else {
+            <!-- CARD DE ATIVAÇÃO 2FA INLINE -->
+            <div class="border border-[#4B584E] p-5 bg-[#F8F9F8] rounded-none space-y-4">
+              <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-2">
+                <span class="text-[10px] uppercase tracking-widest text-[#4B584E] font-semibold">Card de Ativação</span>
+                <button
+                  type="button"
+                  (click)="closeSetup2faModal()"
+                  class="text-neutral-400 hover:text-neutral-700 text-xs uppercase tracking-wider cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+
+              <!-- Imagem do QR Code -->
+              <div class="text-center">
+                <p class="text-[11px] text-neutral-600 mb-2">Escaneie com Google Authenticator ou Microsoft Authenticator:</p>
+                @if (qrCodeDataUrl) {
+                  <img [src]="qrCodeDataUrl" alt="QR Code 2FA" class="w-48 h-48 mx-auto" />
+                } @else {
+                  <div class="w-48 h-48 mx-auto flex items-center justify-center bg-white border border-[#E8EBE8] text-xs text-neutral-400">
+                    Gerando QR Code...
+                  </div>
+                }
+              </div>
+
+              <!-- Chave Manual Legível com Botão Copiar -->
+              <div>
+                <span class="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold block mb-1">
+                  Chave para inserção manual:
+                </span>
+                <div class="flex items-center gap-2 bg-white border border-[#E8EBE8] p-2">
+                  <code class="font-mono text-xs text-[#4B584E] font-bold tracking-widest flex-1 select-all break-all">
+                    {{ secret }}
+                  </code>
+                  <button
+                    type="button"
+                    (click)="copySecret()"
+                    class="px-2.5 py-1 bg-[#4B584E] hover:bg-[#3D473F] text-white text-[10px] uppercase font-medium rounded-none transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    {{ copiedSecret() ? 'Copiado!' : 'Copiar Chave' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Formulário com Input formatado para 6 dígitos -->
+              <form [formGroup]="confirm2faForm" (ngSubmit)="submitConfirm2fa()" class="space-y-3 pt-2">
+                <div>
+                  <label for="inlineCode" class="block text-[11px] uppercase tracking-wider text-neutral-700 font-medium mb-1">
+                    Código de 6 Dígitos
+                  </label>
+                  <input
+                    id="inlineCode"
+                    type="text"
+                    formControlName="code"
+                    maxlength="6"
+                    placeholder="000000"
+                    class="w-full text-center font-mono text-lg tracking-[0.4em] px-3 py-2 border border-[#E2E8E2] bg-[#FFFDF5] focus:bg-white focus:outline-none focus:border-[#4B584E] rounded-none transition-colors"
+                  />
+                  @if (confirm2faForm.get('code')?.touched && confirm2faForm.get('code')?.invalid) {
+                    <span class="text-[11px] text-red-600 mt-1 block">Insira o código numérico de 6 dígitos.</span>
+                  }
+                </div>
+
+                <button
+                  type="submit"
+                  [disabled]="isLoading() || confirm2faForm.invalid"
+                  class="w-full py-2.5 bg-[#4B584E] hover:bg-[#3D473F] text-white text-xs uppercase tracking-widest font-medium transition-all rounded-none cursor-pointer disabled:opacity-50"
+                >
+                  {{ isLoading() ? 'Validando...' : 'Validar e Ativar' }}
+                </button>
+              </form>
+            </div>
           }
 
         </div>
@@ -320,8 +412,8 @@
           </p>
 
           <div class="flex justify-center bg-[#F8F9F8] border border-[#E8EBE8] p-4">
-            @if (setupData()?.qrCodeDataUrl) {
-              <img [src]="setupData()?.qrCodeDataUrl" alt="QR Code 2FA" class="w-48 h-48 border border-neutral-300" />
+            @if (qrCodeDataUrl) {
+              <img [src]="qrCodeDataUrl" alt="QR Code 2FA" class="w-48 h-48 mx-auto" />
             } @else {
               <div class="w-48 h-48 flex items-center justify-center text-neutral-400">Carregando...</div>
             }
@@ -334,15 +426,15 @@
             Ou insira a chave manualmente:
           </div>
           <div class="flex items-center gap-2 bg-[#F8F9F8] border border-[#E8EBE8] p-2.5">
-            <code class="font-mono text-xs text-[#4B584E] font-bold tracking-widest flex-1 select-all">
-              {{ setupData()?.secret }}
+            <code class="font-mono text-xs text-[#4B584E] font-bold tracking-widest flex-1 select-all break-all">
+              {{ secret }}
             </code>
             <button
               type="button"
               (click)="copySecret()"
-              class="px-2.5 py-1 bg-[#4B584E] text-white text-[10px] uppercase font-medium rounded-none hover:bg-[#3D473F] transition-all cursor-pointer"
+              class="px-2.5 py-1 bg-[#4B584E] text-white text-[10px] uppercase font-medium rounded-none hover:bg-[#3D473F] transition-all cursor-pointer whitespace-nowrap"
             >
-              {{ copiedSecret() ? 'Copiado!' : 'Copiar' }}
+              {{ copiedSecret() ? 'Copiado!' : 'Copiar Chave' }}
             </button>
           </div>
         </div>
@@ -379,7 +471,7 @@
               [disabled]="isLoading() || confirm2faForm.invalid"
               class="px-5 py-2 bg-[#4B584E] hover:bg-[#3D473F] text-white text-xs uppercase tracking-widest font-medium transition-all rounded-none cursor-pointer disabled:opacity-50"
             >
-              {{ isLoading() ? 'Validando...' : 'Confirmar e Ativar' }}
+              {{ isLoading() ? 'Validando...' : 'Validar e Ativar' }}
             </button>
           </div>
         </form>

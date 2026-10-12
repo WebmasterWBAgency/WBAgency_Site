@@ -103,8 +103,17 @@ class DataInitializerIdempotencyTest {
 
     @Test
     @DisplayName("Deve executar migrações DDL idempotentes sem lançar exceções")
-    void shouldExecuteSchemaMigrationsResiliently() {
+    void shouldExecuteSchemaMigrationsResiliently() throws java.sql.SQLException {
         when(adminRepository.count()).thenReturn(1L);
+
+        javax.sql.DataSource mockDs = mock(javax.sql.DataSource.class);
+        java.sql.Connection mockConn = mock(java.sql.Connection.class);
+        java.sql.DatabaseMetaData mockMeta = mock(java.sql.DatabaseMetaData.class);
+
+        when(jdbcTemplate.getDataSource()).thenReturn(mockDs);
+        when(mockDs.getConnection()).thenReturn(mockConn);
+        when(mockConn.getMetaData()).thenReturn(mockMeta);
+        when(mockMeta.getDatabaseProductName()).thenReturn("PostgreSQL");
 
         dataInitializer.run(new String[0]);
 

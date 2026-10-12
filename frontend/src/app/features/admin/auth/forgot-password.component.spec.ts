@@ -42,37 +42,40 @@ describe('ForgotPasswordComponent', () => {
     expect(emailControl?.valid).toBeTrue();
   });
 
-  it('should call requestPasswordReset and display generic anti-enumeration success message', () => {
-    authServiceSpy.requestPasswordReset.and.returnValue(
-      of({ message: 'Se o e-mail informado estiver registrado em nossa base, as instruções de redefinição foram enviadas.' })
+  it('should call forgotPassword and display generic anti-enumeration success message', () => {
+    authServiceSpy.forgotPassword.and.returnValue(
+      of({ message: 'Se o e-mail estiver cadastrado, você receberá as instruções em instantes.' })
     );
 
     component.forgotForm.setValue({ email: 'webmaster@wbagency.com.br' });
     component.onSubmit();
 
-    expect(authServiceSpy.requestPasswordReset).toHaveBeenCalledWith('webmaster@wbagency.com.br');
+    expect(authServiceSpy.forgotPassword).toHaveBeenCalledWith('webmaster@wbagency.com.br');
     expect(component.isLoading).toBeFalse();
     expect(component.submittedSuccessfully).toBeTrue();
+    expect(component.isCooldownActive).toBeTrue();
+    expect(component.cooldown).toBe(60);
   });
 
   it('should protect against user enumeration even if backend fails, showing generic success feedback', () => {
-    authServiceSpy.requestPasswordReset.and.returnValue(
+    authServiceSpy.forgotPassword.and.returnValue(
       throwError(() => new Error('Simulated network or backend error'))
     );
 
     component.forgotForm.setValue({ email: 'nonexistent@wbscouting.com' });
     component.onSubmit();
 
-    expect(authServiceSpy.requestPasswordReset).toHaveBeenCalledWith('nonexistent@wbscouting.com');
+    expect(authServiceSpy.forgotPassword).toHaveBeenCalledWith('nonexistent@wbscouting.com');
     expect(component.isLoading).toBeFalse();
     expect(component.submittedSuccessfully).toBeTrue();
+    expect(component.isCooldownActive).toBeTrue();
   });
 
   it('should not submit if form is invalid', () => {
     component.forgotForm.setValue({ email: '' });
     component.onSubmit();
 
-    expect(authServiceSpy.requestPasswordReset).not.toHaveBeenCalled();
+    expect(authServiceSpy.forgotPassword).not.toHaveBeenCalled();
     expect(component.submittedSuccessfully).toBeFalse();
   });
 });

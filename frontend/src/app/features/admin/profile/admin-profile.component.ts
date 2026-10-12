@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminProfileService, TwoFactorSetupData } from '../../../core/services/admin-profile.service';
 import { AuthService } from '../../../core/services/auth.service';
+import QRCode from 'qrcode';
 
 @Component({
   selector: 'app-admin-profile',
@@ -21,6 +22,7 @@ export class AdminProfileComponent implements OnInit {
   readonly is2faEnabled = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Visibilidade de senhas
   readonly showCurrentPassword = signal<boolean>(false);
@@ -31,6 +33,11 @@ export class AdminProfileComponent implements OnInit {
   readonly isSetup2faModalOpen = signal<boolean>(false);
   readonly isDisable2faModalOpen = signal<boolean>(false);
   readonly isBackupCodesModalOpen = signal<boolean>(false);
+  readonly isSetupActive = signal<boolean>(false);
+
+  // Variáveis diretas de 2FA para bind de template e inserção manual
+  qrCodeDataUrl: string = '';
+  secret: string = '';
 
   // Dados de Setup 2FA
   readonly setupData = signal<TwoFactorSetupData | null>(null);
@@ -71,6 +78,16 @@ export class AdminProfileComponent implements OnInit {
 
   get currentUser() {
     return this.authService.currentUser();
+  }
+
+  showToast(message: string, type: 'success' | 'error' = 'success'): void {
+    this.toast.set({ message, type });
+    setTimeout(() => {
+      const current = this.toast();
+      if (current && current.message === message) {
+        this.toast.set(null);
+      }
+    }, 4500);
   }
 
   ngOnInit(): void {
@@ -131,31 +148,67 @@ export class AdminProfileComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.profileService.setup2fa().subscribe({
-      next: (data) => {
-        this.isLoading.set(false);
-        this.setupData.set(data);
-        this.confirm2faForm.reset();
-        this.copiedSecret.set(false);
-        this.isSetup2faModalOpen.set(true);
+    this.authService.setup2Fa().subscribe({
+      next: async (res: any) => {
+        try {
+          const payload = res?.data || res;
+          this.secret = payload.secret || '';
+          const qrCodeUri = payload.qrCodeUri || payload.otpauthUrl || '';
+
+          if (qrCodeUri) {
+            // Renderize a imagem do QR Code a partir de qrCodeUri convertendo a string otpauth://... em Data URL base64 usando QRCode.toDataURL(qrCodeUri)
+            this.qrCodeDataUrl = await QRCode.toDataURL(qrCodeUri, {
+              width: 256,
+              margin: 1,
+              color: {
+                dark: '#222624',
+                light: '#FFFFFF'
+              }
+            });
+          } else if (payload.qrCodeDataUrl) {
+            this.qrCodeDataUrl = payload.qrCodeDataUrl;
+          }
+
+          this.setupData.set({
+            secret: this.secret,
+            otpauthUrl: qrCodeUri,
+            qrCodeDataUrl: this.qrCodeDataUrl,
+            qrCodeUri
+          });
+
+          this.confirm2faForm.reset();
+          this.copiedSecret.set(false);
+          this.isSetupActive.set(true);
+          this.isSetup2faModalOpen.set(true);
+        } catch (err) {
+          console.error('Erro ao renderizar QR Code:', err);
+          this.errorMessage.set('Erro ao gerar imagem do QR Code para autenticação.');
+        } finally {
+          this.isLoading.set(false);
+        }
       },
       error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set(err?.error?.detail || 'Erro ao iniciar configuração do 2FA.');
+        this.errorMessage.set(err?.error?.detail || err?.error?.message || 'Erro ao iniciar configuração do 2FA.');
       }
     });
   }
 
   closeSetup2faModal(): void {
     this.isSetup2faModalOpen.set(false);
+    this.isSetupActive.set(false);
     this.setupData.set(null);
+    this.qrCodeDataUrl = '';
+    this.secret = '';
+    this.confirm2faForm.reset();
   }
 
   copySecret(): void {
-    const sec = this.setupData()?.secret;
+    const sec = this.secret || this.setupData()?.secret;
     if (sec && typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(sec).then(() => {
         this.copiedSecret.set(true);
+        this.showToast('Chave copiada para a área de transferência.', 'success');
         setTimeout(() => this.copiedSecret.set(false), 3000);
       });
     }
@@ -167,23 +220,54 @@ export class AdminProfileComponent implements OnInit {
       return;
     }
 
+    const rawCode = this.confirm2faForm.value.code?.toString().trim();
+    if (!rawCode || rawCode.length !== 6) {
+      this.errorMessage.set('Insira o código numérico de 6 dígitos.');
+      return;
+    }
+
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    const code = this.confirm2faForm.value.code;
-
-    this.profileService.confirm2fa(code).subscribe({
-      next: (res) => {
+    this.authService.confirm2Fa(rawCode).subscribe({
+      next: (res: any) => {
         this.isLoading.set(false);
         this.is2faEnabled.set(true);
+
+        // Alerte com toast: "2FA ativado com sucesso!"
+        this.showToast('2FA ativado com sucesso!', 'success');
+        this.successMessage.set('2FA ativado com sucesso!');
+        setTimeout(() => this.successMessage.set(null), 5000);
+
+        // Limpe os campos e oculte a visualização do QR Code
+        this.confirm2faForm.reset();
+        this.qrCodeDataUrl = '';
+        this.secret = '';
+        this.isSetupActive.set(false);
         this.closeSetup2faModal();
-        this.backupCodes.set(res.backupCodes || []);
-        this.copiedBackupCodes.set(false);
-        this.isBackupCodesModalOpen.set(true);
+
+        const backupCodes = res?.backupCodes || res?.data?.backupCodes || [];
+        if (backupCodes.length > 0) {
+          this.backupCodes.set(backupCodes);
+          this.copiedBackupCodes.set(false);
+          this.isBackupCodesModalOpen.set(true);
+        }
+
+        const user = this.authService.currentUser();
+        if (user) {
+          user.is2faEnabled = true;
+          try {
+            localStorage.setItem('wb_auth_user', JSON.stringify(user));
+            localStorage.setItem('wb_scouting_user', JSON.stringify(user));
+          } catch {}
+        }
       },
       error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set(err?.error?.detail || 'Código de 6 dígitos inválido ou expirado.');
+        // Exiba mensagem de erro: "Código inválido ou expirado. Verifique o relógio do aparelho."
+        const customError = 'Código inválido ou expirado. Verifique o relógio do aparelho.';
+        this.errorMessage.set(customError);
+        this.showToast(customError, 'error');
       }
     });
   }
@@ -198,6 +282,7 @@ export class AdminProfileComponent implements OnInit {
     if (codes && typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(codes).then(() => {
         this.copiedBackupCodes.set(true);
+        this.showToast('Códigos de contingência copiados.', 'success');
         setTimeout(() => this.copiedBackupCodes.set(false), 3000);
       });
     }
@@ -223,17 +308,30 @@ export class AdminProfileComponent implements OnInit {
 
     const pwd = this.disable2faForm.value.password;
 
-    this.profileService.disable2fa(pwd).subscribe({
-      next: (res) => {
+    this.authService.disable2Fa(pwd).subscribe({
+      next: (res: any) => {
         this.isLoading.set(false);
         this.is2faEnabled.set(false);
         this.closeDisable2faModal();
-        this.successMessage.set(res.message || 'Autenticação em duas etapas desativada.');
+        const msg = res?.message || 'Autenticação em duas etapas desativada com sucesso.';
+        this.showToast(msg, 'success');
+        this.successMessage.set(msg);
         setTimeout(() => this.successMessage.set(null), 5000);
+
+        const user = this.authService.currentUser();
+        if (user) {
+          user.is2faEnabled = false;
+          try {
+            localStorage.setItem('wb_auth_user', JSON.stringify(user));
+            localStorage.setItem('wb_scouting_user', JSON.stringify(user));
+          } catch {}
+        }
       },
       error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set(err?.error?.detail || 'Senha incorreta. Não foi possível desativar o 2FA.');
+        const errDetail = err?.error?.detail || err?.error?.message || 'Senha incorreta. Não foi possível desativar o 2FA.';
+        this.errorMessage.set(errDetail);
+        this.showToast(errDetail, 'error');
       }
     });
   }

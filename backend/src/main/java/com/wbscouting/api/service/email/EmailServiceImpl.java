@@ -33,43 +33,100 @@ public class EmailServiceImpl implements EmailService {
 
     @Async("emailExecutor")
     @Override
-    public void sendPasswordResetEmail(String recipientEmail, String recipientName, String resetToken) {
+    public void sendPasswordResetEmail(String to, String name, String token) {
         String threadName = Thread.currentThread().getName();
 
-        if (!StringUtils.hasText(recipientEmail) || !StringUtils.hasText(resetToken)) {
-            log.warn("[{}] [PASSWORD-RESET] Parâmetros inválidos para envio de e-mail: recipientEmail='{}', resetTokenPresente={}",
-                    threadName, recipientEmail, StringUtils.hasText(resetToken));
+        if (!StringUtils.hasText(to) || !StringUtils.hasText(token)) {
+            log.warn("[{}] [PASSWORD-RESET] Parâmetros inválidos para envio de e-mail: to='{}', tokenPresente={}",
+                    threadName, to, StringUtils.hasText(token));
             return;
         }
 
         if (isNoOpMode()) {
             log.warn("[{}] [PASSWORD-RESET] MODO MOCK: e-mail NÃO ENVIADO para '{}'. Configurar SPRING_MAIL_HOST/USERNAME/PASSWORD para envios reais.",
-                    threadName, recipientEmail);
+                    threadName, to);
             return;
         }
 
-        log.info("[{}] Iniciando envio de e-mail de recuperação de senha para: {}", threadName, recipientEmail);
+        log.info("[{}] Iniciando envio de e-mail de recuperação de senha para: {}", threadName, to);
         try {
-            String resetUrl = mailProperties.getResetPasswordBaseUrl();
-            if (resetUrl.contains("?")) {
-                resetUrl += "&token=" + resetToken;
-            } else {
-                resetUrl += "?token=" + resetToken;
+            String baseUrl = mailProperties.getResetPasswordBaseUrl();
+            if (!StringUtils.hasText(baseUrl)) {
+                String frontendUrl = mailProperties.getFrontendUrl();
+                baseUrl = (StringUtils.hasText(frontendUrl) ? frontendUrl : "http://localhost:4200") + "/admin/redefinir-senha";
+            }
+            String separator = baseUrl.contains("?") ? "&" : "?";
+            String encodedToken = java.net.URLEncoder.encode(token, StandardCharsets.UTF_8);
+            String encodedEmail = java.net.URLEncoder.encode(to, StandardCharsets.UTF_8);
+            String resetUrl = baseUrl + separator + "token=" + encodedToken + "&email=" + encodedEmail;
+
+            String frontendUrl = mailProperties.getFrontendUrl();
+            if (!StringUtils.hasText(frontendUrl)) {
+                frontendUrl = "http://localhost:4200";
             }
 
             Context context = new Context();
-            context.setVariable("recipientName", recipientName != null ? recipientName : "Administrador");
+            context.setVariable("name", name != null ? name : "Administrador");
+            context.setVariable("recipientName", name != null ? name : "Administrador");
+            context.setVariable("frontendUrl", frontendUrl);
+            context.setVariable("token", encodedToken);
+            context.setVariable("email", encodedEmail);
             context.setVariable("resetUrl", resetUrl);
             context.setVariable("currentYear", Year.now().getValue());
 
             String htmlBody = templateEngine.process("email/password-reset", context);
             String subject = "WB Agency - Redefinição de Senha de Acesso";
 
-            sendHtmlEmail(recipientEmail, subject, htmlBody);
-            log.info("[{}] E-mail de recuperação de senha enviado com sucesso para: {}", threadName, recipientEmail);
+            sendHtmlEmail(to, subject, htmlBody);
+            log.info("[{}] E-mail de recuperação de senha enviado com sucesso para: {}", threadName, to);
         } catch (Exception ex) {
             log.error("[{}] Falha ao processar e enviar e-mail de recuperação de senha para '{}': {}",
-                    threadName, recipientEmail, ex.getMessage(), ex);
+                    threadName, to, ex.getMessage(), ex);
+        }
+    }
+
+    @Async("emailExecutor")
+    @Override
+    public void sendAdminWelcomeEmail(String to, String name, String role, String activationToken) {
+        String threadName = Thread.currentThread().getName();
+
+        if (!StringUtils.hasText(to) || !StringUtils.hasText(activationToken)) {
+            log.warn("[{}] [ADMIN-WELCOME] Parâmetros inválidos para envio de boas-vindas: to='{}', tokenPresente={}",
+                    threadName, to, StringUtils.hasText(activationToken));
+            return;
+        }
+
+        if (isNoOpMode()) {
+            log.warn("[{}] [ADMIN-WELCOME] MODO MOCK: e-mail NÃO ENVIADO para '{}'. Configurar SPRING_MAIL_HOST/USERNAME/PASSWORD para envios reais.",
+                    threadName, to);
+            return;
+        }
+
+        log.info("[{}] Iniciando envio de e-mail de boas-vindas e ativação para: {}", threadName, to);
+        try {
+            String baseUrl = mailProperties.getFirstAccessBaseUrl();
+            if (!StringUtils.hasText(baseUrl)) {
+                baseUrl = "http://localhost:4200/admin/primeiro-acesso";
+            }
+            String separator = baseUrl.contains("?") ? "&" : "?";
+            String activationUrl = baseUrl + separator + "token=" + java.net.URLEncoder.encode(activationToken, StandardCharsets.UTF_8)
+                    + "&email=" + java.net.URLEncoder.encode(to, StandardCharsets.UTF_8);
+
+            Context context = new Context();
+            context.setVariable("recipientName", name != null ? name : "Novo Administrador");
+            context.setVariable("recipientEmail", to);
+            context.setVariable("userRole", role != null ? role : "ADMIN");
+            context.setVariable("activationUrl", activationUrl);
+            context.setVariable("currentYear", Year.now().getValue());
+
+            String htmlBody = templateEngine.process("email/admin-welcome-activation", context);
+            String subject = "WB Agency - Boas-Vindas e Ativação de Acesso Administrativo";
+
+            sendHtmlEmail(to, subject, htmlBody);
+            log.info("[{}] E-mail de boas-vindas e ativação enviado com sucesso para: {}", threadName, to);
+        } catch (Exception ex) {
+            log.error("[{}] Falha ao processar e enviar e-mail de boas-vindas para '{}': {}",
+                    threadName, to, ex.getMessage(), ex);
         }
     }
 

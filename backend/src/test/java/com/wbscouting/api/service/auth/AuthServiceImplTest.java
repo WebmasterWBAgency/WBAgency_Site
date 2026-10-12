@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import java.util.List;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +44,15 @@ class AuthServiceImplTest {
 
     @Mock
     private EmailService emailService;
+
+    @Mock
+    private TotpService totpService;
+
+    @Mock
+    private com.wbscouting.api.service.audit.AuditLogService auditLogService;
+
+    @Mock
+    private com.wbscouting.api.security.TokenBlacklistService tokenBlacklistService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -176,7 +186,7 @@ class AuthServiceImplTest {
 
         assertThatThrownBy(() -> authService.resetPassword(request))
                 .isInstanceOf(com.wbscouting.api.exception.InvalidTokenException.class)
-                .hasMessageContaining("O link de redefinição de senha é inválido ou expirou.");
+                .hasMessageContaining("Token de recuperação inválido ou expirado.");
 
         verify(adminRepository, never()).save(any());
     }
@@ -193,7 +203,168 @@ class AuthServiceImplTest {
 
         assertThatThrownBy(() -> authService.resetPassword(request))
                 .isInstanceOf(com.wbscouting.api.exception.InvalidTokenException.class)
-                .hasMessageContaining("O link de redefinição de senha é inválido ou expirou.");
+                .hasMessageContaining("Token de recuperação inválido ou expirado.");
+    }
+
+    @Test
+    @DisplayName("Deve redefinir a senha com sucesso com e-mail e token válidos")
+    void shouldResetPasswordSuccessfullyWithEmailAndToken() {
+        String rawToken = "valid-token-email-123";
+        String hashedToken = TokenHashUtils.sha256(rawToken);
+
+        admin.setPasswordResetTokenHash(hashedToken);
+        admin.setPasswordResetExpiresAt(java.time.OffsetDateTime.now().plusMinutes(15));
+
+        ResetPasswordRequestDto request = new ResetPasswordRequestDto(admin.getEmail(), rawToken, "NovaSenha@2026");
+
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(passwordEncoder.encode("NovaSenha@2026")).thenReturn("new-bcrypt-hash");
+
+        authService.resetPassword(request);
+
+        assertThat(admin.getPasswordHash()).isEqualTo("new-bcrypt-hash");
+        assertThat(admin.getPasswordResetTokenHash()).isNull();
+        assertThat(admin.getPasswordResetExpiresAt()).isNull();
+
+        verify(adminRepository, times(1)).save(admin);
+        verify(tokenBlacklistService, times(1)).revokeAllUserTokens(admin.getId());
+    }
+
+    @Test
+    @DisplayName("Deve ativar conta e definir senha definitiva com sucesso")
+    void shouldActivateAccountSuccessfully() {
+        String rawToken = "valid-activation-token";
+        String hashedToken = TokenHashUtils.hashToken(rawToken);
+
+        admin.setPasswordResetTokenHash(hashedToken);
+        admin.setPasswordResetExpiresAt(java.time.OffsetDateTime.now().plusHours(24));
+        admin.setMustChangePassword(true);
+
+        com.wbscouting.api.dto.auth.ActivateAccountRequestDto request =
+                com.wbscouting.api.dto.auth.ActivateAccountRequestDto.builder()
+                        .email(admin.getEmail())
+                        .token(rawToken)
+                        .newPassword("SenhaForte@2026")
+                        .confirmPassword("SenhaForte@2026")
+                        .build();
+
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(passwordEncoder.encode("SenhaForte@2026")).thenReturn("hashed-new-pwd");
+
+        authService.activateAccount(request);
+
+        assertThat(admin.getMustChangePassword()).isFalse();
+        assertThat(admin.getPasswordResetTokenHash()).isNull();
+        assertThat(admin.getPasswordResetExpiresAt()).isNull();
+        assertThat(admin.getPasswordHash()).isEqualTo("hashed-new-pwd");
+
+        verify(adminRepository, times(1)).save(admin);
+    }
+
+    @Test
+    @DisplayName("Deve falhar ativação quando token estiver expirado")
+    void shouldFailActivationWhenTokenExpired() {
+        String rawToken = "expired-token";
+        String hashedToken = TokenHashUtils.hashToken(rawToken);
+
+        admin.setPasswordResetTokenHash(hashedToken);
+        admin.setPasswordResetExpiresAt(java.time.OffsetDateTime.now().minusHours(1));
+        admin.setMustChangePassword(true);
+
+        com.wbscouting.api.dto.auth.ActivateAccountRequestDto request =
+                com.wbscouting.api.dto.auth.ActivateAccountRequestDto.builder()
+                        .email(admin.getEmail())
+                        .token(rawToken)
+                        .newPassword("SenhaForte@2026")
+                        .confirmPassword("SenhaForte@2026")
+                        .build();
+
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+
+        assertThatThrownBy(() -> authService.activateAccount(request))
+                .isInstanceOf(com.wbscouting.api.exception.InvalidTokenException.class)
+                .hasMessageContaining("O link de ativação expirou");
+
+        verify(adminRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve gerar setup de 2FA com segredo e QR code")
+    void shouldSetupTwoFactorSuccessfully() {
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(totpService.generateSecret()).thenReturn("SECRET32BYTESLONG1234567890ABCDE");
+        when(totpService.getOtpauthUrl(eq(admin.getEmail()), anyString())).thenReturn("otpauth://totp/WBAgency:admin@wbscouting.com?secret=SECRET32BYTESLONG1234567890ABCDE&issuer=WBAgency");
+        when(totpService.generateQrCodeDataUrl(anyString())).thenReturn("data:image/png;base64,mock-qr-code");
+
+        com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto response = authService.setupTwoFactor(admin.getEmail());
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSecret()).isEqualTo("SECRET32BYTESLONG1234567890ABCDE");
+        assertThat(response.getQrCodeUri()).isEqualTo("otpauth://totp/WBAgency:admin@wbscouting.com?secret=SECRET32BYTESLONG1234567890ABCDE&issuer=WBAgency");
+        assertThat(response.getQrCodeDataUrl()).isEqualTo("data:image/png;base64,mock-qr-code");
+        assertThat(admin.getTotpSecret()).isEqualTo("SECRET32BYTESLONG1234567890ABCDE");
+        assertThat(admin.getIs2faEnabled()).isFalse();
+        verify(adminRepository).save(admin);
+    }
+
+    @Test
+    @DisplayName("Deve confirmar 2FA com sucesso ao fornecer código TOTP válido")
+    void shouldConfirmTwoFactorSuccessfully() {
+        admin.setTotpSecret("SECRET32BYTESLONG1234567890ABCDE");
+        admin.setIs2faEnabled(false);
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(totpService.verifyCode("SECRET32BYTESLONG1234567890ABCDE", "123456")).thenReturn(true);
+        when(totpService.generateBackupCodes(8)).thenReturn(List.of("ABCD-1234", "EFGH-5678"));
+        when(totpService.hashBackupCode(anyString())).thenReturn("hashed-backup-code");
+
+        authService.confirmTwoFactor(admin.getEmail(), "123456");
+
+        assertThat(admin.getIs2faEnabled()).isTrue();
+        assertThat(admin.getBackupCodes()).hasSize(2);
+        verify(adminRepository).save(admin);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar confirmação de 2FA com código inválido")
+    void shouldRejectConfirmTwoFactorWhenCodeIsInvalid() {
+        admin.setTotpSecret("SECRET32BYTESLONG1234567890ABCDE");
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(totpService.verifyCode("SECRET32BYTESLONG1234567890ABCDE", "000000")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.confirmTwoFactor(admin.getEmail(), "000000"))
+                .isInstanceOf(com.wbscouting.api.exception.BusinessException.class)
+                .hasMessageContaining("Código de autenticação inválido");
+
+        verify(adminRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve desativar 2FA com sucesso quando a senha atual estiver correta")
+    void shouldDisableTwoFactorSuccessfully() {
+        admin.setIs2faEnabled(true);
+        admin.setTotpSecret("SECRET32BYTESLONG1234567890ABCDE");
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(passwordEncoder.matches("MinhaSenha@2026", admin.getPasswordHash())).thenReturn(true);
+
+        authService.disableTwoFactor(admin.getEmail(), "MinhaSenha@2026");
+
+        assertThat(admin.getIs2faEnabled()).isFalse();
+        assertThat(admin.getTotpSecret()).isNull();
+        verify(adminRepository).save(admin);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar desativação de 2FA quando a senha atual for incorreta")
+    void shouldRejectDisableTwoFactorWhenPasswordIsIncorrect() {
+        admin.setIs2faEnabled(true);
+        when(adminRepository.findByEmailAndIsActiveTrue(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(passwordEncoder.matches("SenhaErrada", admin.getPasswordHash())).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.disableTwoFactor(admin.getEmail(), "SenhaErrada"))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("Senha atual informada está incorreta");
+
+        verify(adminRepository, never()).save(any());
     }
 }
 

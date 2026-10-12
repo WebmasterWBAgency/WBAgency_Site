@@ -14,6 +14,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ResetPasswordRequestDto {
 
+    private String email;
+
     @NotBlank(message = "O token é obrigatório.")
     private String token;
 
@@ -28,6 +30,12 @@ public class ResetPasswordRequestDto {
     private String confirmPassword;
 
     public ResetPasswordRequestDto(String token, String newPassword) {
+        this.token = token;
+        this.newPassword = newPassword;
+    }
+
+    public ResetPasswordRequestDto(String email, String token, String newPassword) {
+        this.email = email;
         this.token = token;
         this.newPassword = newPassword;
     }

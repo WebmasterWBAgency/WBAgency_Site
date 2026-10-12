@@ -96,12 +96,20 @@ public final class ImageSecuritySanitizer {
                             sanitizedBytes
                     );
                 }
+            } else if (!"webp".equalsIgnoreCase(format)) {
+                throw new InvalidFileException("O arquivo de imagem não pôde ser decodificado ou possui cabeçalho corrompido.");
             }
+        } catch (InvalidFileException ife) {
+            throw ife;
         } catch (Exception e) {
-            log.debug("Decodificação completa ImageIO indisponível para o payload fornecido: {}", e.getMessage());
+            if (!"webp".equalsIgnoreCase(format)) {
+                log.warn("Falha na decodificação e reencodificação da imagem '{}': {}", file.getOriginalFilename(), e.getMessage());
+                throw new InvalidFileException("Falha na sanitização ativa da imagem. Arquivo rejeitado por segurança.");
+            }
+            log.debug("Decodificação completa ImageIO indisponível para WebP: {}", e.getMessage());
         }
 
-        // Magic bytes válidos confirmados
+        // Magic bytes de WebP válidos confirmados
         return new SanitizedMultipartFile(
                 file.getName(),
                 file.getOriginalFilename(),

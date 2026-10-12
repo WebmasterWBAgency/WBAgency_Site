@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminAuthGuard } from './core/guards/auth.guard';
+import { mustChangePasswordGuard } from './core/guards/must-change-password.guard';
 import { roleGuard, webmasterOnlyGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
@@ -101,14 +102,29 @@ export const routes: Routes = [
     title: 'Acesso Administrativo | WB Agency'
   },
   {
-    path: 'admin/forgot-password',
+    path: 'admin/esqueci-senha',
     loadComponent: () => import('./features/admin/auth/forgot-password.component').then(m => m.ForgotPasswordComponent),
     title: 'Recuperação de Acesso | WB Agency'
   },
   {
-    path: 'admin/reset-password',
+    path: 'admin/forgot-password',
+    redirectTo: 'admin/esqueci-senha',
+    pathMatch: 'full'
+  },
+  {
+    path: 'admin/redefinir-senha',
     loadComponent: () => import('./features/admin/auth/reset-password.component').then(m => m.ResetPasswordComponent),
     title: 'Redefinição de Senha | WB Agency'
+  },
+  {
+    path: 'admin/reset-password',
+    redirectTo: 'admin/redefinir-senha',
+    pathMatch: 'full'
+  },
+  {
+    path: 'admin/primeiro-acesso',
+    loadComponent: () => import('./features/admin/auth/first-access/first-access.component').then(m => m.FirstAccessComponent),
+    title: 'Primeiro Acesso & Definição de Senha | WB Agency'
   },
 
   // --- REDIRECIONAMENTOS LEGADOS (Defensivos para bookmarks) ---
@@ -134,7 +150,7 @@ export const routes: Routes = [
   // Rotas Administrativas Protegidas (Backoffice / CMS)
   {
     path: 'admin',
-    canActivate: [adminAuthGuard],
+    canActivate: [adminAuthGuard, mustChangePasswordGuard],
     children: [
       {
         path: '',

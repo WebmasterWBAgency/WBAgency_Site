@@ -32,6 +32,7 @@ import java.util.UUID;
 @RequestMapping("/admin/models")
 @RequiredArgsConstructor
 @Slf4j
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'WEBMASTER')")
 public class AdminModelController {
 
     private final ModelService modelService;
@@ -108,23 +109,7 @@ public class AdminModelController {
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        // ============================================================
-        // 🔥🔥 DIAGNOSTICO CRUCIAL: SQL PURO via JDBC (SEM JPA/Hibernate)
-        //    - Se isto > 0 e JPA retorna 0: BUG de MAEPMANETO (EntityGraph / Join Fetch etc)
-        //    - Se isto == 0: BANCO conectado NAO tem os registros (H2 em vez de Supabase).
-        // ============================================================
-        if (jdbcTemplate != null) {
-            try {
-                Integer jdbcCount = jdbcTemplate.queryForObject(
-                        "SELECT count(*) FROM public.models", Integer.class);
-                log.info("[DIAGNOSTICO-SQL-PURO] [CONTROLLER] SELECT count(*) FROM public.models via JDBC = {}", jdbcCount);
-                List<Map<String, Object>> jdbcRows = jdbcTemplate.queryForList(
-                        "SELECT id, stage_name, is_active FROM public.models ORDER BY created_at DESC LIMIT 3");
-                log.info("[DIAGNOSTICO-SQL-PURO] [CONTROLLER] 3 linhas de public.models via JDBC direto = {}", jdbcRows);
-            } catch (Exception jdbcEx) {
-                log.error("[DIAGNOSTICO-SQL-PURO] [CONTROLLER] Falha JDBC: {}", jdbcEx.getMessage());
-            }
-        }
+
 
         // ============================================================
         // 🔥 LOG OBRIGATORIO DA TASK: Contagem DIRETA no repository

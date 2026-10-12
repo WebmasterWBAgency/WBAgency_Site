@@ -6,6 +6,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -25,11 +26,21 @@ public class JwtService {
     private final SecretKey signingKey;
     private final long jwtExpirationMs;
 
+    public JwtService(String secret, long jwtExpirationMs) {
+        this(secret, jwtExpirationMs, null);
+    }
+
+    @Autowired
     public JwtService(
             @Value("${app.security.jwt.secret:d2Itc2NvdXRpbmctYWdlbmN5LXNlY3JldC1rZXktZm9yLWxvY2FsLWRldmVsb3BtZW50LW9ubHktMjU2Yml0cw==}") String secret,
-            @Value("${app.security.jwt.expiration-ms:28800000}") long jwtExpirationMs) {
+            @Value("${app.security.jwt.expiration-ms:28800000}") long jwtExpirationMs,
+            org.springframework.core.env.Environment env) {
         if (secret == null) {
             throw new IllegalArgumentException("JWT secret cannot be null");
+        }
+        boolean isProd = env != null && java.util.Arrays.asList(env.getActiveProfiles()).contains("prod");
+        if (isProd && (secret.isBlank() || "d2Itc2NvdXRpbmctYWdlbmN5LXNlY3JldC1rZXktZm9yLWxvY2FsLWRldmVsb3BtZW50LW9ubHktMjU2Yml0cw==".equals(secret.trim()))) {
+            throw new IllegalStateException("CRITICAL SECURITY ERROR: JWT secret cannot use default development fallback in 'prod' profile. Define JWT_SECRET!");
         }
         this.signingKey = buildSigningKey(secret);
         this.jwtExpirationMs = jwtExpirationMs;
@@ -55,6 +66,7 @@ public class JwtService {
         extraClaims.put("id", admin.getId() != null ? admin.getId().toString() : null);
         extraClaims.put("name", admin.getName());
         extraClaims.put("role", admin.getRole() != null ? admin.getRole().name() : null);
+        extraClaims.put("must_change_password", Boolean.TRUE.equals(admin.getMustChangePassword()));
         return buildToken(extraClaims, admin.getUsername(), jwtExpirationMs);
     }
 
@@ -145,6 +157,10 @@ public class JwtService {
 
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    public Date extractIssuedAt(String token) {
+        return extractClaim(token, Claims::getIssuedAt);
     }
 
     public long getExpirationInSeconds() {

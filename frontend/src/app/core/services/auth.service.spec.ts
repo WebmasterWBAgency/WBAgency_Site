@@ -141,4 +141,62 @@ describe('AuthService', () => {
 
     expect(service.isTokenExpired(expiredJwt)).toBeTrue();
   });
+
+  it('should initialize mustChangePassword and update it upon login and activateAccount', () => {
+    expect(service.mustChangePassword()).toBeFalse();
+
+    const credentials = { email: 'novo@wbagency.com.br', password: 'temp-password' };
+    const mockResponse = {
+      token: 'jwt-123',
+      mustChangePassword: true,
+      user: {
+        id: 'admin-2',
+        name: 'Novo Admin',
+        email: 'novo@wbagency.com.br',
+        role: 'ADMIN',
+        mustChangePassword: true
+      }
+    };
+
+    service.login(credentials).subscribe();
+
+    const req = httpTesting.expectOne(`${environment.apiUrl}/auth/login`);
+    req.flush(mockResponse);
+
+    expect(service.mustChangePassword()).toBeTrue();
+
+    // Testa activateAccount resetando mustChangePassword para false
+    service.activateAccount({
+      email: 'novo@wbagency.com.br',
+      token: 'token-abc',
+      newPassword: 'NovaSenha@2026'
+    }).subscribe();
+
+    const activateReq = httpTesting.expectOne(`${environment.apiUrl}/auth/activate-account`);
+    expect(activateReq.request.method).toBe('POST');
+    activateReq.flush({ message: 'Conta ativada com sucesso.' });
+
+    expect(service.mustChangePassword()).toBeFalse();
+  });
+
+  it('should call 2fa setup, confirm, and disable endpoints', () => {
+    service.setup2Fa().subscribe(res => {
+      expect(res.secret).toBe('TESTSECRET');
+    });
+    const setupReq = httpTesting.expectOne(`${environment.apiUrl}/auth/2fa/setup`);
+    expect(setupReq.request.method).toBe('POST');
+    setupReq.flush({ secret: 'TESTSECRET', qrCodeUri: 'data:image/png;base64,abc' });
+
+    service.confirm2Fa('123456').subscribe();
+    const confirmReq = httpTesting.expectOne(`${environment.apiUrl}/auth/2fa/confirm`);
+    expect(confirmReq.request.method).toBe('POST');
+    expect(confirmReq.request.body).toEqual({ code: '123456' });
+    confirmReq.flush({ message: '2FA ativado' });
+
+    service.disable2Fa('Senha@123').subscribe();
+    const disableReq = httpTesting.expectOne(`${environment.apiUrl}/auth/2fa/disable`);
+    expect(disableReq.request.method).toBe('POST');
+    expect(disableReq.request.body).toEqual({ currentPassword: 'Senha@123' });
+    disableReq.flush({ message: '2FA desativado' });
+  });
 });

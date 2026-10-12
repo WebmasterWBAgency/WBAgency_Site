@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boas-Vindas e Ativação de Acesso - WB Agency</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #FBFBF9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: #222624;
+            -webkit-font-smoothing: antialiased;
+        }
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            background-color: #FBFBF9;
+            padding: 40px 10px;
+        }
+        .main-card {
+            background-color: #FFFFFF;
+            margin: 0 auto;
+            max-width: 580px;
+            border-radius: 0;
+            border: 1px solid #E8EBE8;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+        .header {
+            padding: 40px 35px 30px 35px;
+            text-align: center;
+            border-bottom: 1px solid #E8EBE8;
+            background-color: #FFFFFF;
+        }
+        .logo-title {
+            color: #222624;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+        .logo-sub {
+            color: #4B584E;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+        .content {
+            padding: 35px 35px 30px 35px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 600;
+            color: #222624;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        .text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #5F6661;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background-color: #FBFBF9;
+            border: 1px solid #E8EBE8;
+            border-left: 3px solid #4B584E;
+            padding: 16px 20px;
+            margin: 24px 0;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #222624;
+        }
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        .info-label {
+            color: #5F6661;
+            font-weight: 500;
+        }
+        .info-value {
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .btn-container {
+            text-align: center;
+            margin: 32px 0;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4B584E;
+            color: #FFFFFF !important;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 14px 36px;
+            border-radius: 0;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            transition: background-color 0.2s ease;
+        }
+        .alert-box {
+            background-color: #FBFBF9;
+            border: 1px solid #E8EBE8;
+            padding: 14px 18px;
+            border-radius: 0;
+            font-size: 12px;
+            color: #5F6661;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+        .link-alt {
+            font-size: 11px;
+            color: #5F6661;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+        .link-alt a {
+            color: #4B584E;
+            text-decoration: underline;
+        }
+        .footer {
+            padding: 24px 30px;
+            text-align: center;
+            border-top: 1px solid #E8EBE8;
+            background-color: #FBFBF9;
+            font-size: 11px;
+            color: #5F6661;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <table class="main-card" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td class="header">
+                <div class="logo-title">WB AGENCY</div>
+                <div class="logo-sub">Painel Administrativo &bull; Gestão de Acessos</div>
+            </td>
+        </tr>
+        <tr>
+            <td class="content">
+                <p class="greeting">Olá, <span th:text="${recipientName}">Administrador</span>,</p>
+                <p class="text">
+                    Sua conta administrativa foi criada no portal interno da <strong>WB Agency</strong>.
+                    Para garantir a segurança dos dados e iniciar suas atividades, ative sua conta e defina sua senha definitiva de primeiro acesso.
+                </p>
+
+                <div class="info-box">
+                    <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 13px;">
+                        <tr>
+                            <td style="color: #5F6661; width: 140px;">E-mail de Acesso:</td>
+                            <td style="font-weight: 600; color: #222624;" th:text="${recipientEmail}">admin@wbagency.com.br</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #5F6661;">Papel / Perfil:</td>
+                            <td style="font-weight: 600; color: #4B584E;" th:text="${userRole}">ADMIN</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="btn-container">
+                    <a th:href="${activationUrl}" class="btn" target="_blank">Ativar Conta &amp; Definir Senha</a>
+                </div>
+
+                <div class="alert-box">
+                    <strong>Segurança &amp; Validade:</strong> Este link seguro possui validade de <strong>24 horas</strong>. Por diretriz de segurança, a definição de sua senha pessoal é obrigatória antes de acessar as funcionalidades do painel.
+                </div>
+
+                <div class="link-alt">
+                    Caso o botão acima não responda ao clique, copie e cole o link a seguir na barra de endereços do seu navegador:<br>
+                    <a th:href="${activationUrl}" th:text="${activationUrl}">http://localhost:4200/admin/primeiro-acesso?token=...</a>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="footer">
+                &copy; <span th:text="${currentYear}">2026</span> WB Agency. Todos os direitos reservados.<br>
+                Esta é uma mensagem automática confidencial. Não responda a este e-mail.
+            </td>
+        </tr>
+    </table>
+</div>
+</body>
+</html>

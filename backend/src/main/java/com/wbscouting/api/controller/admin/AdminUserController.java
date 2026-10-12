@@ -64,7 +64,8 @@ public class AdminUserController {
     }
 
     @PatchMapping("/{id}/role")
-    @AuditAction(action = "UPDATE_ROLE", resource = "ADMIN_USER", description = "Alteração de papel de administrador")
+    @PreAuthorize("hasRole('WEBMASTER')")
+    @AuditAction(action = "ADMIN_ROLE_UPDATED", resource = "ADMIN_USER", description = "Alteração de papel de administrador")
     public ResponseEntity<AdminUserResponseDto> updateRole(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateAdminRoleRequestDto request,
@@ -72,6 +73,33 @@ public class AdminUserController {
         String email = resolveEmail(principal);
         AdminUserResponseDto response = adminUserService.updateRole(id, request.getRole(), email);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/reset-2fa")
+    @PreAuthorize("hasRole('WEBMASTER')")
+    @AuditAction(action = "RESET_2FA", resource = "ADMIN_USER", description = "Reset administrativo de 2FA de administrador")
+    public ResponseEntity<java.util.Map<String, String>> reset2fa(
+            @PathVariable UUID id,
+            java.security.Principal principal) {
+        String email = resolveEmail(principal);
+        adminUserService.resetUserTwoFactor(id, email);
+        return ResponseEntity.ok(java.util.Map.of("message", "Autenticação em duas etapas (2FA) desativada com sucesso."));
+    }
+
+    @PostMapping("/{id}/reset-password")
+    @PreAuthorize("hasRole('WEBMASTER')")
+    @AuditAction(action = "RESET_PASSWORD", resource = "ADMIN_USER", description = "Reset administrativo de senha de administrador")
+    public ResponseEntity<java.util.Map<String, String>> resetPassword(
+            @PathVariable UUID id,
+            @RequestBody(required = false) com.wbscouting.api.dto.admin.AdminResetPasswordRequestDto request,
+            java.security.Principal principal) {
+        String email = resolveEmail(principal);
+        String tempPassword = (request != null) ? request.getTemporaryPassword() : null;
+        String effectivePassword = adminUserService.adminResetPassword(id, tempPassword, email);
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Senha resetada com sucesso.",
+                "temporaryPassword", effectivePassword
+        ));
     }
 
     @DeleteMapping("/{id}")

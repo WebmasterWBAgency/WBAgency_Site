@@ -95,7 +95,8 @@ class AdminInitialPasswordRejectionTest {
                 jwtService,
                 emailService,
                 tokenBlacklistService,
-                totpService
+                totpService,
+                auditLogService
         );
 
         AuthController authController = new AuthController(

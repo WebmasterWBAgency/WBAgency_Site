@@ -35,6 +35,13 @@ export interface PaginatedAdminUsers {
   number: number;
 }
 
+export interface ApiResponse<T = any> {
+  message?: string;
+  data?: T;
+  temporaryPassword?: string;
+  status?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -61,6 +68,19 @@ export class AdminUserService {
 
   updateRole(id: string, role: string): Observable<AdminUserItem> {
     return this.http.patch<AdminUserItem>(`${this.baseUrl}/${id}/role`, { role });
+  }
+
+  updateUserRole(userId: string, role: string): Observable<ApiResponse<void>> {
+    return this.http.patch<ApiResponse<void>>(`${this.baseUrl}/${userId}/role`, { role });
+  }
+
+  resetUser2Fa(userId: string): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(`${this.baseUrl}/${userId}/reset-2fa`, {});
+  }
+
+  resetUserPassword(userId: string, tempPassword?: string): Observable<ApiResponse<void>> {
+    const body = tempPassword ? { temporaryPassword: tempPassword } : {};
+    return this.http.post<ApiResponse<void>>(`${this.baseUrl}/${userId}/reset-password`, body);
   }
 
   deleteUser(id: string): Observable<void> {

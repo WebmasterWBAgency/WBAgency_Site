@@ -75,8 +75,19 @@ public class SecurityConfig {
                         // Health check do Render (evita 502 na porta do load balancer quando JWT nao e enviado)
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/error").permitAll()
 
-                        // Endpoints públicos de autenticação
-                        .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
+                        // Endpoints públicos de autenticação (Login, desafio 2FA, recuperação e ativação de senha)
+                        .requestMatchers(
+                                "/auth/login", "/api/v1/auth/login",
+                                "/auth/2fa/challenge", "/api/v1/auth/2fa/challenge",
+                                "/auth/forgot-password", "/api/v1/auth/forgot-password",
+                                "/auth/reset-password", "/api/v1/auth/reset-password",
+                                "/auth/activate-account", "/api/v1/auth/activate-account",
+                                "/auth/refresh", "/api/v1/auth/refresh"
+                        ).permitAll()
+
+                        // Endpoints autenticados sob /auth (2FA e logout)
+                        .requestMatchers("/auth/2fa/**", "/api/v1/auth/2fa/**").authenticated()
+                        .requestMatchers("/auth/logout", "/api/v1/auth/logout").authenticated()
 
                         // Endpoints públicos de candidatura ("Quero ser modelo")
                         .requestMatchers("/apply/**", "/api/v1/apply/**").permitAll()

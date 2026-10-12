@@ -175,6 +175,57 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/activate-account")
+    public ResponseEntity<Map<String, String>> activateAccount(@Valid @RequestBody com.wbscouting.api.dto.auth.ActivateAccountRequestDto request) {
+        authService.activateAccount(request);
+        return ResponseEntity.ok(Map.of(
+                "message", "Conta ativada e senha definida com sucesso. Você já pode acessar o painel."
+        ));
+    }
+
+    private String resolveAuthenticatedEmail(java.security.Principal principal) {
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null && !auth.getName().isBlank()) {
+            return auth.getName();
+        }
+        throw new org.springframework.security.access.AccessDeniedException("Usuário não autenticado.");
+    }
+
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    @PostMapping("/2fa/setup")
+    public ResponseEntity<com.wbscouting.api.dto.auth.TwoFactorSetupResponseDto> setup2fa(java.security.Principal principal) {
+        String email = resolveAuthenticatedEmail(principal);
+        return ResponseEntity.ok(authService.setupTwoFactor(email));
+    }
+
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    @PostMapping("/2fa/confirm")
+    public ResponseEntity<Map<String, Object>> confirm2fa(
+            @Valid @RequestBody com.wbscouting.api.dto.auth.TwoFactorConfirmRequestDto request,
+            java.security.Principal principal) {
+        String email = resolveAuthenticatedEmail(principal);
+        authService.confirmTwoFactor(email, request.getCode());
+        return ResponseEntity.ok(Map.of(
+                "message", "Autenticação em duas etapas ativada com sucesso.",
+                "is2faEnabled", true
+        ));
+    }
+
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    @PostMapping("/2fa/disable")
+    public ResponseEntity<Map<String, String>> disable2fa(
+            @Valid @RequestBody com.wbscouting.api.dto.auth.TwoFactorDisableRequestDto request,
+            java.security.Principal principal) {
+        String email = resolveAuthenticatedEmail(principal);
+        authService.disableTwoFactor(email, request.getEffectivePassword());
+        return ResponseEntity.ok(Map.of("message", "Autenticação em duas etapas (2FA) desativada com sucesso."));
+    }
+
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         String clientIp = extractClientIp(request);

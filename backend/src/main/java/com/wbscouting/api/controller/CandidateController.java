@@ -19,7 +19,8 @@ public class CandidateController {
 
     private final CandidateService candidateService;
 
-    // Listagem paginada de candidatos cadastrados
+    // Listagem paginada de candidatos cadastrados (estritamente restrita a administradores e scouts)
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'WEBMASTER', 'SCOUT')")
     @GetMapping
     public ResponseEntity<Page<CandidateDTO.Response>> listCandidates(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {

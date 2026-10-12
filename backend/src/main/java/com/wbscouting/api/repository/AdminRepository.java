@@ -18,7 +18,15 @@ public interface AdminRepository extends JpaRepository<Admin, UUID> {
 
     boolean existsByEmail(String email);
 
-    Optional<Admin> findByPasswordResetToken(String token);
+    Optional<Admin> findByPasswordResetTokenHash(String tokenHash);
+
+    default Optional<Admin> findByPasswordResetToken(String token) {
+        return findByPasswordResetTokenHash(token);
+    }
+
+    long countByRole(AdminRole role);
+
+    Optional<Admin> findByRole(AdminRole role);
 
     long countByRoleAndIsActiveTrue(AdminRole role);
 

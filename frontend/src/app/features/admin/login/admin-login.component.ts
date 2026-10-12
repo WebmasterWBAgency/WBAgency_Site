@@ -152,7 +152,7 @@ export class AdminLoginComponent implements OnInit {
         this.isLoading.set(false);
         this.redirectToTarget();
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('[LOGIN 2FA] Erro retornado pela API:', err);
         this.isLoading.set(false);
         const detail =
@@ -165,6 +165,15 @@ export class AdminLoginComponent implements OnInit {
   }
 
   private redirectToTarget(): void {
+    const mustChange = typeof this.authService.mustChangePassword === 'function'
+      ? this.authService.mustChangePassword()
+      : !!this.authService.mustChangePassword;
+
+    if (mustChange) {
+      console.log('[LOGIN] Troca de senha obrigatória detectada. Redirecionando para primeiro acesso...');
+      this.router.navigate(['/admin/primeiro-acesso']);
+      return;
+    }
     let returnUrl = this.route.snapshot.queryParams['returnUrl'];
     if (!returnUrl || returnUrl === '/' || returnUrl === '' || returnUrl.includes('/login')) {
       returnUrl = '/admin/dashboard';

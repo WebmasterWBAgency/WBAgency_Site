@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 import { AdminUsersComponent } from './admin-users.component';
 import { AdminUserService, AdminUserItem, PaginatedAdminUsers } from '../../../core/services/admin-user.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -45,6 +45,9 @@ describe('AdminUsersComponent', () => {
       'createUser',
       'toggleStatus',
       'updateRole',
+      'updateUserRole',
+      'resetUser2Fa',
+      'resetUserPassword',
       'deleteUser'
     ]);
     authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['currentUser']);
@@ -132,15 +135,61 @@ describe('AdminUsersComponent', () => {
     expect(component.createdTempPassword()).toBe('TempPassword@123');
   });
 
-  it('deve impedir o auto-rebaixamento do Webmaster logado', () => {
+  it('deve impedir o auto-rebaixamento do Webmaster logado e desabilitar o campo', () => {
     const loggedUser = mockUsers[0]; // webmaster@wbagency.com.br
     component.openRoleModal(loggedUser);
-    component.changeRoleForm.patchValue({ role: 'ADMIN' });
+
+    expect(component.isRoleModalOpen()).toBeTrue();
+    expect(component.isSelfWebmaster).toBeTrue();
+    expect(component.changeRoleForm.get('role')?.disabled).toBeTrue();
 
     component.submitChangeRole();
+    expect(component.errorMessage()).toContain('Você não pode alterar seu próprio cargo de Webmaster.');
+    expect(adminUserServiceSpy.updateUserRole).not.toHaveBeenCalled();
+  });
 
-    expect(adminUserServiceSpy.updateRole).not.toHaveBeenCalled();
-    expect(component.errorMessage()).toContain('Não é permitido rebaixar seu próprio papel');
+  it('deve identificar se já existe Webmaster ativo no sistema', () => {
+    expect(component.hasActiveWebmaster).toBeTrue();
+    expect(component.hasActiveWebmasterOtherThan('uuid-2')).toBeTrue();
+    expect(component.hasActiveWebmasterOtherThan('uuid-1')).toBeFalse();
+  });
+
+  it('deve abrir modal e resetar 2FA de outro usuário com sucesso', () => {
+    const targetUser = mockUsers[0];
+    component.openReset2FaModal(targetUser);
+
+    expect(component.isReset2FaModalOpen()).toBeTrue();
+    expect(component.userFor2FaReset()).toBe(targetUser);
+
+    adminUserServiceSpy.resetUser2Fa.and.returnValue(of({ message: '2FA resetado' }));
+
+    component.confirmReset2Fa();
+
+    expect(adminUserServiceSpy.resetUser2Fa).toHaveBeenCalledWith(targetUser.id);
+    expect(component.isReset2FaModalOpen()).toBeFalse();
+    expect(component.successMessage()).toContain('resetado com sucesso');
+  });
+
+  it('deve abrir modal e resetar senha administrativamente com sucesso', () => {
+    const targetUser = mockUsers[1];
+    component.openResetPasswordModal(targetUser);
+
+    expect(component.isResetPasswordModalOpen()).toBeTrue();
+    expect(component.userForPasswordReset()).toBe(targetUser);
+
+    component.generateRandomTempPassword();
+    expect(component.resetPasswordCustomInput().length).toBeGreaterThanOrEqual(8);
+
+    adminUserServiceSpy.resetUserPassword.and.returnValue(
+      of({ message: 'Senha resetada', temporaryPassword: 'GeneratedPwd@99' })
+    );
+
+    component.confirmResetPassword();
+
+    expect(adminUserServiceSpy.resetUserPassword).toHaveBeenCalled();
+    expect(component.isResetPasswordModalOpen()).toBeFalse();
+    expect(component.isSuccessPasswordModalOpen()).toBeTrue();
+    expect(component.createdTempPassword()).toBe('GeneratedPwd@99');
   });
 
   it('deve impedir a auto-exclusão do usuário logado', () => {

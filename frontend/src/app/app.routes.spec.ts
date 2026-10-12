@@ -12,7 +12,8 @@ describe('App Routes - Reconciliação /admin', () => {
   let authServiceSpy: jasmine.SpyObj<AuthService>;
 
   beforeEach(async () => {
-    authServiceSpy = jasmine.createSpyObj('AuthService', ['isAuthenticated']);
+    authServiceSpy = jasmine.createSpyObj('AuthService', ['isAuthenticated', 'mustChangePassword']);
+    authServiceSpy.mustChangePassword.and.returnValue(false);
 
     await TestBed.configureTestingModule({
       providers: [
@@ -29,9 +30,18 @@ describe('App Routes - Reconciliação /admin', () => {
 
   it('deve redirecionar de /admin para /admin/dashboard quando o usuário estiver autenticado', async () => {
     authServiceSpy.isAuthenticated.and.returnValue(true);
+    authServiceSpy.mustChangePassword.and.returnValue(false);
 
     await router.navigateByUrl('/admin');
     expect(location.path()).toBe('/admin/dashboard');
+  });
+
+  it('deve redirecionar de /admin para /admin/primeiro-acesso quando mustChangePassword for true', async () => {
+    authServiceSpy.isAuthenticated.and.returnValue(true);
+    authServiceSpy.mustChangePassword.and.returnValue(true);
+
+    await router.navigateByUrl('/admin');
+    expect(location.path()).toBe('/admin/primeiro-acesso');
   });
 
   it('deve redirecionar de /admin para /admin/login com returnUrl quando o usuário não estiver autenticado', async () => {

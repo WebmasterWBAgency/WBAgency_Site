@@ -65,8 +65,8 @@ public class Admin implements UserDetails {
     @Column(name = "last_login_at")
     private OffsetDateTime lastLoginAt;
 
-    @Column(name = "password_reset_token", length = 255)
-    private String passwordResetToken;
+    @Column(name = "password_reset_token_hash", length = 255)
+    private String passwordResetTokenHash;
 
     @Column(name = "password_reset_expires_at")
     private OffsetDateTime passwordResetExpiresAt;
@@ -128,7 +128,8 @@ public class Admin implements UserDetails {
     public List<String> getBackupCodes() { return this.backupCodes; }
     public Boolean getMustChangePassword() { return this.mustChangePassword; }
     public OffsetDateTime getLastLoginAt() { return this.lastLoginAt; }
-    public String getPasswordResetToken() { return this.passwordResetToken; }
+    public String getPasswordResetTokenHash() { return this.passwordResetTokenHash; }
+    public String getPasswordResetToken() { return this.passwordResetTokenHash; }
     public OffsetDateTime getPasswordResetExpiresAt() { return this.passwordResetExpiresAt; }
     public OffsetDateTime getCreatedAt() { return this.createdAt; }
     public OffsetDateTime getUpdatedAt() { return this.updatedAt; }
@@ -147,7 +148,8 @@ public class Admin implements UserDetails {
     public void setBackupCodes(List<String> backupCodes) { this.backupCodes = backupCodes; }
     public void setMustChangePassword(Boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
     public void setLastLoginAt(OffsetDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
-    public void setPasswordResetToken(String passwordResetToken) { this.passwordResetToken = passwordResetToken; }
+    public void setPasswordResetTokenHash(String passwordResetTokenHash) { this.passwordResetTokenHash = passwordResetTokenHash; }
+    public void setPasswordResetToken(String passwordResetToken) { this.passwordResetTokenHash = passwordResetToken; }
     public void setPasswordResetExpiresAt(OffsetDateTime passwordResetExpiresAt) { this.passwordResetExpiresAt = passwordResetExpiresAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
@@ -173,7 +175,7 @@ public class Admin implements UserDetails {
         private java.util.List<String> backupCodes;
         private Boolean mustChangePassword = false;
         private OffsetDateTime lastLoginAt;
-        private String passwordResetToken;
+        private String passwordResetTokenHash;
         private OffsetDateTime passwordResetExpiresAt;
         private OffsetDateTime createdAt;
         private OffsetDateTime updatedAt;
@@ -191,7 +193,8 @@ public class Admin implements UserDetails {
         public AdminBuilder backupCodes(java.util.List<String> backupCodes) { this.backupCodes = backupCodes; return this; }
         public AdminBuilder mustChangePassword(Boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; return this; }
         public AdminBuilder lastLoginAt(OffsetDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; return this; }
-        public AdminBuilder passwordResetToken(String passwordResetToken) { this.passwordResetToken = passwordResetToken; return this; }
+        public AdminBuilder passwordResetTokenHash(String passwordResetTokenHash) { this.passwordResetTokenHash = passwordResetTokenHash; return this; }
+        public AdminBuilder passwordResetToken(String passwordResetToken) { this.passwordResetTokenHash = passwordResetToken; return this; }
         public AdminBuilder passwordResetExpiresAt(OffsetDateTime passwordResetExpiresAt) { this.passwordResetExpiresAt = passwordResetExpiresAt; return this; }
         public AdminBuilder createdAt(OffsetDateTime createdAt) { this.createdAt = createdAt; return this; }
         public AdminBuilder updatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; return this; }
@@ -209,7 +212,7 @@ public class Admin implements UserDetails {
             a.setBackupCodes(this.backupCodes);
             a.setMustChangePassword(this.mustChangePassword != null ? this.mustChangePassword : false);
             a.setLastLoginAt(this.lastLoginAt);
-            a.setPasswordResetToken(this.passwordResetToken);
+            a.setPasswordResetTokenHash(this.passwordResetTokenHash);
             a.setPasswordResetExpiresAt(this.passwordResetExpiresAt);
             a.setCreatedAt(this.createdAt);
             a.setUpdatedAt(this.updatedAt);

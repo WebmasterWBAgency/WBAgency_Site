@@ -26,12 +26,17 @@ export class AdminUsersComponent implements OnInit {
   readonly isRoleModalOpen = signal<boolean>(false);
   readonly isSuccessPasswordModalOpen = signal<boolean>(false);
   readonly isDeleteModalOpen = signal<boolean>(false);
+  readonly isReset2FaModalOpen = signal<boolean>(false);
+  readonly isResetPasswordModalOpen = signal<boolean>(false);
 
   // Estados temporários
   readonly createdTempPassword = signal<string>('');
   readonly createdUserEmail = signal<string>('');
   readonly selectedUserForRole = signal<AdminUserItem | null>(null);
   readonly userToDelete = signal<AdminUserItem | null>(null);
+  readonly userFor2FaReset = signal<AdminUserItem | null>(null);
+  readonly userForPasswordReset = signal<AdminUserItem | null>(null);
+  readonly resetPasswordCustomInput = signal<string>('');
   readonly copiedPassword = signal<boolean>(false);
 
   // Formulário de Criação
@@ -46,8 +51,32 @@ export class AdminUsersComponent implements OnInit {
     role: ['ADMIN', [Validators.required]]
   });
 
+  get currentUser() {
+    return this.authService.currentUser();
+  }
+
+  get selectedUser(): AdminUserItem | null {
+    return this.selectedUserForRole();
+  }
+
+  get hasActiveWebmaster(): boolean {
+    return this.users().some(u => String(u.role).toUpperCase() === 'WEBMASTER');
+  }
+
+  get isSelfWebmaster(): boolean {
+    const cur = this.currentUser;
+    const sel = this.selectedUser;
+    if (!cur || !sel) return false;
+    const sameId = (cur.id && sel.id && cur.id === sel.id) || (cur.email && sel.email && cur.email.toLowerCase() === sel.email.toLowerCase());
+    return !!sameId && String(sel.role).toUpperCase() === 'WEBMASTER';
+  }
+
   get currentAdminEmail(): string {
     return this.authService.currentUser()?.email || '';
+  }
+
+  get isCurrentWebmaster(): boolean {
+    return String(this.authService.currentUser()?.role || '').toUpperCase() === 'WEBMASTER';
   }
 
   ngOnInit(): void {
@@ -122,12 +151,29 @@ export class AdminUsersComponent implements OnInit {
     }
   }
 
+  // ============================================================
+  // GESTÃO DE PAPEL (ROLE) COM TRAVA DE WEBMASTER ÚNICO
+  // ============================================================
+  hasActiveWebmasterOtherThan(targetId?: string): boolean {
+    return this.users().some(u =>
+      String(u.role).toUpperCase() === 'WEBMASTER' &&
+      u.isActive &&
+      u.id !== targetId
+    );
+  }
+
   openRoleModal(user: AdminUserItem): void {
     this.selectedUserForRole.set(user);
-    // Se o usuario for WEBMASTER (redundancia), preenche o formulario com o valor e força disabled
-    // posteriormente via HTML. Mas o ideal eh que openRoleModalSafe tenha bloqueado a abertura.
-    this.changeRoleForm.patchValue({ role: user.role });
+    const cur = this.currentUser;
+    const isSelfWebmaster = ((cur?.id && user.id && cur.id === user.id) || this.isCurrentUser(user)) && String(user.role).toUpperCase() === 'WEBMASTER';
+    this.changeRoleForm.reset({
+      role: { value: user.role, disabled: isSelfWebmaster }
+    });
     this.isRoleModalOpen.set(true);
+  }
+
+  openRoleModalSafe(user: AdminUserItem): void {
+    this.openRoleModal(user);
   }
 
   closeRoleModal(): void {
@@ -139,32 +185,146 @@ export class AdminUsersComponent implements OnInit {
     const user = this.selectedUserForRole();
     if (!user) return;
 
-    const newRole = this.changeRoleForm.value.role;
+    const newRole = this.changeRoleForm.getRawValue().role;
 
-    if (this.isCurrentUser(user) && (user.role === 'WEBMASTER' || user.role === 'SUPER_ADMIN') && newRole !== user.role) {
-      this.errorMessage.set('Operação bloqueada: Não é permitido rebaixar seu próprio papel de Webmaster.');
+    if (this.isSelfWebmaster) {
+      this.errorMessage.set('Você não pode alterar seu próprio cargo de Webmaster.');
       setTimeout(() => this.errorMessage.set(null), 4000);
+      return;
+    }
+
+    if (newRole === 'WEBMASTER' && this.hasActiveWebmaster && user.role !== 'WEBMASTER') {
+      this.errorMessage.set('Limite de 1 Webmaster ativo atingido. Rebaixe o atual antes de promover este usuário.');
+      setTimeout(() => this.errorMessage.set(null), 5000);
       return;
     }
 
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.adminUserService.updateRole(user.id, newRole).subscribe({
-      next: (updatedUser) => {
+    this.adminUserService.updateUserRole(user.id, newRole).subscribe({
+      next: () => {
         this.isLoading.set(false);
         this.closeRoleModal();
-        this.successMessage.set(`Papel de ${updatedUser.name} atualizado para ${updatedUser.role}.`);
+        this.successMessage.set(`Papel de ${user.name} atualizado para ${newRole}.`);
         setTimeout(() => this.successMessage.set(null), 4000);
         this.loadUsers();
       },
       error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set(err?.error?.detail || 'Erro ao atualizar nível de acesso.');
+        this.errorMessage.set(err?.error?.detail || err?.error?.message || 'Erro ao atualizar nível de acesso.');
       }
     });
   }
 
+  submitChangeRoleSafe(): void {
+    this.submitChangeRole();
+  }
+
+  // ============================================================
+  // RESET ADMINISTRATIVO DE 2FA
+  // ============================================================
+  openReset2FaModal(user: AdminUserItem): void {
+    this.userFor2FaReset.set(user);
+    this.isReset2FaModalOpen.set(true);
+  }
+
+  closeReset2FaModal(): void {
+    this.isReset2FaModalOpen.set(false);
+    this.userFor2FaReset.set(null);
+  }
+
+  confirmReset2Fa(): void {
+    const user = this.userFor2FaReset();
+    if (!user) return;
+
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    this.adminUserService.resetUser2Fa(user.id).subscribe({
+      next: () => {
+        this.isLoading.set(false);
+        this.closeReset2FaModal();
+        this.successMessage.set(`2FA de ${user.name} foi resetado com sucesso. Sessões ativas foram invalidadas.`);
+        setTimeout(() => this.successMessage.set(null), 5000);
+        this.loadUsers();
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        this.errorMessage.set(err?.error?.detail || err?.error?.message || 'Erro ao resetar 2FA do usuário.');
+      }
+    });
+  }
+
+  // ============================================================
+  // RESET ADMINISTRATIVO DE SENHA
+  // ============================================================
+  openResetPasswordModal(user: AdminUserItem): void {
+    this.userForPasswordReset.set(user);
+    this.resetPasswordCustomInput.set('');
+    this.isResetPasswordModalOpen.set(true);
+  }
+
+  closeResetPasswordModal(): void {
+    this.isResetPasswordModalOpen.set(false);
+    this.userForPasswordReset.set(null);
+    this.resetPasswordCustomInput.set('');
+  }
+
+  onResetPasswordInputChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.resetPasswordCustomInput.set(target.value);
+  }
+
+  generateRandomTempPassword(): void {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const special = '@#$%&*!';
+
+    let pwd = 'Wb@';
+    for (let i = 0; i < 3; i++) {
+      pwd += upper.charAt(Math.floor(Math.random() * upper.length));
+      pwd += lower.charAt(Math.floor(Math.random() * lower.length));
+    }
+    pwd += digits.charAt(Math.floor(Math.random() * digits.length));
+    pwd += special.charAt(Math.floor(Math.random() * special.length));
+
+    this.resetPasswordCustomInput.set(pwd);
+  }
+
+  confirmResetPassword(): void {
+    const user = this.userForPasswordReset();
+    if (!user) return;
+
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    const tempPassword = this.resetPasswordCustomInput().trim() || undefined;
+
+    this.adminUserService.resetUserPassword(user.id, tempPassword).subscribe({
+      next: (res) => {
+        this.isLoading.set(false);
+        const effectivePwd = res?.temporaryPassword || tempPassword || '';
+        this.closeResetPasswordModal();
+        this.createdTempPassword.set(effectivePwd);
+        this.createdUserEmail.set(user.email);
+        this.copiedPassword.set(false);
+        this.isSuccessPasswordModalOpen.set(true);
+        this.successMessage.set(`Senha do administrador ${user.name} resetada com sucesso.`);
+        setTimeout(() => this.successMessage.set(null), 5000);
+        this.loadUsers();
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        this.errorMessage.set(err?.error?.detail || err?.error?.message || 'Erro ao resetar senha do administrador.');
+      }
+    });
+  }
+
+  // ============================================================
+  // EXCLUSÃO E STATUS
+  // ============================================================
   openDeleteModal(user: AdminUserItem): void {
     if (this.isCurrentUser(user)) {
       this.errorMessage.set('Por segurança, você não pode excluir seu próprio usuário logado.');
@@ -238,31 +398,10 @@ export class AdminUsersComponent implements OnInit {
     return user.email.toLowerCase() === this.currentAdminEmail.toLowerCase();
   }
 
-  // ============================================================
-  // 🔥 HELPERS DE BLINDAGEM RBAC-018 para papel WEBMASTER (fixo/imutavel)
-  // ============================================================
   isWebmasterRole(role: string | null | undefined): boolean {
     return String(role || '').toUpperCase() === 'WEBMASTER';
   }
 
-  /**
-   * Abertura do modal de alteracao de papel. Para WEBMASTER, o papel eh FIXO e nao
-   * pode ser alterado. Exibe erro e NAO abre o modal (economiza roundtrip pro backend
-   * falhar com 403 e melhora UX).
-   */
-  openRoleModalSafe(user: AdminUserItem): void {
-    if (this.isWebmasterRole(user.role)) {
-      this.errorMessage.set('🔒 Operação bloqueada: O papel de WEBMASTER é fixo e não pode ser alterado (RBAC-018).');
-      setTimeout(() => this.errorMessage.set(null), 6000);
-      return;
-    }
-    this.openRoleModal(user);
-  }
-
-  /**
-   * Abertura do modal de exclusao. Contas de WEBMASTER sao de provisionamento raiz
-   * e NAO PODEM ser excluidas pelo painel.
-   */
   openDeleteModalSafe(user: AdminUserItem): void {
     if (this.isCurrentUser(user)) {
       this.errorMessage.set('Por segurança, você não pode excluir seu próprio usuário logado.');
@@ -277,39 +416,6 @@ export class AdminUsersComponent implements OnInit {
     this.openDeleteModal(user);
   }
 
-  /**
-   * Submit de alteracao de papel. Blindagens locais (alem das do backend)
-   * para nao enviar requisicao que ja sabemos que sera bloqueada.
-   */
-  submitChangeRoleSafe(): void {
-    const user = this.selectedUserForRole();
-    if (!user) return;
-
-    // Defesa 1: NAO alterar papel DE UM webmaster existente (redundancia, ja que openRoleModalSafe bloqueia)
-    if (this.isWebmasterRole(user.role)) {
-      this.errorMessage.set('🔒 Operação bloqueada: O papel de WEBMASTER é fixo e não pode ser alterado.');
-      setTimeout(() => this.errorMessage.set(null), 6000);
-      return;
-    }
-
-    const newRole = String(this.changeRoleForm.value?.role || '').toUpperCase();
-
-    // Defesa 2: NAO promover ninguem PARA webmaster (cargo maximo manual = SUPER_ADMIN)
-    if (this.isWebmasterRole(newRole)) {
-      this.errorMessage.set('🔒 Operação bloqueada: Não é permitido promover administradores para WEBMASTER pelo painel. Cargo máximo permitido: SUPER_ADMIN.');
-      setTimeout(() => this.errorMessage.set(null), 6000);
-      return;
-    }
-
-    // Resto da validacao (auto-rebaixamento) e submit
-    this.submitChangeRole();
-  }
-
-  /**
-   * Submit de criacao de admin. Blindagem: caso o operador tente selecionar WEBMASTER
-   * no select (mesmo que o frontend oculte), faz downgrade automatico para SUPER_ADMIN
-   * e exibe aviso.
-   */
   submitCreateUserSafe(): void {
     if (this.createUserForm.invalid) {
       this.createUserForm.markAllAsTouched();
@@ -317,8 +423,7 @@ export class AdminUsersComponent implements OnInit {
     }
     const formRole = String(this.createUserForm.value?.role || '').toUpperCase();
     if (this.isWebmasterRole(formRole)) {
-      console.warn('[admin/users] Tentativa de CRIAR admin com role=WEBMASTER bloqueada localmente. Efetuando downgrade para SUPER_ADMIN.');
-      this.successMessage.set('🔒 Aviso: Não é permitido criar contas de WEBMASTER pelo painel. O novo administrador foi promovido para o cargo máximo SUPER_ADMIN.');
+      this.successMessage.set('🔒 Aviso: Não é permitido criar contas de WEBMASTER pelo painel. O novo administrador foi definido como SUPER_ADMIN.');
       setTimeout(() => this.successMessage.set(null), 7000);
       this.createUserForm.patchValue({ role: 'SUPER_ADMIN' }, { emitEvent: false });
     }

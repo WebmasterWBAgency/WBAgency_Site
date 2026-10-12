@@ -16,7 +16,7 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 class JpaMappingValidationTest {
 
     @Autowired

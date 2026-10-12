@@ -87,6 +87,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 final String username = jwtService.extractUsername(jwt);
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    java.util.Date issuedAt = null;
+                    try {
+                        issuedAt = jwtService.extractIssuedAt(jwt);
+                    } catch (Exception ignored) {}
+
+                    if (tokenBlacklistService.isUserRevoked(username, issuedAt)) {
+                        log.warn("Requisição bloqueada: Sessão do administrador {} foi revogada administrativamente.", username);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                     if (jwtService.isTokenValid(jwt, userDetails)) {
