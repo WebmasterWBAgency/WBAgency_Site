@@ -65,7 +65,7 @@
   "models": {
     "tab_all": "Todos",
     "all_title": "Casting WB Agency",
-    "all_subtitle": "Talentos que definem o padrão visual contemporâneo no mercado editorial e de luxo.",
+    "all_subtitle": "",
     "female_title": "Casting Feminino",
     "female_subtitle": "Talentos femininos com presença editorial e padrão internacional.",
     "male_title": "Casting Masculino",
@@ -113,7 +113,11 @@
     "lightbox_close": "Fechar (ESC)",
     "lightbox_prev": "Anterior",
     "lightbox_next": "Próximo",
-    "no_photos": "Nenhuma fotografia cadastrada nesta seção."
+    "age": "Idade",
+    "city": "Cidade / Base",
+    "nationality": "Nacionalidade",
+    "no_photos": "Fotos em atualização",
+    "no_photos_desc": "O acervo fotográfico deste talento está sendo preparado pela nossa equipe de casting."
   },
   "spotlight": {
     "star_talent": "STAR TALENT",
