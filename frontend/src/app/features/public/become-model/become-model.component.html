@@ -1,0 +1,587 @@
+<div class="become-model-page">
+  <div class="container">
+    <div class="apply-content-layout">
+
+      <!-- 1. Cabeçalho Editorial Padronizado (Cormorant Garamond + Plus Jakarta Sans) -->
+      <header class="page-header">
+        <nav class="header-breadcrumbs">
+          <a routerLink="/" class="breadcrumb-link">{{ 'nav.home' | translate }}</a>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-current">{{ 'nav.apply' | translate }}</span>
+        </nav>
+
+        <h1 class="page-title font-serif">
+          {{ displayHeaderTitle }}
+        </h1>
+        <p class="page-subtitle">
+          {{ displayHeaderDescription }}
+        </p>
+      </header>
+
+
+      <!-- 2. Seção Editorial de Orientações & Dúvidas Frequentes (FAQ Acordeão) -->
+      <section *ngIf="faqItems && faqItems.length > 0 && !submitSuccess" class="max-w-4xl mx-auto mb-12">
+        <div class="border-b border-[#E8EBE8] pb-4 mb-6 text-center">
+          <h2 class="text-lg sm:text-xl font-serif uppercase tracking-wider text-[#222624]">
+            {{ translationService.currentLang() === 'en' ? 'Guidelines & Frequently Asked Questions' : 'Orientações & Dúvidas Frequentes' }}
+          </h2>
+          <p class="text-xs text-[#5F6661] tracking-wide mt-1">
+            {{ translationService.currentLang() === 'en' ? 'Everything you need to know before submitting your material.' : 'Tudo o que você precisa saber antes de enviar seu material.' }}
+          </p>
+        </div>
+
+        <!-- Acordeão Expansível -->
+        <div class="border border-[#E8EBE8] bg-white divide-y divide-[#E8EBE8]">
+          <div *ngFor="let item of faqItems; let i = index" class="p-4 sm:p-5">
+            <button 
+              type="button" 
+              (click)="toggleFaq(i)"
+              class="w-full flex items-center justify-between text-left cursor-pointer group"
+            >
+              <span class="text-xs sm:text-sm font-sans uppercase tracking-wider text-[#222624] group-hover:text-[#4B584E] transition-colors font-medium">
+                {{ item.question }}
+              </span>
+              <span class="text-base text-[#4B584E] ml-4 font-mono font-light">
+                {{ expandedFaqIndex === i ? '−' : '+' }}
+              </span>
+            </button>
+
+            <div 
+              *ngIf="expandedFaqIndex === i" 
+              class="mt-3 pt-3 border-t border-[#E8EBE8] text-xs sm:text-sm leading-relaxed text-[#5F6661] font-sans whitespace-pre-line animate-fade-in"
+            >
+              {{ item.answer }}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Alerta de Erro Editorial -->
+      @if (submitError) {
+        <div class="alert-error-box" role="alert">
+          <svg class="alert-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <div class="alert-content">
+            <strong class="alert-title">{{ 'apply_page.error_title' | translate }}</strong>
+            <p class="alert-text">{{ submitError }}</p>
+          </div>
+        </div>
+      }
+
+      <!-- 4. Tela de Sucesso Editorial -->
+      @if (submitSuccess) {
+        <div class="form-card success-card">
+          <div class="success-icon-wrap">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+
+          <div class="success-header">
+            <span class="badge-editorial">{{ 'apply_page.success_badge' | translate }}</span>
+            <h2 class="section-title font-serif success-title">{{ 'apply_page.success_title' | translate }}</h2>
+            <p class="section-subtitle success-subtitle">
+              {{ 'apply_page.success_subtitle' | translate }}
+            </p>
+          </div>
+
+          <!-- Protocolo de Atendimento -->
+          <div class="protocol-card">
+            <span class="protocol-label">{{ 'apply_page.protocol_label' | translate }}</span>
+            <span class="protocol-value">{{ submissionProtocol }}</span>
+          </div>
+
+          <!-- Próximos Passos (CMS Editável no Admin) -->
+          <div class="next-steps-card">
+            @if (applyHowItWorks) {
+              <h3 class="next-steps-heading">
+                {{ applyHowItWorks.headline || ('apply_page.next_steps_heading' | translate) }}
+              </h3>
+              <ul class="editorial-guidelines">
+                @for (step of applyHowItWorks.steps; track step) {
+                  <li>
+                    <span class="check-bullet">&bull;</span>
+                    <span [innerHTML]="step"></span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <h3 class="next-steps-heading">{{ 'apply_page.next_steps_heading' | translate }}</h3>
+              <ul class="editorial-guidelines">
+                <li>
+                  <span class="check-bullet">&bull;</span>
+                  <span [innerHTML]="'apply_page.step1' | translate"></span>
+                </li>
+                <li>
+                  <span class="check-bullet">&bull;</span>
+                  <span>{{ 'apply_page.step2' | translate }}</span>
+                </li>
+                <li>
+                  <span class="check-bullet">&bull;</span>
+                  <span [innerHTML]="'apply_page.step3' | translate"></span>
+                </li>
+              </ul>
+            }
+          </div>
+
+          <div class="success-actions">
+            <button 
+              type="button" 
+              (click)="resetForm()"
+              class="btn-editorial-primary"
+            >
+              {{ 'apply_page.btn_new' | translate }}
+            </button>
+            <a 
+              routerLink="/models"
+              class="btn-editorial-secondary"
+            >
+              {{ 'apply_page.btn_explore' | translate }}
+            </a>
+          </div>
+        </div>
+      }
+
+      <!-- 5. Formulário de Candidatura -->
+      @if (!submitSuccess) {
+        <form [formGroup]="applyForm" (ngSubmit)="onSubmit()" class="editorial-form-wrapper">
+
+          <!-- BLOCO 1: IDENTIFICAÇÃO E CONTATO -->
+          <section class="form-card" [attr.aria-label]="'apply_page.section1_title' | translate">
+            <div class="section-header">
+              <span class="badge-editorial">{{ 'apply_page.section1_badge' | translate }}</span>
+              <h2 class="section-title font-serif">{{ 'apply_page.section1_title' | translate }}</h2>
+              <p class="section-subtitle">{{ 'apply_page.section1_subtitle' | translate }}</p>
+            </div>
+
+            <div class="form-grid">
+              <!-- Nome Completo -->
+              <div class="form-group col-full">
+                <label class="form-label" for="fullName">
+                  {{ 'apply_page.full_name_label' | translate }} <span class="required-mark">*</span>
+                </label>
+                <input 
+                  id="fullName"
+                  type="text" 
+                  formControlName="fullName"
+                  [placeholder]="'apply_page.full_name_placeholder' | translate"
+                  class="form-control"
+                />
+                @if (applyForm.get('fullName')?.touched && applyForm.get('fullName')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.full_name_error' | translate }}</span>
+                }
+              </div>
+
+              <!-- Gênero / Casting -->
+              <div class="form-group col-half">
+                <label class="form-label">
+                  {{ 'apply_page.gender_label' | translate }} <span class="required-mark">*</span>
+                </label>
+                <div class="gender-toggle-group">
+                  <button 
+                    type="button"
+                    (click)="setGender('FEMALE')"
+                    class="btn-gender-toggle"
+                    [class.active]="applyForm.get('gender')?.value === 'FEMALE'"
+                  >
+                    {{ 'apply_page.gender_female' | translate }}
+                  </button>
+                  <button 
+                    type="button"
+                    (click)="setGender('MALE')"
+                    class="btn-gender-toggle"
+                    [class.active]="applyForm.get('gender')?.value === 'MALE'"
+                  >
+                    {{ 'apply_page.gender_male' | translate }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Data de Nascimento -->
+              <div class="form-group col-half">
+                <label class="form-label" for="birthDate">
+                  {{ 'apply_page.birth_date_label' | translate }} <span class="required-mark">*</span>
+                </label>
+                <input 
+                  id="birthDate"
+                  type="date" 
+                  formControlName="birthDate"
+                  class="form-control font-mono"
+                />
+                @if (applyForm.get('birthDate')?.touched && applyForm.get('birthDate')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.birth_date_error' | translate }}</span>
+                }
+              </div>
+
+              <!-- E-mail -->
+              <div class="form-group col-half">
+                <label class="form-label" for="email">
+                  {{ 'apply_page.email_label' | translate }} <span class="required-mark">*</span>
+                </label>
+                <input 
+                  id="email"
+                  type="email" 
+                  formControlName="email"
+                  [placeholder]="'apply_page.email_placeholder' | translate"
+                  class="form-control"
+                />
+                @if (applyForm.get('email')?.touched && applyForm.get('email')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.email_error' | translate }}</span>
+                }
+              </div>
+
+              <!-- Telefone / WhatsApp -->
+              <div class="form-group col-half">
+                <label class="form-label" for="phone">
+                  {{ 'apply_page.phone_label' | translate }} <span class="required-mark">*</span>
+                </label>
+                <input 
+                  id="phone"
+                  type="tel" 
+                  formControlName="phone"
+                  [placeholder]="'apply_page.phone_placeholder' | translate"
+                  (input)="onPhoneInput($event)"
+                  class="form-control font-mono"
+                />
+                @if (applyForm.get('phone')?.touched && applyForm.get('phone')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.phone_error' | translate }}</span>
+                }
+              </div>
+
+              <!-- Instagram -->
+              <div class="form-group col-full">
+                <label class="form-label" for="instagram">
+                  {{ 'apply_page.instagram_label' | translate }}
+                </label>
+                <div class="input-with-prefix">
+                  <span class="input-prefix">&#64;</span>
+                  <input 
+                    id="instagram"
+                    type="text" 
+                    formControlName="instagram"
+                    [placeholder]="'apply_page.instagram_placeholder' | translate"
+                    class="form-control with-prefix font-mono"
+                  />
+                </div>
+              </div>
+
+              <!-- Cidade -->
+              <div class="form-group col-half">
+                <label class="form-label" for="city">
+                  {{ 'apply_page.city_label' | translate }} <span class="required-mark">*</span>
+                </label>
+                <input 
+                  id="city"
+                  type="text" 
+                  formControlName="city"
+                  [placeholder]="'apply_page.city_placeholder' | translate"
+                  class="form-control"
+                />
+                @if (applyForm.get('city')?.touched && applyForm.get('city')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.city_error' | translate }}</span>
+                }
+              </div>
+
+              <!-- Estado (UF) -->
+              <div class="form-group col-half">
+                <label class="form-label" for="state">
+                  {{ 'apply_page.state_label' | translate }} <span class="required-mark">*</span>
+                </label>
+                <select id="state" formControlName="state" class="form-control">
+                  <option value="">{{ 'apply_page.state_placeholder' | translate }}</option>
+                  <option value="EX">{{ 'apply_page.state_not_in_brazil' | translate }}</option>
+                  @for (st of brazilianStates; track st.uf) {
+                    <option [value]="st.uf">{{ st.name }} ({{ st.uf }})</option>
+                  }
+                </select>
+                @if (applyForm.get('state')?.touched && applyForm.get('state')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.state_error' | translate }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- CONDICIONAL: MENOR DE IDADE -->
+            @if (isMinor) {
+              <div class="guardian-subcard">
+                <div class="guardian-header">
+                  <span class="badge-editorial-mini">{{ 'apply_page.guardian_badge' | translate }}</span>
+                  <span class="tag-required">{{ 'apply_page.guardian_tag' | translate }}</span>
+                </div>
+                <p class="guardian-hint">{{ 'apply_page.guardian_hint' | translate }}</p>
+
+                <div class="form-grid">
+                  <div class="form-group col-half">
+                    <label class="form-label" for="guardianName">
+                      {{ 'apply_page.guardian_name_label' | translate }} <span class="required-mark">*</span>
+                    </label>
+                    <input 
+                      id="guardianName"
+                      type="text" 
+                      formControlName="guardianName"
+                      [placeholder]="'apply_page.guardian_name_placeholder' | translate"
+                      class="form-control"
+                    />
+                    @if (applyForm.get('guardianName')?.touched && applyForm.get('guardianName')?.invalid) {
+                      <span class="field-error">{{ 'apply_page.guardian_name_error' | translate }}</span>
+                    }
+                  </div>
+
+                  <div class="form-group col-half">
+                    <label class="form-label" for="guardianCpf">
+                      {{ 'apply_page.guardian_cpf_label' | translate }} <span class="required-mark">*</span>
+                    </label>
+                    <input 
+                      id="guardianCpf"
+                      type="text" 
+                      formControlName="guardianCpf"
+                      (input)="onCpfInput($event)"
+                      [placeholder]="'apply_page.guardian_cpf_placeholder' | translate"
+                      class="form-control font-mono"
+                    />
+                    @if (applyForm.get('guardianCpf')?.touched && applyForm.get('guardianCpf')?.invalid) {
+                      <span class="field-error">{{ 'apply_page.guardian_cpf_error' | translate }}</span>
+                    }
+                  </div>
+
+                  <div class="form-group col-half">
+                    <label class="form-label" for="guardianPhone">
+                      {{ 'apply_page.guardian_phone_label' | translate }} <span class="required-mark">*</span>
+                    </label>
+                    <input 
+                      id="guardianPhone"
+                      type="tel" 
+                      formControlName="guardianPhone"
+                      (input)="onGuardianPhoneInput($event)"
+                      [placeholder]="'apply_page.guardian_phone_placeholder' | translate"
+                      class="form-control font-mono"
+                    />
+                    @if (applyForm.get('guardianPhone')?.touched && applyForm.get('guardianPhone')?.invalid) {
+                      <span class="field-error">{{ 'apply_page.guardian_phone_error' | translate }}</span>
+                    }
+                  </div>
+
+                  <div class="form-group col-half">
+                    <label class="form-label" for="guardianEmail">
+                      {{ 'apply_page.guardian_email_label' | translate }} <span class="required-mark">*</span>
+                    </label>
+                    <input 
+                      id="guardianEmail"
+                      type="email" 
+                      formControlName="guardianEmail"
+                      [placeholder]="'apply_page.guardian_email_placeholder' | translate"
+                      class="form-control"
+                    />
+                    @if (applyForm.get('guardianEmail')?.touched && applyForm.get('guardianEmail')?.invalid) {
+                      <span class="field-error">{{ 'apply_page.guardian_email_error' | translate }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </section>
+
+          <!-- BLOCO 2: DADOS BIOMÉTRICOS -->
+          <section class="form-card" [attr.aria-label]="'apply_page.section2_title' | translate">
+            <div class="section-header">
+              <span class="badge-editorial">{{ 'apply_page.section2_badge' | translate }}</span>
+              <h2 class="section-title font-serif">{{ 'apply_page.section2_title' | translate }}</h2>
+              <p class="section-subtitle">{{ 'apply_page.section2_subtitle' | translate }}</p>
+            </div>
+
+            <div class="biometric-grid">
+              <div class="form-group">
+                <label class="form-label" for="height">{{ 'apply_page.height_label' | translate }} <span class="required-mark">*</span></label>
+                <input id="height" type="number" formControlName="height" placeholder="178" class="form-control font-mono" />
+                @if (applyForm.get('height')?.touched && applyForm.get('height')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="bust">{{ 'apply_page.bust_label' | translate }} <span class="required-mark">*</span></label>
+                <input id="bust" type="number" formControlName="bust" placeholder="84" class="form-control font-mono" />
+                @if (applyForm.get('bust')?.touched && applyForm.get('bust')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="waist">{{ 'apply_page.waist_label' | translate }} <span class="required-mark">*</span></label>
+                <input id="waist" type="number" formControlName="waist" placeholder="60" class="form-control font-mono" />
+                @if (applyForm.get('waist')?.touched && applyForm.get('waist')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="hips">{{ 'apply_page.hips_label' | translate }} <span class="required-mark">*</span></label>
+                <input id="hips" type="number" formControlName="hips" placeholder="90" class="form-control font-mono" />
+                @if (applyForm.get('hips')?.touched && applyForm.get('hips')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="shoes">{{ 'apply_page.shoes_label' | translate }} <span class="required-mark">*</span></label>
+                <input id="shoes" type="number" formControlName="shoes" placeholder="38" class="form-control font-mono" />
+                @if (applyForm.get('shoes')?.touched && applyForm.get('shoes')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="eyes">{{ 'apply_page.eyes_label' | translate }} <span class="required-mark">*</span></label>
+                <select id="eyes" formControlName="eyes" class="form-control">
+                  <option value="">{{ 'apply_page.select_option' | translate }}</option>
+                  @for (color of eyeColors; track color) {
+                    <option [value]="color">{{ ('apply_page.eyes_' + color.toLowerCase()) | translate }}</option>
+                  }
+                </select>
+                @if (applyForm.get('eyes')?.touched && applyForm.get('eyes')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
+                }
+              </div>
+
+              <div class="form-group col-span-2">
+                <label class="form-label" for="hair">{{ 'apply_page.hair_label' | translate }} <span class="required-mark">*</span></label>
+                <select id="hair" formControlName="hair" class="form-control">
+                  <option value="">{{ 'apply_page.select_option' | translate }}</option>
+                  @for (color of hairColors; track color) {
+                    <option [value]="color">{{ ('apply_page.hair_' + color.toLowerCase()) | translate }}</option>
+                  }
+                </select>
+                @if (applyForm.get('hair')?.touched && applyForm.get('hair')?.invalid) {
+                  <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
+                }
+              </div>
+            </div>
+          </section>
+
+          <!-- BLOCO 3: FOTOS E POLAROIDS -->
+          <section class="form-card" [attr.aria-label]="'apply_page.section3_title' | translate">
+            <div class="section-header-split">
+              <div class="section-header">
+                <span class="badge-editorial">{{ 'apply_page.section3_badge' | translate }}</span>
+                <h2 class="section-title font-serif">{{ 'apply_page.section3_title' | translate }}</h2>
+                <p class="section-subtitle">{{ 'apply_page.section3_subtitle' | translate }}</p>
+                <div class="photo-specs-info">
+                  <span class="spec-badge">📷 JPG, PNG, WEBP</span>
+                  <span class="spec-badge">⚖️ {{ 'apply_page.max_file_size_badge' | translate }}</span>
+                  <span class="spec-badge">✨ {{ 'apply_page.no_filters_badge' | translate }}</span>
+                </div>
+              </div>
+              <div class="photo-counter-badge">
+                <span class="photo-counter-text">{{ 'apply_page.photos_counter' | translate: { count: totalUploadedPhotos } }}</span>
+              </div>
+            </div>
+
+            <div class="photo-slots-grid">
+              @for (slot of photoSlots; track $index; let i = $index) {
+                <div class="photo-slot-item">
+                  <div 
+                    class="photo-dropzone"
+                    [class.has-preview]="slot.previewUrl"
+                  >
+                    @if (slot.previewUrl) {
+                      <img [src]="slot.previewUrl" [alt]="('apply_page.slot_' + i + '_label') | translate" class="photo-preview-img" />
+                      <button 
+                        type="button" 
+                        (click)="removePhoto(i)" 
+                        class="btn-remove-photo"
+                        [title]="'apply_page.remove_photo' | translate"
+                      >
+                        ✕
+                      </button>
+                    } @else {
+                      <div class="photo-placeholder" (click)="fileInput.click()">
+                        <svg class="photo-upload-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        <span class="slot-requirement-tag">
+                          {{ slot.required ? ('apply_page.tag_required' | translate) : ('apply_page.tag_optional' | translate) }}
+                        </span>
+                        <span class="slot-size-limit">
+                          {{ 'apply_page.max_file_size_short' | translate }}
+                        </span>
+                      </div>
+                    }
+
+                    <input #fileInput type="file" accept="image/jpeg,image/png,image/webp" class="hidden-file-input" (change)="onFileSelected(i, $event)">
+                  </div>
+
+                  <span class="photo-slot-name" [title]="('apply_page.slot_' + i + '_label') | translate">
+                    {{ ('apply_page.slot_' + i + '_label') | translate }}
+                  </span>
+                  <span class="photo-slot-hint">
+                    {{ ('apply_page.slot_' + i + '_hint') | translate }}
+                  </span>
+                </div>
+              }
+            </div>
+
+            @if (!hasRequiredPhotos) {
+              <div class="photo-warning-box">
+                <span class="warning-icon">⚠️</span>
+                <span [innerHTML]="'apply_page.photo_warning' | translate"></span>
+              </div>
+            }
+          </section>
+
+          <!-- BLOCO 4: TERMOS E LGPD -->
+          <section class="form-card" [attr.aria-label]="'apply_page.section4_title' | translate">
+            <div class="section-header">
+              <span class="badge-editorial">{{ 'apply_page.section4_badge' | translate }}</span>
+              <h2 class="section-title font-serif">{{ 'apply_page.section4_title' | translate }}</h2>
+              <p class="section-subtitle">{{ 'apply_page.section4_subtitle' | translate }}</p>
+            </div>
+
+            <div class="consent-box">
+              <label class="consent-label">
+                <input type="checkbox" formControlName="lgpdConsent" class="consent-checkbox">
+                <span class="consent-text" [innerHTML]="'apply_page.lgpd_text' | translate"></span>
+              </label>
+              @if (applyForm.get('lgpdConsent')?.touched && applyForm.get('lgpdConsent')?.invalid) {
+                <span class="field-error">{{ 'apply_page.lgpd_error' | translate }}</span>
+              }
+            </div>
+          </section>
+
+          <!-- BOTÃO DE ENVIO PADRONIZADO -->
+          <div class="submit-action-wrapper">
+            <button 
+              type="submit" 
+              [disabled]="isSubmitting"
+              class="btn-submit-editorial"
+            >
+              @if (!isSubmitting) {
+                <span>{{ 'apply_page.submit_btn' | translate }}</span>
+              } @else {
+                <span class="spinner-inline">
+                  <svg class="animate-spin" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  </svg>
+                  {{ 'apply_page.submitting' | translate }}
+                </span>
+              }
+            </button>
+
+            <!-- Mensagem de erro diretamente abaixo do botão de enviar -->
+            @if (submitError) {
+              <div class="submit-error-banner" role="alert">
+                <span class="error-badge-icon">⚠️</span>
+                <div class="error-details">
+                  <strong class="error-details-title">{{ 'apply_page.error_title' | translate }}</strong>
+                  <p class="error-details-text">{{ submitError }}</p>
+                </div>
+              </div>
+            }
+          </div>
+
+        </form>
+      }
+
+    </div>
+  </div>
+</div>

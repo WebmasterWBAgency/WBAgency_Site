@@ -1,0 +1,37 @@
+# fly.toml app configuration file generated for backend-honeyed-blossom-771 on 2026-10-10T10:24:55-03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+app = "backend-honeyed-blossom-771"
+primary_region = "gru"  # ou a sua região
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "60s"       # OBRIGATÓRIO: dá 60s para o Spring Boot subir antes de checar

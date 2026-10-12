@@ -1,0 +1,214 @@
+<div class="space-y-8 bg-[#FBFBF9] min-h-[calc(100vh-4rem)] p-6 md:p-10 selection:bg-[#4B584E] selection:text-white">
+
+  <!-- BARRA DE NAVEGAÇÃO SUPERIOR -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E8EBE8] pb-6 gap-4">
+    <div class="flex items-center gap-4">
+      <a routerLink="/admin" class="flex items-center gap-2 px-3 py-1.5 border border-[#E8EBE8] bg-white text-xs uppercase tracking-[0.15em] text-[#5F6661] hover:text-[#4B584E] hover:border-[#4B584E] transition-all rounded-none">
+        &larr; Painel Geral
+      </a>
+      <div>
+        <h1 class="text-xl font-serif uppercase tracking-wider text-[#222624]">Gestão da Home • Comunicados em Destaque</h1>
+        <p class="text-xs text-[#5F6661] tracking-wide mt-1">Configure avisos de segurança, comunicados importantes e mensagens sobrepostas com prioridade visual sobre o Hero.</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <a href="/" target="_blank" class="px-4 py-2.5 bg-white border border-[#E8EBE8] hover:border-[#4B584E] text-[#222624] text-xs uppercase tracking-[0.15em] transition-colors rounded-none">
+        Ver Site Público &nearr;
+      </a>
+      <button 
+        type="button" 
+        (click)="saveTextContent()" 
+        [disabled]="isSaving"
+        class="px-6 py-2.5 bg-[#4B584E] hover:bg-[#38433B] text-white text-xs uppercase tracking-[0.2em] font-sans disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm rounded-none"
+      >
+        <span *ngIf="!isSaving">Salvar Alterações</span>
+        <span *ngIf="isSaving">Publicando...</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Feedback Toast / Alerta -->
+  <div *ngIf="feedbackMessage" class="p-3.5 text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 transition-opacity rounded-none">
+    {{ feedbackMessage }}
+  </div>
+
+  <!-- DIAGRAMAÇÃO HARMÔNICA EM 2 COLUNAS: CONFIGURAÇÃO + PREVIEW REAL SOBRE O HERO -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+    <!-- COLUNA 1: CARD DE CONFIGURAÇÃO DO COMUNICADO / AVISO (5 Colunas) -->
+    <div class="lg:col-span-5 space-y-6">
+      <form [formGroup]="form" class="space-y-6">
+
+        <div class="bg-white border-2 border-[#4B584E]/40 p-6 md:p-8 shadow-sm space-y-6 rounded-none relative">
+          
+          <!-- Cabeçalho do Card com Destaque Editorial e Toggle -->
+          <div class="flex items-start justify-between border-b border-[#E8EBE8] pb-4 gap-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-2.5 py-1 bg-[#4B584E]/10 text-[#4B584E] text-[10px] uppercase tracking-[0.2em] font-medium mb-2 rounded-none">
+                <span class="w-1.5 h-1.5 bg-[#4B584E]"></span>
+                <span>Janela Sobreposta ao Hero</span>
+              </div>
+              <h2 class="text-sm font-serif uppercase tracking-wider text-[#222624] font-semibold">
+                Aviso / Disclaimer em Destaque
+              </h2>
+              <p class="text-xs text-[#5F6661] mt-1 leading-relaxed">
+                Mensagem prioritária que surge centralizada sobre o Hero para anúncios cruciais de segurança ou casting.
+              </p>
+            </div>
+            
+            <!-- Chave Seletora (Toggle Switch) -->
+            <label class="flex flex-col items-end gap-1.5 cursor-pointer select-none shrink-0">
+              <span class="text-[10px] font-mono uppercase tracking-wider font-bold" 
+                    [class.text-[#4B584E]]="form.get('disclaimerActive')?.value"
+                    [class.text-neutral-400]="!form.get('disclaimerActive')?.value">
+                {{ form.get('disclaimerActive')?.value ? 'ATIVO NO SITE' : 'DESATIVADO' }}
+              </span>
+              <input 
+                type="checkbox" 
+                formControlName="disclaimerActive" 
+                class="w-5 h-5 text-[#4B584E] focus:ring-[#4B584E] border-[#E8EBE8] rounded-none cursor-pointer"
+              />
+            </label>
+          </div>
+
+          <!-- Campos do Disclaimer -->
+          <div class="space-y-5" [class.opacity-50]="!form.get('disclaimerActive')?.value">
+
+            <!-- Título do Comunicado -->
+            <div>
+              <label for="disclaimerTitle" class="block text-[11px] font-sans tracking-[0.18em] uppercase text-[#222624] mb-2 font-medium">
+                Título do Alerta / Comunicado
+              </label>
+              <input 
+                id="disclaimerTitle"
+                type="text" 
+                formControlName="disclaimerTitle" 
+                placeholder="Ex: AVISO IMPORTANTE • WB SCOUTING"
+                class="w-full px-3.5 py-2.5 bg-[#FBFBF9] border border-[#E8EBE8] text-xs text-[#222624] focus:outline-none focus:border-[#4B584E] focus:bg-white rounded-none tracking-wide"
+              />
+            </div>
+
+            <!-- Mensagem Completa -->
+            <div>
+              <label for="disclaimerText" class="block text-[11px] font-sans tracking-[0.18em] uppercase text-[#222624] mb-2 font-medium">
+                Mensagem do Comunicado
+              </label>
+              <textarea 
+                id="disclaimerText"
+                rows="5"
+                formControlName="disclaimerText" 
+                placeholder="Ex: A WB Agency nunca cobra taxas para avaliação de casting ou testes fotográficos. Desconfie de mensagens solicitando transferências ou depósitos em nome de nossa equipe."
+                class="w-full px-3.5 py-2.5 bg-[#FBFBF9] border border-[#E8EBE8] text-xs text-[#222624] focus:outline-none focus:border-[#4B584E] focus:bg-white rounded-none leading-relaxed"
+              ></textarea>
+              <p class="text-[10px] text-[#5F6661] mt-1 font-sans">Dica: Seja claro e direto. O texto será exibido com destaque e entrelinha editorial.</p>
+            </div>
+
+            <!-- Botão de Salvar Rápido -->
+            <div class="pt-4 border-t border-[#E8EBE8]">
+              <button 
+                type="button" 
+                (click)="saveTextContent()" 
+                [disabled]="isSaving"
+                class="w-full py-3 bg-[#4B584E] hover:bg-[#38433B] text-white text-xs uppercase tracking-[0.2em] font-sans disabled:opacity-40 transition-all rounded-none cursor-pointer"
+              >
+                {{ isSaving ? 'Salvando...' : 'Salvar e Publicar Comunicado' }}
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- COLUNA 2: PRÉ-VISUALIZAÇÃO DA JANELA SOBREPOSTA AO HERO (7 Colunas) -->
+    <div class="lg:col-span-7 space-y-4">
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="text-[10px] font-mono uppercase tracking-[0.2em] text-[#4B584E] font-medium">Simulação Ao Vivo</span>
+          <h3 class="text-sm font-serif uppercase tracking-wider text-[#222624] font-semibold">Janela Sobreposta ao Hero</h3>
+        </div>
+        <span class="text-[10px] px-2.5 py-1 border border-[#E8EBE8] bg-white text-[#5F6661] uppercase tracking-wider font-mono">
+          Proporção 16:9 • Desktop / Mobile
+        </span>
+      </div>
+
+      <!-- Container do Mockup do Hero com a Janela Sobreposta -->
+      <div class="relative aspect-video w-full bg-[#111312] border border-[#E8EBE8] shadow-md overflow-hidden rounded-none flex items-center justify-center p-4 sm:p-8 select-none">
+        
+        <!-- Fundo de Simulação do Hero (Vídeo / Imagem com escurecimento cinematográfico) -->
+        <div class="absolute inset-0 bg-cover bg-center opacity-30" 
+             style="background-image: url('assets/images/hero-poster.jpg'); filter: grayscale(40%);"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/60 pointer-events-none"></div>
+
+        <!-- Marca d'água sutil do logo no fundo do Hero -->
+        <div class="absolute inset-0 flex items-center justify-center opacity-15 pointer-events-none">
+          <img src="assets/images/logo-wb-agency-light.png" alt="WB" class="max-h-20 w-auto object-contain" />
+        </div>
+
+        <!-- Indicador de status se o disclaimer estiver DESATIVADO -->
+        <div *ngIf="!form.get('disclaimerActive')?.value" 
+             class="relative z-30 p-4 bg-black/80 border border-neutral-700 text-center max-w-sm">
+          <span class="text-[10px] font-mono tracking-[0.2em] text-[#C2A87E] uppercase block mb-1">
+            COMUNICADO DESATIVADO
+          </span>
+          <p class="text-[11px] text-neutral-300">
+            A janela sobreposta está desligada. Os visitantes verão o vídeo do Hero limpo sem interferência.
+          </p>
+        </div>
+
+        <!-- JANELA SOBREPOSTA EM DESTAQUE (QUANDO ATIVA OU EM PREVIEW) -->
+        <div *ngIf="form.get('disclaimerActive')?.value"
+             class="relative z-20 w-full max-w-lg bg-[#1B1E1C]/95 text-white border-2 border-[#C2A87E]/80 shadow-[0_20px_50px_rgba(0,0,0,0.6)] p-5 sm:p-7 rounded-none overflow-hidden animate-fade-in">
+          
+          <!-- Faixa Dourada Superior -->
+          <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#8E7954] via-[#C2A87E] to-[#8E7954]"></div>
+
+          <!-- Botão Fechar Simulado -->
+          <div class="absolute top-3 right-3 text-neutral-400 text-xs px-1.5 py-0.5 border border-neutral-700 rounded-none cursor-default">
+            ✕
+          </div>
+
+          <!-- Badge Editorial Dourado -->
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#C2A87E]/15 border border-[#C2A87E]/40 text-[#C2A87E] text-[9px] tracking-[0.25em] uppercase font-sans font-medium mb-3 rounded-none">
+            <span class="w-1.5 h-1.5 bg-[#C2A87E]"></span>
+            <span>Comunicado Oficial • WB Agency</span>
+          </div>
+
+          <!-- Título em Destaque Serifado -->
+          <h4 class="font-serif text-base sm:text-lg text-white tracking-wide uppercase leading-tight mb-2.5">
+            {{ form.get('disclaimerTitle')?.value || 'Aviso Importante' }}
+          </h4>
+
+          <!-- Mensagem / Corpo -->
+          <p class="text-[11px] sm:text-xs text-neutral-300 leading-relaxed font-sans font-light mb-5 border-l-2 border-[#C2A87E]/40 pl-3 py-0.5 line-clamp-4">
+            {{ form.get('disclaimerText')?.value || 'A WB Agency nunca cobra taxas para avaliação de casting ou testes de novos modelos.' }}
+          </p>
+
+          <!-- Ações do Rodapé -->
+          <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-700/60">
+            <span class="px-3.5 py-1.5 bg-[#4B584E] text-white text-[10px] uppercase tracking-wider font-medium rounded-none">
+              Prosseguir para o Site
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Dica explicativa abaixo da simulação -->
+      <div class="bg-white border border-[#E8EBE8] p-4 text-xs text-[#5F6661] flex items-center justify-between gap-4 rounded-none">
+        <div class="flex items-center gap-2">
+          <span class="text-[#4B584E] font-bold">ℹ️</span>
+          <span>A janela sobreposta ao hero dá prioridade editorial aos comunicados da agência sem perder a visibilidade de fundo.</span>
+        </div>
+        <span class="font-mono text-[10px] text-[#222624]">DESIGN LIGHT MINIMALIST</span>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

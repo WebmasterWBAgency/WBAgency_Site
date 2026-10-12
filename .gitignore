@@ -1,0 +1,87 @@
+# Node & Angular
+**/node_modules/
+**/dist/
+deploy-wbagency/
+**/.angular/
+frontend/.angular/cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+
+# Java & Maven
+**/target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE & Editor
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Environment & Credentials
+.env
+**/.env
+.env.*
+**/.env.*
+!**/.env.example
+*.local
+*.log
+uploads/
+**/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ignorar pasta Projeto
+Projeto/
+[Pp]rojeto/**
+
+Projeto/
+projeto/
+.vercel
+.env*
+*.zip
+
+# Perfil local Spring Boot com credenciais locais
+backend/src/main/resources/application-local.yml
+
+uploads-local/
+**/uploads-local/
+application-local.yml
+
+# Logs
+*.log
+*.log.*
+
+# Build & Targets
+target/
+dist/
+.angular/
+node_modules/
+
+# Local uploads e arquivos sensiveis
+uploads-local/
+uploads/
+application-local.yml
+.env
+.env.*
+!.env.example
+
+# Arquivos locais e de ambiente
+application-local.yml
+**/application-local.yml
+.env
+.env.*
+!.env.example
+target/
+dist/
+.angular/
+
+.bat

@@ -1,0 +1,15 @@
+# Variáveis de ambiente e credenciais locais
+.env
+.env.*
+!.env.example
+application-local.yml
+src/main/resources/application-local.yml
+uploads/
+uploads-local/
+*.log
+target/
+
+# Ignorar arquivos internos e documentos da pasta Projeto
+Projeto/
+projeto/
+[Pp]rojeto/**

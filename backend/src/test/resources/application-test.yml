@@ -1,0 +1,30 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:wbtestdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=VALUE;INIT=RUNSCRIPT FROM 'classpath:init-h2.sql'
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      pool-name: WbTestH2Pool
+      maximum-pool-size: 5
+      minimum-idle: 1
+      initialization-fail-timeout: 1000
+  jpa:
+    open-in-view: false
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+supabase:
+  url: https://dummy-project.supabase.co
+  key: dummy-key
+  service-role-key: dummy-key
+  anon-key: dummy-key

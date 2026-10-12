@@ -1,0 +1,260 @@
+<div class="model-detail-page">
+  <div class="container">
+    
+    <!-- 1. Estado: Carregamento (Skeletons Monocromáticos - Zero CLS) -->
+    @if (isLoading()) {
+      <div class="skeleton-layout" aria-busy="true" aria-label="Carregando perfil do modelo">
+        <!-- Coluna Lateral Skeleton -->
+        <aside class="sidebar-col skeleton-sidebar">
+          <div class="skeleton-image-wrap">
+            <div class="skeleton-pulse"></div>
+          </div>
+          <div class="skeleton-line title"></div>
+          <div class="skeleton-line subtitle"></div>
+          <div class="skeleton-measurements">
+            <div class="skeleton-line row"></div>
+            <div class="skeleton-line row"></div>
+            <div class="skeleton-line row"></div>
+            <div class="skeleton-line row"></div>
+          </div>
+          <div class="skeleton-btn"></div>
+        </aside>
+
+        <!-- Área Principal Skeleton -->
+        <main class="gallery-col skeleton-gallery">
+          <div class="skeleton-tabs">
+            <div class="skeleton-tab"></div>
+            <div class="skeleton-tab"></div>
+          </div>
+          <div class="gallery-grid">
+            @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+              <div class="skeleton-photo-card">
+                <div class="skeleton-pulse"></div>
+              </div>
+            }
+          </div>
+        </main>
+      </div>
+    }
+
+    <!-- 2. Estado: Modelo Não Encontrado ou Inativo (404) -->
+    @if (!isLoading() && isNotFound()) {
+      <div class="not-found-state">
+        <h1 class="not-found-title font-serif">{{ 'model_detail.not_found_title' | translate }}</h1>
+        <p class="not-found-desc">{{ errorMessage() || ('model_detail.not_found_desc' | translate) }}</p>
+        <a routerLink="/models" class="btn btn-gold">
+          &larr; {{ 'model_detail.back_to_casting' | translate }}
+        </a>
+      </div>
+    }
+
+    <!-- 3. Estado: Modelo Carregado com Sucesso -->
+    @if (!isLoading() && !isNotFound() && model(); as m) {
+      <!-- Breadcrumb Navegacional -->
+      <nav class="detail-breadcrumbs" aria-label="Navegação estrutural">
+        <a routerLink="/" class="breadcrumb-link">{{ 'nav.home' | translate }}</a>
+        <span class="breadcrumb-separator">/</span>
+        <a routerLink="/models" class="breadcrumb-link">
+          {{ 'nav.models' | translate }}
+        </a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-current">{{ m.stageName }}</span>
+      </nav>
+
+      <div class="detail-layout">
+        <!-- Coluna Lateral Sticky: Identificação, Biometria e Ações -->
+        <aside class="sidebar-col">
+          <div class="sticky-card card-editorial">
+            <!-- Imagem de Capa do Perfil -->
+            <figure class="profile-cover-wrap">
+              <img 
+                [src]="primaryCoverImage()" 
+                [alt]="'Fotografia de destaque de ' + m.stageName" 
+                class="profile-cover-image" 
+              />
+              @if (m.isStar) {
+                <span class="star-badge tracking-editorial">
+                  {{ 'home.star_badge' | translate }}
+                </span>
+              }
+            </figure>
+
+            <!-- Identificação do Modelo -->
+            <div class="profile-header">
+              <h1 class="profile-name font-serif">{{ m.stageName }}</h1>
+
+              @if (m.instagramHandle || m.instagramUrl) {
+                <a 
+                  [href]="(m.instagramHandle || m.instagramUrl) | instagramUrl" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  class="instagram-badge" 
+                  [attr.aria-label]="('model_detail.instagram_profile' | translate) + ': ' + (sanitizedInstagram()?.handle || m.instagramHandle || '@instagram')">
+                  <svg class="instagram-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                  <span class="instagram-handle">{{ sanitizedInstagram()?.handle || m.instagramHandle }}</span>
+                  <span class="arrow">&nearr;</span>
+                </a>
+              }
+            </div>
+
+            <!-- Tabela Minimalista de Medidas Biométricas -->
+            <app-model-measurements [model]="m"></app-model-measurements>
+
+            <!-- Ações de Booking e Composite Card -->
+            <div class="profile-actions">
+              <a 
+                [routerLink]="getBookingRouterLink()" 
+                [queryParams]="getBookingQueryParams()" 
+                class="btn btn-gold btn-booking">
+                {{ 'model_detail.request_booking' | translate }}
+              </a>
+
+              @if (compositeUrl(); as compUrl) {
+                <div class="composite-actions-row">
+                  <!-- Botão Secundário: Abrir Visualizador em Alta Resolução -->
+                  <button 
+                    type="button" 
+                    (click)="openCompositeModal()" 
+                    class="btn btn-outline btn-composite btn-composite-view"
+                    [attr.aria-label]="'model_detail.view_composite' | translate">
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      <line x1="11" y1="8" x2="11" y2="14"></line>
+                      <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg>
+                    <span>{{ 'model_detail.view_composite' | translate }}</span>
+                  </button>
+
+                  <!-- Botão Secundário: Download Direto do Arquivo -->
+                  <button 
+                    type="button" 
+                    (click)="downloadComposite()" 
+                    [disabled]="isDownloadingComposite()"
+                    class="btn btn-subtle btn-composite-download"
+                    [attr.aria-label]="'model_detail.download_composite' | translate">
+                    @if (isDownloadingComposite()) {
+                      <span class="spinner-inline" aria-hidden="true"></span>
+                      <span>Baixando...</span>
+                    } @else {
+                      <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                      <span>{{ 'model_detail.download_composite' | translate }}</span>
+                    }
+                  </button>
+                </div>
+              } @else {
+                <!-- Fallback Elegante: Composite em Atualização -->
+                <div class="composite-fallback-pill" title="O composite oficial está sendo processado pela agência">
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="1.75" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <span>{{ 'model_detail.composite_updating' | translate }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </aside>
+
+        <!-- Área Principal: Galerias de Book e Polaroids -->
+        <main class="gallery-col space-y-6">
+          <!-- Abas de Segmentação Editorial -->
+          <div class="gallery-tabs-bar">
+            <button 
+              type="button" 
+              class="tab-btn" 
+              [class.active]="activeTab() === 'BOOK'"
+              (click)="setTab('BOOK')">
+              <span class="tab-label">{{ 'model_detail.book_tab' | translate }}</span>
+              <span class="tab-count">({{ m.bookPhotos?.length || 0 }})</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="tab-btn" 
+              [class.active]="activeTab() === 'POLAROIDS'"
+              (click)="setTab('POLAROIDS')">
+              <span class="tab-label">{{ 'model_detail.polaroids_tab' | translate }}</span>
+              <span class="tab-count">({{ m.polaroids?.length || 0 }})</span>
+            </button>
+          </div>
+
+          <!-- SEÇÃO DE PORTFÓLIO / BOOK EDITORIAL OU POLAROIDS -->
+          <section class="space-y-6">
+            <div class="border-b border-[#E8EBE8] pb-3 flex items-center justify-between">
+              <h3 class="text-xs font-serif uppercase tracking-[0.25em] text-[#222624]">
+                {{ activeTab() === 'BOOK' ? 'Book Editorial' : 'Polaroids Técnicas' }}
+              </h3>
+              <span class="text-[11px] font-mono text-[#5F6661]">
+                {{ currentGalleryPhotos().length || 0 }} Imagens
+              </span>
+            </div>
+
+            <!-- GRID AUTO-AJUSTÁVEL -->
+            @if (currentGalleryPhotos().length > 0) {
+              <div class="editorial-gallery-grid">
+                @for (photo of currentGalleryPhotos(); track photo.id; let idx = $index) {
+                  <div 
+                    class="gallery-photo-item photo-card group cursor-pointer"
+                    (click)="openLightbox(idx)"
+                    tabindex="0"
+                    (keydown.enter)="openLightbox(idx)"
+                    [attr.aria-label]="'Abrir fotografia ' + (idx + 1) + ' em tela cheia'"
+                  >
+                    <div class="photo-frame">
+                      <img 
+                        [src]="photo.fileUrl || (photo && $any(photo).url)" 
+                        [alt]="m.stageName + ' - Foto ' + (idx + 1)"
+                        loading="lazy"
+                      />
+                      <div class="photo-overlay">
+                        <span class="zoom-indicator">&#x26F6;</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="empty-gallery">
+                <div class="empty-gallery-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+                <h4 class="empty-gallery-title font-serif">{{ 'model_detail.no_photos' | translate }}</h4>
+                <p class="empty-gallery-text">{{ 'model_detail.no_photos_desc' | translate }}</p>
+              </div>
+            }
+          </section>
+        </main>
+      </div>
+
+      <!-- 4. Modal Lightbox em Tela Cheia de Fotos -->
+      @if (isLightboxOpen()) {
+        <app-model-lightbox
+          [images]="lightboxImages()"
+          [currentIndex]="lightboxIndex()"
+          (close)="closeLightbox()"
+          (indexChange)="onLightboxIndexChange($event)">
+        </app-model-lightbox>
+      }
+
+      <!-- 5. Modal Dedicado do Composite Oficial com Zoom e Download -->
+      @if (isCompositeModalOpen() && compositeUrl(); as compUrl) {
+        <app-model-composite-modal
+          [compositeUrl]="compUrl"
+          [modelName]="m.stageName"
+          (close)="closeCompositeModal()">
+        </app-model-composite-modal>
+      }
+    }
+  </div>
+</div>

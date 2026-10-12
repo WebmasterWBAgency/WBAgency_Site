@@ -1,0 +1,178 @@
+name: Deploy Frontend para Hostinger
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-hostinger.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostinger
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    name: Build Angular e Deploy Hostinger
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout completo da raiz
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Configurar Node.js com cache NPM
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # 3. Instalar dependencias
+      - name: Instalar dependencias
+        working-directory: ./frontend
+        run: npm ci
+
+      # 4. Compilar Angular em producao
+      - name: Compilar Angular em producao
+        working-directory: ./frontend
+        run: npm run build -- --configuration production
+
+      # 5. Identificar artefatos e preparar fallback SPA
+      - name: Preparar build e fallback SPA
+        id: prepare
+        working-directory: ./frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -d "dist/frontend/browser" ]; then
+            TARGET_DIR="dist/frontend/browser"
+          elif [ -d "dist/browser" ]; then
+            TARGET_DIR="dist/browser"
+          elif [ -d "dist/frontend" ]; then
+            TARGET_DIR="dist/frontend"
+          else
+            echo "::error::Diretorio de build Angular nao encontrado."
+            find dist -maxdepth 4 -type d 2>/dev/null || true
+            exit 1
+          fi
+
+          if [ ! -s "$TARGET_DIR/index.html" ]; then
+            echo "::error::index.html nao encontrado ou vazio em $TARGET_DIR."
+            exit 1
+          fi
+
+          echo "Build identificado em: $TARGET_DIR"
+
+          # Fallback SPA 404
+          cp "$TARGET_DIR/index.html" "$TARGET_DIR/404.html"
+
+          # Fallback Apache mod_rewrite (.htaccess)
+          if [ -f "public/.htaccess" ]; then
+            cp "public/.htaccess" "$TARGET_DIR/.htaccess"
+          elif [ -f "src/.htaccess" ]; then
+            cp "src/.htaccess" "$TARGET_DIR/.htaccess"
+          else
+            cat > "$TARGET_DIR/.htaccess" <<'HTACCESS'
+          DirectoryIndex index.html index.php
+
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+            RewriteRule ^index\.html$ - [L]
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteRule . /index.html [L]
+          </IfModule>
+          HTACCESS
+          fi
+
+          # Exporta caminhos absolutos em relacao a raiz do repositorio
+          echo "dist_relative=$TARGET_DIR" >> "$GITHUB_OUTPUT"
+          echo "dist_root=frontend/$TARGET_DIR" >> "$GITHUB_OUTPUT"
+
+      # 6. Validar arquivos compilados
+      - name: Validar integridade do build
+        working-directory: ./frontend
+        shell: bash
+        env:
+          DIST_DIR: ${{ steps.prepare.outputs.dist_relative }}
+        run: |
+          set -euo pipefail
+          test -d "$DIST_DIR"
+          test -s "$DIST_DIR/index.html"
+          test -s "$DIST_DIR/404.html"
+          test -s "$DIST_DIR/.htaccess"
+          ls -lah "$DIST_DIR"
+
+      # ===========================================================
+      # VIA 1: DEPLOY FTP PARA public_html
+      # ===========================================================
+      - name: Deploy Frontend via FTP
+        id: ftp_deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        continue-on-error: true
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          timeout: 300000
+          local-dir: ${{ steps.prepare.outputs.dist_root }}/
+          server-dir: ${{ secrets.FTP_SERVER_DIR || 'domains/wbagency.com.br/public_html/' }}
+          dangerous-clean-slate: false
+
+      # ===========================================================
+      # VIA 2: PUBLICAR BUILD NA BRANCH hostinger-deploy
+      # ===========================================================
+      - name: Publicar build na branch hostinger-deploy
+        id: branch_deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        continue-on-error: true
+        with:
+          folder: ${{ steps.prepare.outputs.dist_root }}
+          branch: hostinger-deploy
+          clean: true
+          commit-message: 'deploy: build Angular de producao para Hostinger [skip ci]'
+
+      # ===========================================================
+      # 7. VALIDACAO FINAL DAS DUAS VIAS
+      # ===========================================================
+      - name: Validar resultado das publicacoes
+        if: always()
+        shell: bash
+        env:
+          FTP_RESULT: ${{ steps.ftp_deploy.outcome }}
+          BRANCH_RESULT: ${{ steps.branch_deploy.outcome }}
+        run: |
+          set -u
+          echo "Resultado FTP: $FTP_RESULT"
+          echo "Resultado branch: $BRANCH_RESULT"
+
+          FAILED=0
+          if [ "$FTP_RESULT" != "success" ]; then
+            echo "::error::Falha na publicacao FTP para a Hostinger."
+            FAILED=1
+          fi
+
+          if [ "$BRANCH_RESULT" != "success" ]; then
+            echo "::error::Falha na publicacao da branch hostinger-deploy."
+            FAILED=1
+          fi
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "::error::Deploy incompleto. Revise os logs dos passos acima."
+            exit 1
+          fi
+
+          echo "Deploy concluido com sucesso em ambas as vias."

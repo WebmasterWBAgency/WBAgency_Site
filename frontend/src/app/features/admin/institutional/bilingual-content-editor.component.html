@@ -1,0 +1,610 @@
+<div class="mgmt-page selection:bg-[#4B584E] selection:text-white">
+  <div class="mgmt-inner space-y-8">
+
+    <!-- Header Superior Refatorado com Ação Unificada -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E8EBE8] pb-6 gap-4">
+      <div class="space-y-2">
+        <h1 class="text-lg md:text-xl font-serif uppercase tracking-wider text-[#222624]">
+          Conteúdos Bilíngues (PT / EN)
+        </h1>
+
+        <div>
+          <select 
+            [(ngModel)]="activeSection" 
+            (change)="loadSection(activeSection)"
+            class="px-3 py-1.5 bg-white border border-[#E8EBE8] text-xs text-[#5F6661] tracking-wide font-sans focus:outline-none focus:border-[#4B584E] focus:text-[#222624] rounded-none cursor-pointer transition-colors"
+          >
+            <option value="ABOUT_MANIFESTO">Sobre Nós</option>
+            <option value="TERMS">Termos de Uso</option>
+            <option value="PRIVACY">Privacidade & LGPD</option>
+            <option value="SCOUTING">Configurações do Form. de Quero de Modelo</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Ações Globais: Retorno e Botão Unificado de Salvar -->
+      <div class="flex items-center gap-3">
+        <a 
+          routerLink="/admin" 
+          class="px-3 py-2 border border-[#E8EBE8] bg-white text-xs uppercase tracking-[0.15em] text-[#5F6661] hover:text-[#4B584E] hover:border-[#4B584E] transition-all rounded-none"
+        >
+          ← Painel Geral
+        </a>
+
+        <!-- BOTÃO ÚNICO QUE SALVA TODA A PÁGINA -->
+        <button 
+          type="button" 
+          (click)="saveAllChanges()"
+          [disabled]="isSaving"
+          class="px-5 py-2 bg-[#4B584E] hover:bg-[#38433B] text-white text-xs uppercase tracking-[0.2em] font-sans disabled:opacity-50 transition-all cursor-pointer shadow-sm rounded-none"
+          title="Atalho: Ctrl + S"
+        >
+          <span *ngIf="!isSaving">Salvar Alterações da Página</span>
+          <span *ngIf="isSaving">Salvando...</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Banner de Feedback de Sucesso -->
+    <div *ngIf="saveSuccessMessage" class="p-3 bg-[#F4F5F4] border border-[#4B584E] text-xs text-[#4B584E] uppercase tracking-wider font-sans transition-all">
+      ✓ {{ saveSuccessMessage }}
+    </div>
+
+    <!-- Feedback Toast Secundário -->
+    <div *ngIf="successBlock && !saveSuccessMessage" class="max-w-full p-3 text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 transition-opacity">
+      Bloco atualizado com sucesso no servidor e sincronizado em PT/EN.
+    </div>
+
+    <!-- Alerta de Erro -->
+    <div *ngIf="errorMessage" class="max-w-full p-3 text-xs bg-red-50 border border-red-200 text-red-800 transition-opacity">
+      {{ errorMessage }}
+    </div>
+
+    <!-- BLOCO SIMPLIFICADO: TERMOS DE USO OU PRIVACIDADE & LGPD / GDPR -->
+    <div *ngIf="selectedSectionKey === 'TERMS' || selectedSectionKey === 'PRIVACY'" class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white border border-[#E8EBE8] p-6 shadow-sm">
+      
+      <!-- Coluna PT-BR -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-mono uppercase tracking-widest text-[#4B584E] font-bold">PT-BR</span>
+            <button 
+              type="button" 
+              (click)="openGoogleTranslator(tempPt.content || '')" 
+              class="px-2 py-0.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[9px] uppercase tracking-wider transition-colors cursor-pointer rounded-none"
+              title="Traduzir no Google Tradutor e copiar texto"
+            >
+              Traduzir ↗
+            </button>
+          </div>
+          <span class="text-xs font-serif uppercase tracking-wider text-[#222624]">
+            {{ selectedSectionKey === 'TERMS' ? 'Texto dos Termos de Uso' : 'Texto de Privacidade & LGPD' }}
+          </span>
+        </div>
+        <textarea 
+          rows="16" 
+          [(ngModel)]="tempPt.content" 
+          placeholder="Texto em Português..."
+          class="w-full p-3.5 bg-[#FBFBF9] border border-[#E8EBE8] text-xs leading-relaxed text-[#222624] focus:outline-none focus:border-[#4B584E] rounded-none font-sans whitespace-pre-line"
+        ></textarea>
+      </div>
+
+      <!-- Coluna EN-US -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-2 mb-2">
+          <span class="text-[10px] uppercase font-mono tracking-widest text-[#C2A87E] font-bold">EN-US</span>
+          <div class="flex items-center gap-2">
+            <!-- Botão Abrir no Google Tradutor -->
+            <button 
+              type="button" 
+              (click)="openGoogleTranslator(tempPt.content || '')"
+              class="px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-[#FBFBF9] hover:border-[#4B584E] text-[#222624] transition-colors rounded-none cursor-pointer"
+              title="Copia o texto em PT e abre o Google Tradutor em nova aba"
+            >
+              ↗ Google Tradutor
+            </button>
+            <button 
+              type="button" 
+              (click)="pasteToTempEn('content')"
+              class="px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-white hover:border-[#4B584E] text-[#5F6661] hover:text-[#222624] transition-colors rounded-none cursor-pointer"
+              title="Cola o texto copiado da área de transferência diretamente no campo"
+            >
+              Colar Tradução
+            </button>
+          </div>
+        </div>
+        <textarea 
+          rows="16" 
+          [(ngModel)]="tempEn.content" 
+          placeholder="Texto em Inglês..."
+          class="w-full p-3.5 bg-[#FBFBF9] border border-[#E8EBE8] text-xs leading-relaxed text-[#222624] focus:outline-none focus:border-[#4B584E] rounded-none font-sans whitespace-pre-line"
+        ></textarea>
+      </div>
+
+      <!-- Barra Inferior de Apoio ao Final da Página -->
+      <div class="md:col-span-2 flex justify-end pt-6 border-t border-[#E8EBE8]">
+        <button 
+          type="button" 
+          (click)="saveAllChanges()" 
+          [disabled]="isSaving"
+          class="px-6 py-2.5 bg-[#4B584E] hover:bg-[#38433B] text-white text-xs uppercase tracking-[0.2em] font-sans disabled:opacity-50 transition-all rounded-none cursor-pointer"
+        >
+          <span *ngIf="!isSaving">Salvar Alterações da Página</span>
+          <span *ngIf="isSaving">Salvando Alterações...</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- BLOCOS MODULARES: HEADLINE, QUOTE, SECTION TITLE, BODY -->
+    <div *ngIf="activeSection !== 'TERMS' && activeSection !== 'PRIVACY' && activeSection !== 'SCOUTING'" class="bg-white border border-[#E8EBE8] p-6 md:p-8 shadow-sm space-y-6" [formGroup]="aboutForm">
+      <div class="card-editorial-header flex items-center justify-between">
+        <div>
+          <h2 class="card-editorial-title">{{ currentSectionTitle }}</h2>
+          <p class="card-editorial-subtitle">Edição modular por blocos de conteúdo sincronizados em Português e Inglês.</p>
+        </div>
+        <span class="text-[10px] uppercase font-mono tracking-widest text-[#4B584E] bg-[#F4F8F5] px-2.5 py-1 border border-[#E8EBE8]">
+          Ativo: {{ activeSection }}
+        </span>
+      </div>
+
+      <!-- Bloco 1: Título / Headline Bilíngue -->
+      <div class="editorial-field-box">
+        <div class="field-header">
+          <div class="flex items-center gap-2.5">
+            <span class="field-label">Título Principal (Headline)</span>
+            <span class="field-badge">{{ aboutForm.get('headline')?.value ? 'Preenchido' : 'Vazio' }}</span>
+          </div>
+        </div>
+
+        <!-- Caixas de Texto Coloridas Delimitadas PT/EN -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <!-- Português -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-[10px] uppercase font-mono font-semibold text-[#4B584E]">Português (PT-BR)</label>
+              <button 
+                type="button" 
+                (click)="openGoogleTranslator(aboutForm.get('headline')?.value || '')" 
+                class="px-2 py-0.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[9px] uppercase tracking-wider transition-colors cursor-pointer rounded-none"
+                title="Traduzir no Google Tradutor e copiar texto"
+              >
+                Traduzir ↗
+              </button>
+            </div>
+            <input 
+              id="field-pt-headline"
+              type="text" 
+              formControlName="headline" 
+              placeholder="Headline em Português..."
+              class="colored-text-input font-serif text-sm md:text-base font-medium"
+            />
+          </div>
+
+          <!-- Inglês -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-1.5 mb-2">
+              <span class="text-[10px] uppercase font-mono tracking-widest text-[#C2A87E] font-bold">EN-US</span>
+              <div class="flex items-center gap-1.5">
+                <button 
+                  type="button" 
+                  (click)="openGoogleTranslator(aboutForm.get('headline')?.value)"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-[#FBFBF9] hover:border-[#4B584E] text-[#222624] transition-colors rounded-none cursor-pointer"
+                  title="Copia o título em PT e abre o Google Tradutor"
+                >
+                  ↗ Google Tradutor
+                </button>
+                <button 
+                  type="button" 
+                  (click)="pasteToFormField('headlineEn')"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-white hover:border-[#4B584E] text-[#5F6661] hover:text-[#222624] transition-colors rounded-none cursor-pointer"
+                  title="Cola o texto traduzido no campo em inglês"
+                >
+                  Colar Tradução
+                </button>
+              </div>
+            </div>
+            <input 
+              id="field-en-headline"
+              type="text" 
+              formControlName="headlineEn" 
+              placeholder="Headline em Inglês..."
+              class="colored-text-input font-serif text-sm md:text-base font-medium"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloco 2: Citação / Frase de Impacto -->
+      <div class="editorial-field-box">
+        <div class="field-header">
+          <div class="flex items-center gap-2.5">
+            <span class="field-label">Citação / Frase de Destaque</span>
+            <span class="field-badge">{{ aboutForm.get('quote')?.value ? 'Preenchido' : 'Vazio' }}</span>
+          </div>
+        </div>
+
+        <!-- Caixas de Texto Coloridas Delimitadas PT/EN -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <!-- Português -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-[10px] uppercase font-mono font-semibold text-[#4B584E]">Português (PT-BR)</label>
+              <button 
+                type="button" 
+                (click)="openGoogleTranslator(aboutForm.get('quote')?.value || '')" 
+                class="px-2 py-0.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[9px] uppercase tracking-wider transition-colors cursor-pointer rounded-none"
+                title="Traduzir no Google Tradutor e copiar texto"
+              >
+                Traduzir ↗
+              </button>
+            </div>
+            <textarea 
+              id="field-pt-quote"
+              rows="2"
+              formControlName="quote" 
+              placeholder="Frase ou citação em Português..."
+              class="colored-text-input font-serif italic text-xs leading-relaxed resize-y"
+            ></textarea>
+          </div>
+
+          <!-- Inglês -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-1.5 mb-2">
+              <span class="text-[10px] uppercase font-mono tracking-widest text-[#C2A87E] font-bold">EN-US</span>
+              <div class="flex items-center gap-1.5">
+                <button 
+                  type="button" 
+                  (click)="openGoogleTranslator(aboutForm.get('quote')?.value)"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-[#FBFBF9] hover:border-[#4B584E] text-[#222624] transition-colors rounded-none cursor-pointer"
+                  title="Copia a citação em PT e abre o Google Tradutor"
+                >
+                  ↗ Google Tradutor
+                </button>
+                <button 
+                  type="button" 
+                  (click)="pasteToFormField('quoteEn')"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-white hover:border-[#4B584E] text-[#5F6661] hover:text-[#222624] transition-colors rounded-none cursor-pointer"
+                  title="Cola o texto traduzido no campo em inglês"
+                >
+                  Colar Tradução
+                </button>
+              </div>
+            </div>
+            <textarea 
+              id="field-en-quote"
+              rows="2"
+              formControlName="quoteEn" 
+              placeholder="Frase ou citação em Inglês..."
+              class="colored-text-input font-serif italic text-xs leading-relaxed resize-y"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloco 3: Título da Seção (Section Title) -->
+      <div class="editorial-field-box">
+        <div class="field-header">
+          <div class="flex items-center gap-2.5">
+            <span class="field-label">Título da Seção Editorial (Section Title)</span>
+            <span class="field-badge">{{ aboutForm.get('sectionTitle')?.value ? 'Preenchido' : 'Vazio' }}</span>
+          </div>
+        </div>
+
+        <!-- Caixas de Texto Coloridas Delimitadas PT/EN -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <!-- Português -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-[10px] uppercase font-mono font-semibold text-[#4B584E]">Português (PT-BR)</label>
+              <button 
+                type="button" 
+                (click)="openGoogleTranslator(aboutForm.get('sectionTitle')?.value || '')" 
+                class="px-2 py-0.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[9px] uppercase tracking-wider transition-colors cursor-pointer rounded-none"
+                title="Traduzir no Google Tradutor e copiar texto"
+              >
+                Traduzir ↗
+              </button>
+            </div>
+            <input 
+              id="field-pt-sectionTitle"
+              type="text" 
+              formControlName="sectionTitle" 
+              placeholder="Ex.: Nossa Filosofia"
+              class="colored-text-input font-serif text-sm md:text-base font-medium"
+            />
+          </div>
+
+          <!-- Inglês -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-1.5 mb-2">
+              <span class="text-[10px] uppercase font-mono tracking-widest text-[#C2A87E] font-bold">EN-US</span>
+              <div class="flex items-center gap-1.5">
+                <button 
+                  type="button" 
+                  (click)="openGoogleTranslator(aboutForm.get('sectionTitle')?.value)"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-[#FBFBF9] hover:border-[#4B584E] text-[#222624] transition-colors rounded-none cursor-pointer"
+                  title="Copia o título da seção em PT e abre o Google Tradutor"
+                >
+                  ↗ Google Tradutor
+                </button>
+                <button 
+                  type="button" 
+                  (click)="pasteToFormField('sectionTitleEn')"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-white hover:border-[#4B584E] text-[#5F6661] hover:text-[#222624] transition-colors rounded-none cursor-pointer"
+                  title="Cola o texto traduzido no campo em inglês"
+                >
+                  Colar Tradução
+                </button>
+              </div>
+            </div>
+            <input 
+              id="field-en-sectionTitle"
+              type="text" 
+              formControlName="sectionTitleEn" 
+              placeholder="Ex.: Our Philosophy"
+              class="colored-text-input font-serif text-sm md:text-base font-medium"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloco 4: Corpo Principal / Manifesto -->
+      <div class="editorial-field-box">
+        <div class="field-header">
+          <div class="flex items-center gap-2.5">
+            <span class="field-label">Corpo Editorial (Texto Completo)</span>
+            <span class="field-badge">{{ aboutForm.get('body')?.value ? 'Preenchido' : 'Vazio' }}</span>
+          </div>
+        </div>
+
+        <!-- Caixas de Texto Coloridas Delimitadas PT/EN -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <!-- Português -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-[10px] uppercase font-mono font-semibold text-[#4B584E]">Português (PT-BR)</label>
+              <button 
+                type="button" 
+                (click)="openGoogleTranslator(aboutForm.get('body')?.value || '')" 
+                class="px-2 py-0.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[9px] uppercase tracking-wider transition-colors cursor-pointer rounded-none"
+                title="Traduzir no Google Tradutor e copiar texto"
+              >
+                Traduzir ↗
+              </button>
+            </div>
+            <textarea 
+              id="field-pt-body"
+              rows="8"
+              formControlName="body" 
+              placeholder="Texto completo em Português..."
+              class="colored-text-input font-sans text-xs leading-relaxed resize-y"
+            ></textarea>
+          </div>
+
+          <!-- Inglês -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-1.5 mb-2">
+              <span class="text-[10px] uppercase font-mono tracking-widest text-[#C2A87E] font-bold">EN-US</span>
+              <div class="flex items-center gap-1.5">
+                <button 
+                  type="button" 
+                  (click)="openGoogleTranslator(aboutForm.get('body')?.value)"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-[#FBFBF9] hover:border-[#4B584E] text-[#222624] transition-colors rounded-none cursor-pointer flex items-center gap-1"
+                  title="Copia o corpo editorial em PT e abre o Google Tradutor"
+                >
+                  ↗ Google Tradutor
+                </button>
+                <button 
+                  type="button" 
+                  (click)="pasteToFormField('bodyEn')"
+                  class="px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border border-[#E8EBE8] bg-white hover:border-[#4B584E] text-[#5F6661] hover:text-[#222624] transition-colors rounded-none cursor-pointer"
+                  title="Cola o texto traduzido no campo em inglês"
+                >
+                  Colar Tradução
+                </button>
+              </div>
+            </div>
+            <textarea 
+              id="field-en-body"
+              rows="8"
+              formControlName="bodyEn" 
+              placeholder="Texto completo em Inglês..."
+              class="colored-text-input font-sans text-xs leading-relaxed resize-y"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Barra Inferior de Apoio ao Final da Página -->
+      <div class="flex justify-end pt-6 border-t border-[#E8EBE8]">
+        <button 
+          type="button" 
+          (click)="saveAllChanges()" 
+          [disabled]="isSaving"
+          class="px-6 py-2.5 bg-[#4B584E] hover:bg-[#38433B] text-white text-xs uppercase tracking-[0.2em] font-sans disabled:opacity-50 transition-all cursor-pointer rounded-none"
+        >
+          <span *ngIf="!isSaving">Salvar Alterações da Página</span>
+          <span *ngIf="isSaving">Salvando Alterações...</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- PAINEL: CONFIGURAÇÕES DO FORM. DE QUERO DE MODELO (FAQ BILÍNGUE) -->
+    <div *ngIf="activeSection === 'SCOUTING'" class="space-y-6">
+
+      <!-- Barra de Ações Superior da Lista -->
+      <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-4">
+        <div>
+          <h3 class="text-xs font-serif uppercase tracking-wider text-[#222624]">Orientações & Dúvidas Frequentes</h3>
+          <p class="text-[11px] text-[#5F6661] mt-0.5">Gerencie os conjuntos de perguntas e respostas exibidos no topo do formulário /apply.</p>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <span class="text-xs font-mono text-[#5F6661]">
+            {{ faqList.length }}/10 Itens
+          </span>
+          <button 
+            type="button" 
+            (click)="addFaqItem()" 
+            [disabled]="faqList.length >= 10"
+            class="px-3.5 py-1.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            + Adicionar Pergunta
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista de Conjuntos Editáveis -->
+      <div class="space-y-4">
+        <div 
+          *ngFor="let item of faqList; let i = index" 
+          class="bg-white border border-[#E8EBE8] p-5 shadow-xs space-y-4 relative"
+        >
+          <!-- Cabeçalho do Card com Ordenação e Exclusão -->
+          <div class="flex items-center justify-between border-b border-[#E8EBE8] pb-2.5">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-mono font-medium text-[#222624]">#0{{ i + 1 }}</span>
+              <button 
+                type="button" 
+                (click)="openGoogleTranslator(item.question + '\n\n' + item.answer)"
+                class="text-[10px] uppercase font-mono tracking-wider text-[#5F6661] hover:text-[#4B584E] underline cursor-pointer"
+                title="Copia e abre pergunta e resposta no Google Tradutor"
+              >
+                ↗ Traduzir Pergunta & Resposta no Google
+              </button>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <!-- Subir -->
+              <button 
+                type="button" 
+                (click)="moveFaqUp(i)" 
+                [disabled]="i === 0" 
+                class="px-2 py-1 bg-[#FBFBF9] border border-[#E8EBE8] text-[#222624] text-[10px] disabled:opacity-30 cursor-pointer"
+                title="Subir Ordem"
+              >
+                ↑
+              </button>
+              <!-- Descer -->
+              <button 
+                type="button" 
+                (click)="moveFaqDown(i)" 
+                [disabled]="i === faqList.length - 1" 
+                class="px-2 py-1 bg-[#FBFBF9] border border-[#E8EBE8] text-[#222624] text-[10px] disabled:opacity-30 cursor-pointer"
+                title="Descer Ordem"
+              >
+                ↓
+              </button>
+              <!-- Remover -->
+              <button 
+                type="button" 
+                (click)="removeFaqItem(i)" 
+                class="ml-2 text-xs uppercase tracking-wider text-red-600 hover:text-red-800 transition-colors cursor-pointer"
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+
+          <!-- Campos Bilíngues Lado a Lado -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+            <!-- Coluna PT-BR -->
+            <div class="space-y-3">
+              <span class="text-[9px] uppercase font-mono tracking-widest text-[#4B584E] font-bold block">PT-BR</span>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-[10px] uppercase font-sans tracking-wider text-[#5F6661]">Pergunta</label>
+                  <button 
+                    type="button" 
+                    (click)="openGoogleTranslator(item.question)" 
+                    class="px-1.5 py-0.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[8px] uppercase tracking-wider transition-colors cursor-pointer rounded-none"
+                    title="Traduzir pergunta no Google Tradutor e copiar"
+                  >
+                    Traduzir ↗
+                  </button>
+                </div>
+                <input 
+                  type="text" 
+                  [(ngModel)]="item.question" 
+                  placeholder="Digite a pergunta em Português..."
+                  class="w-full px-3 py-2 bg-[#FBFBF9] border border-[#E8EBE8] text-xs text-[#222624] focus:outline-none focus:border-[#4B584E] rounded-none"
+                />
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-[10px] uppercase font-sans tracking-wider text-[#5F6661]">Resposta</label>
+                  <button 
+                    type="button" 
+                    (click)="openGoogleTranslator(item.answer)" 
+                    class="px-1.5 py-0.5 border border-[#4B584E] text-[#4B584E] hover:bg-[#4B584E] hover:text-white text-[8px] uppercase tracking-wider transition-colors cursor-pointer rounded-none"
+                    title="Traduzir resposta no Google Tradutor e copiar"
+                  >
+                    Traduzir ↗
+                  </button>
+                </div>
+                <textarea 
+                  rows="4" 
+                  [(ngModel)]="item.answer" 
+                  placeholder="Digite a resposta em Português..."
+                  class="w-full p-2.5 bg-[#FBFBF9] border border-[#E8EBE8] text-xs leading-relaxed text-[#222624] focus:outline-none focus:border-[#4B584E] rounded-none font-sans whitespace-pre-line"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Coluna EN-US -->
+            <div class="space-y-3">
+              <span class="text-[9px] uppercase font-mono tracking-widest text-[#C2A87E] font-bold block">EN-US</span>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-[10px] uppercase font-mono text-[#C2A87E]">Pergunta (EN)</label>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" (click)="openGoogleTranslator(item.question)" class="text-[10px] font-mono text-[#5F6661] hover:text-[#4B584E] underline cursor-pointer" title="Copia a pergunta em PT e abre o Google Tradutor">↗ Google Tradutor</button>
+                    <button type="button" (click)="pasteToFaq(item, 'questionEn')" class="text-[10px] font-mono text-[#5F6661] hover:text-[#4B584E] underline cursor-pointer" title="Cola a tradução no campo de pergunta em inglês">Colar</button>
+                  </div>
+                </div>
+                <input 
+                  type="text" 
+                  [(ngModel)]="item.questionEn" 
+                  placeholder="Enter the question in English..."
+                  class="w-full px-3 py-2 bg-[#FBFBF9] border border-[#E8EBE8] text-xs text-[#222624] focus:outline-none focus:border-[#4B584E] rounded-none"
+                />
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-[10px] uppercase font-mono text-[#C2A87E]">Resposta (EN)</label>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" (click)="openGoogleTranslator(item.answer)" class="text-[10px] font-mono text-[#5F6661] hover:text-[#4B584E] underline cursor-pointer" title="Copia a resposta em PT e abre o Google Tradutor">↗ Google Tradutor</button>
+                    <button type="button" (click)="pasteToFaq(item, 'answerEn')" class="text-[10px] font-mono text-[#5F6661] hover:text-[#4B584E] underline cursor-pointer" title="Cola a tradução no campo de resposta em inglês">Colar</button>
+                  </div>
+                </div>
+                <textarea 
+                  rows="4" 
+                  [(ngModel)]="item.answerEn" 
+                  placeholder="Enter the answer in English..."
+                  class="w-full p-2.5 bg-[#FBFBF9] border border-[#E8EBE8] text-xs leading-relaxed text-[#222624] focus:outline-none focus:border-[#4B584E] rounded-none font-sans whitespace-pre-line"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra Inferior de Apoio ao Final da Página -->
+      <div class="flex justify-end pt-6 border-t border-[#E8EBE8]">
+        <button 
+          type="button" 
+          (click)="saveAllChanges()" 
+          [disabled]="isSaving"
+          class="px-6 py-2.5 bg-[#4B584E] hover:bg-[#38433B] text-white text-xs uppercase tracking-[0.2em] font-sans disabled:opacity-50 transition-all cursor-pointer rounded-none"
+        >
+          <span *ngIf="!isSaving">Salvar Alterações da Página</span>
+          <span *ngIf="isSaving">Salvando Alterações...</span>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</div>

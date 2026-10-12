@@ -1,0 +1,194 @@
+<footer class="w-full bg-[#FFFFFF] border-t border-[#E8EBE8] text-[#222624] select-none rounded-none">
+  <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-16 pb-12">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-16 items-start">
+      
+      <!-- COLUNA 1: LOGOTIPO CENTRALIZADO VERTICAL E HORIZONTALMENTE (5 Colunas) -->
+      <div class="md:col-span-5 self-stretch flex items-center justify-center py-4">
+        <a routerLink="/" class="inline-flex items-center justify-center group">
+          <img 
+            src="assets/images/logo-wb-agency.jpeg" 
+            alt="WB Agency" 
+            class="h-28 sm:h-32 md:h-36 lg:h-40 w-auto max-w-full object-contain transition-opacity group-hover:opacity-85"
+          />
+        </a>
+      </div>
+
+      <!-- COLUNA 2: NAVEGAÇÃO REESTRUTURADA (4 Colunas) -->
+      <div class="md:col-span-4 space-y-4">
+        <h4 class="text-xs font-sans uppercase tracking-[0.25em] text-[#222624] font-semibold border-b border-[#E8EBE8] pb-2">
+          {{ 'footer.navigation_title' | translate }}
+        </h4>
+        <ul class="space-y-2.5 text-xs tracking-wide text-[#5F6661]">
+          <li>
+            <a routerLink="/models" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'nav.models' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/sobre" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'footer.nav_about' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/contact" class="hover:text-[#4B584E] transition-colors block py-0.5">
+              {{ 'footer.nav_contact' | translate }}
+            </a>
+          </li>
+          <li>
+            <a routerLink="/apply" class="hover:text-[#4B584E] transition-colors block py-0.5 font-medium text-[#222624]">
+              {{ 'footer.nav_apply' | translate }}
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Coluna de Contato Real -->
+      <div class="md:col-span-3 space-y-4">
+        <h4 class="text-xs font-sans uppercase tracking-[0.25em] text-[#222624] font-semibold border-b border-[#E8EBE8] pb-2">
+          {{ 'footer.contact_title' | translate }}
+        </h4>
+        <ul class="space-y-2 text-xs text-[#5F6661] font-sans">
+          <!-- E-mail vindo do banco -->
+          <li *ngIf="contactData.primaryEmail">
+            <a [href]="'mailto:' + contactData.primaryEmail" class="hover:text-[#4B584E] transition-colors break-all">
+              {{ contactData.primaryEmail }}
+            </a>
+          </li>
+
+          <!-- WhatsApp vindo do banco -->
+          <li *ngIf="contactData.whatsapp">
+            <a 
+              [href]="getCleanWhatsAppUrl(contactData.whatsapp)" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="hover:text-[#4B584E] transition-colors"
+            >
+              WhatsApp: {{ contactData.whatsapp }}
+            </a>
+          </li>
+
+          <!-- Telefone fixo vindo do banco (se houver e for diferente do WhatsApp) -->
+          <li *ngIf="contactData.phone && contactData.phone !== contactData.whatsapp">
+            <a [href]="'tel:' + contactData.phone" class="hover:text-[#4B584E] transition-colors">
+              Tel: {{ contactData.phone }}
+            </a>
+          </li>
+
+          <!-- Redes Sociais cadastradas no banco -->
+          <li *ngIf="contactData.socialMediaList && contactData.socialMediaList.length > 0" class="pt-1">
+            <span class="block text-[10px] uppercase tracking-[0.2em] text-[#222624] font-medium mb-1">
+              {{ 'footer.social_title' | translate }}
+            </span>
+          </li>
+          <li *ngFor="let social of contactData.socialMediaList">
+            <a 
+              [href]="social.url" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="hover:text-[#4B584E] transition-colors inline-flex items-center gap-1.5"
+              [attr.aria-label]="social.name || 'Instagram'"
+              [title]="social.name || 'Instagram'"
+            >
+              <ng-container *ngIf="isInstagram(social); else defaultSocialText">
+                <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current transition-transform duration-200 hover:scale-110" aria-hidden="true">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </ng-container>
+              <ng-template #defaultSocialText>
+                {{ social.name }}
+              </ng-template>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- SUB-FOOTER: LINHA DIVISÓRIA E COPYRIGHT -->
+    <div class="border-t border-[#E8EBE8] mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#5F6661] tracking-wide">
+      <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+        <p>
+          &copy; {{ currentYear }} WB Agency. {{ 'footer.rights_reserved' | translate }}
+        </p>
+        <span class="hidden sm:inline text-[#D0D4D0]">&bull;</span>
+        <p class="credits">
+          <a 
+            href="https://www.rvivacguild.com.br" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="credits-link hover:text-[#4B584E] transition-colors"
+          >
+            {{ 'footer.credits' | translate }}
+          </a>
+        </p>
+      </div>
+      <div class="flex items-center gap-6 text-[10px] uppercase tracking-[0.15em]">
+        <button 
+          type="button" 
+          (click)="openInstitutionalModal('TERMS')" 
+          class="hover:text-[#4B584E] transition-colors cursor-pointer bg-transparent border-0 p-0 text-[10px] uppercase tracking-[0.15em]"
+        >
+          {{ 'footer.terms_of_use' | translate }}
+        </button>
+        <span>&bull;</span>
+        <button 
+          type="button" 
+          (click)="openInstitutionalModal('PRIVACY')" 
+          class="hover:text-[#4B584E] transition-colors cursor-pointer bg-transparent border-0 p-0 text-[10px] uppercase tracking-[0.15em]"
+        >
+          {{ 'footer.privacy_policy' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL HARMÔNICO EDITORIAL (LIGHT MINIMALIST / DEEP SAGE) -->
+  <div 
+    *ngIf="isModalOpen()" 
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-xs select-none"
+    (click)="closeModal()"
+  >
+    <div 
+      class="w-full max-w-3xl max-h-[85vh] bg-[#FFFFFF] border border-[#E8EBE8] shadow-2xl flex flex-col rounded-none animate-fade-in"
+      (click)="$event.stopPropagation()"
+    >
+      
+      <!-- Cabeçalho do Modal -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-[#E8EBE8]">
+        <h3 class="text-xs font-serif uppercase tracking-[0.25em] text-[#222624] font-semibold">
+          {{ modalTitle() }}
+        </h3>
+        <button 
+          type="button" 
+          (click)="closeModal()" 
+          class="text-xs uppercase tracking-wider text-[#5F6661] hover:text-[#222624] px-2 py-1 transition-colors cursor-pointer"
+          [attr.aria-label]="isCurrentLangEn() ? 'Close' : 'Fechar'"
+        >
+          ✕ {{ isCurrentLangEn() ? 'Close' : 'Fechar' }}
+        </button>
+      </div>
+
+      <!-- Conteúdo Textual com Rolagem Delicada -->
+      <div class="p-6 sm:p-8 overflow-y-auto text-xs leading-relaxed text-[#222624] font-sans whitespace-pre-line space-y-4">
+        <div *ngIf="isLoadingContent()" class="py-12 text-center text-[#5F6661] uppercase tracking-widest font-mono text-[11px]">
+          Carregando informações institucionais...
+        </div>
+        <div *ngIf="!isLoadingContent()">
+          {{ modalContent() }}
+        </div>
+      </div>
+
+      <!-- Rodapé do Modal -->
+      <div class="px-6 py-3 border-t border-[#E8EBE8] bg-[#FBFBF9] flex justify-end">
+        <button 
+          type="button" 
+          (click)="closeModal()" 
+          class="px-5 py-2 bg-[#4B584E] hover:bg-[#38433B] text-white text-[10px] uppercase tracking-[0.2em] font-sans rounded-none transition-colors cursor-pointer"
+        >
+          Entendido
+        </button>
+      </div>
+
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,147 @@
+# ============================================================
+# PROFILE PROD - Render + Supabase PostgreSQL via PgBouncer
+# ============================================================
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api/v1
+  forward-headers-strategy: native
+
+spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 15MB
+      max-request-size: 50MB
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
+      - org.springframework.boot.autoconfigure.mail.MailSenderValidatorAutoConfiguration
+
+  datasource:
+    # Pooler Supabase IPv4 (aws-0-sa-east-1.pooler.supabase.com:6543) com Transaction Mode
+    url: "${DB_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0}}"
+    username: "${DB_USER:${SPRING_DATASOURCE_USERNAME:postgres.stmytwsdlonpnirqiufq}}"
+    password: "${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}"
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: WbScoutingHikariPool
+      minimum-idle: 2
+      maximum-pool-size: 5
+      idle-timeout: 300000       # 5 minutos
+      max-lifetime: 600000       # 10 minutos (compatível com PgBouncer)
+      connection-timeout: 20000  # 20 segundos
+      keepalive-time: 60000      # 1 minuto (mantém a conexão viva sem handshake TLS do zero)
+      initialization-fail-timeout: 10000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # PROD: ddl-auto padronizado como 'none' para evitar travamento por SchemaManagementException
+      ddl-auto: ${HIBERNATE_DDL_AUTO:none}
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: America/Sao_Paulo
+          lob:
+            non_contextual_creation: true
+    defer-datasource-initialization: false
+
+  sql:
+    init:
+      mode: never
+
+  h2:
+    console:
+      enabled: false
+
+  data:
+    web:
+      pageable:
+        max-page-size: 50
+        default-page-size: 20
+
+  mail:
+    host: "${SPRING_MAIL_HOST:smtp.hostinger.com}"
+    port: ${SPRING_MAIL_PORT:587}
+    username: "${SPRING_MAIL_USERNAME:}"
+    password: "${SPRING_MAIL_PASSWORD:}"
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+
+app:
+  security:
+    jwt:
+      secret: "${JWT_SECRET}"
+      expiration-ms: ${JWT_EXPIRATION_MS:28800000}
+    admin-webmaster:
+      name: "${APP_SECURITY_ADMIN_WEBMASTER_NAME:Webmaster WB Agency}"
+      email: "${APP_SECURITY_ADMIN_WEBMASTER_EMAIL}"
+      password: "${APP_SECURITY_ADMIN_WEBMASTER_PASSWORD:}"
+      role: WEBMASTER
+      must-change-password: "${APP_SECURITY_ADMIN_WEBMASTER_MUST_CHANGE_PASSWORD:true}"
+    admin-info:
+      name: "${APP_SECURITY_ADMIN_INFO_NAME:Administrativo WB Agency}"
+      email: "${APP_SECURITY_ADMIN_INFO_EMAIL:info@wbagency.com.br}"
+      password: "${APP_SECURITY_ADMIN_INFO_PASSWORD:}"
+      role: ADMIN
+      must-change-password: "${APP_SECURITY_ADMIN_INFO_MUST_CHANGE_PASSWORD:true}"
+    initial-admin:
+      email: "${APP_SECURITY_INITIAL_ADMIN_EMAIL:webmaster@wbagency.com.br}"
+      password: "${APP_SECURITY_INITIAL_ADMIN_PASSWORD:}"
+      name: "${APP_SECURITY_INITIAL_ADMIN_NAME:Webmaster WB Agency}"
+  cors:
+    allowed-origins: "${CORS_ALLOWED_ORIGINS:${APP_CORS_ALLOWED_ORIGINS:https://wbagency.com.br,https://www.wbagency.com.br}}"
+    allowed-methods: "${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}"
+    allowed-headers: "${CORS_ALLOWED_HEADERS:*}"
+    allow-credentials: true
+    max-age: 3600
+  mail:
+    from-address: "${APP_MAIL_FROM_ADDRESS:no-reply@wbagency.com.br}"
+    from-name: "${APP_MAIL_FROM_NAME:WB Agency}"
+    agency-notification-email: "${APP_MAIL_AGENCY_NOTIFICATION:info@wbagency.com.br}"
+    reset-password-base-url: "${APP_MAIL_RESET_BASE_URL:https://wbagency.com.br/admin/reset-password}"
+
+supabase:
+  url: "${SUPABASE_URL:https://dummy-project.supabase.co}"
+  key: "${SUPABASE_KEY:${SUPABASE_SERVICE_ROLE_KEY:dummy-key}}"
+  service-role-key: "${SUPABASE_SERVICE_ROLE_KEY:dummy-key}"
+  anon-key: "${SUPABASE_ANON_KEY:dummy-key}"
+  storage:
+    local-fallback: ${SUPABASE_STORAGE_LOCAL_FALLBACK:false}
+    local-dir: ${SUPABASE_STORAGE_LOCAL_DIR:uploads-local}
+
+logging:
+  level:
+    com.wbscouting.api: INFO
+    org.hibernate.SQL: WARN
+    com.zaxxer.hikari: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      status:
+        order: DOWN, OUT_OF_SERVICE, UP, UNKNOWN
+  server:
+    port: ${PORT:8080}
+  info:
+    build:
+      enabled: true

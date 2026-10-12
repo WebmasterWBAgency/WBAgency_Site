@@ -1,0 +1,77 @@
+<header class="site-header" [class.scrolled]="isScrolled()">
+  <div class="container header-inner">
+    <!-- Brand Logo (Zona Esquerda) -->
+    <div class="header-brand">
+      <a routerLink="/" class="brand-logo flex items-center" (click)="closeMenu()" aria-label="WB Agency Home">
+        <img 
+          src="assets/images/logo-wb-agency.png" 
+          alt="WB Agency" 
+          width="765"
+          height="507"
+          class="brand-logo-img brand-logo-header h-12 w-auto object-contain"
+          style="height: 48px; max-height: 48px;"
+        >
+      </a>
+    </div>
+
+    <!-- Desktop Navigation (Zona Central: Centralizado como no Admin) -->
+    <nav class="desktop-nav">
+      <a routerLink="/models" routerLinkActive="active" class="nav-link">
+        {{ 'nav.models' | translate }}
+      </a>
+      <a routerLink="/sobre" routerLinkActive="active" class="nav-link">
+        {{ 'nav.about' | translate }}
+      </a>
+      <a routerLink="/contact" routerLinkActive="active" class="nav-link">
+        {{ 'nav.contact' | translate }}
+      </a>
+    </nav>
+
+    <!-- Header Actions (Zona Direita) -->
+    <div class="header-actions">
+      <!-- Desktop Actions -->
+      <div class="desktop-actions">
+        <app-language-selector></app-language-selector>
+
+        <a routerLink="/apply" class="btn btn-apply">
+          {{ 'nav.apply' | translate }}
+        </a>
+      </div>
+
+      <!-- Mobile Header Actions -->
+      <div class="mobile-header-actions">
+        <app-language-selector class="mobile-lang-top"></app-language-selector>
+        <button 
+          class="mobile-toggle" 
+          (click)="toggleMenu()" 
+          [attr.aria-expanded]="themeService.isMobileMenuOpen()"
+          aria-label="Menu principal">
+          <span class="bar" [class.open]="themeService.isMobileMenuOpen()"></span>
+          <span class="bar" [class.open]="themeService.isMobileMenuOpen()"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Overlay Menu -->
+  @if (themeService.isMobileMenuOpen()) {
+    <div class="mobile-menu" (click)="closeMenu()">
+      <nav class="mobile-nav" (click)="$event.stopPropagation()">
+        <a routerLink="/models" routerLinkActive="active" (click)="closeMenu()" class="mobile-link">
+          {{ 'nav.models' | translate }}
+        </a>
+        <a routerLink="/sobre" routerLinkActive="active" (click)="closeMenu()" class="mobile-link">
+          {{ 'nav.about' | translate }}
+        </a>
+        <a routerLink="/contact" routerLinkActive="active" (click)="closeMenu()" class="mobile-link">
+          {{ 'nav.contact' | translate }}
+        </a>
+        <div class="mobile-action">
+          <a routerLink="/apply" (click)="closeMenu()" class="btn btn-apply w-full text-center">
+            {{ 'nav.apply' | translate }}
+          </a>
+        </div>
+      </nav>
+    </div>
+  }
+</header>

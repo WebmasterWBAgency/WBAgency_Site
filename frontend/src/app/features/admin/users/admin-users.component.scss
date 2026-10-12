@@ -1,0 +1,80 @@
+// Estilos específicos para Gestão de Usuários (ADM-017)
+// Light Minimalist / Deep Sage #4B584E com acabamento estrito rounded-none
+
+:host {
+  display: block;
+}
+
+input, select, button {
+  border-radius: 0 !important;
+}
+
+// Tooltips Explicativos de Permissões nos Selos de Papel (ADM-017 / RBAC)
+.group-role {
+  position: relative;
+  display: inline-block;
+
+  &:hover .role-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+  }
+}
+
+.role-tooltip {
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+  pointer-events: none;
+  z-index: 50;
+  width: 17.5rem; // 280px
+  max-width: 90vw;
+  background-color: #222624;
+  color: #D4D4D4;
+  border: 1px solid #38433B;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  text-align: left;
+  border-radius: 0 !important;
+  padding: 0.75rem 0.875rem;
+
+  .tooltip-title {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.625rem; // 10px
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #C2A87E;
+    border-bottom: 1px solid #38433B;
+    padding-bottom: 0.375rem;
+    margin-bottom: 0.375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .tooltip-body {
+    font-family: var(--font-sans, sans-serif);
+    font-size: 0.6875rem; // 11px
+    line-height: 1.5;
+    color: #D4D4D4;
+    text-transform: none;
+    font-weight: 400;
+    white-space: normal;
+  }
+
+  .tooltip-arrow {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #222624;
+  }
+}
