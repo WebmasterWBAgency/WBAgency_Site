@@ -4,10 +4,12 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { TranslatePipe } from '../../../../../shared/pipes/translate.pipe';
+import { ModelStatusEnum } from '../../../../../shared/models/model.interface';
 
 export interface FilterChangeEvent {
   search: string;
   sort: string;
+  status?: ModelStatusEnum;
 }
 
 @Component({
@@ -18,6 +20,7 @@ export interface FilterChangeEvent {
   styleUrls: ['./model-filters.component.scss']
 })
 export class ModelFiltersComponent implements OnInit, OnDestroy {
+  readonly activeStatus = ModelStatusEnum.ACTIVE;
   readonly totalCount = input<number>(0);
   readonly initialSearch = input<string>('');
   readonly initialSort = input<string>('stageName,asc');
@@ -58,7 +61,8 @@ export class ModelFiltersComponent implements OnInit, OnDestroy {
       .subscribe((search) => {
         this.filterChange.emit({
           search: search.trim(),
-          sort: this.sortControl.value
+          sort: this.sortControl.value,
+          status: this.activeStatus
         });
       });
 
@@ -68,7 +72,8 @@ export class ModelFiltersComponent implements OnInit, OnDestroy {
       .subscribe((sort) => {
         this.filterChange.emit({
           search: this.searchControl.value.trim(),
-          sort
+          sort,
+          status: this.activeStatus
         });
       });
   }

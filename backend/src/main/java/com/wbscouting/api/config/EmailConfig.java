@@ -39,7 +39,7 @@ public class EmailConfig {
             @Value("${spring.mail.properties.mail.smtp.auth:true}") boolean smtpAuth,
             @Value("${spring.mail.properties.mail.smtp.starttls.enable:true}") boolean starttlsEnable,
             @Value("${spring.mail.properties.mail.smtp.starttls.required:true}") boolean starttlsRequired,
-            @Value("${spring.mail.properties.mail.smtp.connectiontimeout:10000}") int connTimeout,
+            @Value("${spring.mail.properties.mail.smtp.connectiontimeout:5000}") int connTimeout,
             @Value("${spring.mail.properties.mail.smtp.timeout:10000}") int readTimeout,
             @Value("${spring.mail.properties.mail.smtp.writetimeout:10000}") int writeTimeout
     ) {

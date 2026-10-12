@@ -167,7 +167,7 @@ public class ModelMediaServiceImpl implements ModelMediaService {
         log.info("Iniciando exclusão de mídia id='{}' do modelo id='{}'", mediaId, modelId);
 
         ModelMedia media = modelMediaRepository.findByIdAndModelId(mediaId, modelId)
-                .orElseThrow(() -> new ResourceNotFoundException("Mídia", "id", mediaId));
+                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o modelo especificado"));
 
         String bucket = supabaseProperties.resolveBucketModelsMedia();
         String filePath = media.getFilePath();
@@ -223,7 +223,7 @@ public class ModelMediaServiceImpl implements ModelMediaService {
 
         for (MediaOrderItemDto item : reorderDto.getItems()) {
             ModelMedia media = modelMediaRepository.findByIdAndModelId(item.getMediaId(), modelId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Mídia", "id", item.getMediaId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o modelo especificado"));
             media.setDisplayOrder(item.getDisplayOrder());
             modelMediaRepository.save(media);
         }
@@ -240,7 +240,7 @@ public class ModelMediaServiceImpl implements ModelMediaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Modelo", "id", modelId));
 
         ModelMedia targetMedia = modelMediaRepository.findByIdAndModelId(mediaId, modelId)
-                .orElseThrow(() -> new ResourceNotFoundException("Mídia", "id", mediaId));
+                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o modelo especificado"));
 
         if (targetMedia.getMediaType() != null && targetMedia.getMediaType() != MediaType.BOOK) {
             throw new IllegalArgumentException("Apenas mídias do tipo BOOK podem ser marcadas como capa.");

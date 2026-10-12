@@ -210,7 +210,8 @@ class CandidateSubmissionLifecycleE2ETest {
                         .file(profilePhoto)
                         .file(fullBodyPhoto))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(candidateId.toString()))
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.candidateId").doesNotExist())
                 .andExpect(jsonPath("$.protocol").value(protocol))
                 .andExpect(jsonPath("$.status").value("PENDING"));
 

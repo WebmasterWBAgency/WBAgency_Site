@@ -26,13 +26,16 @@ import static org.mockito.Mockito.*;
 @DisplayName("2.2. Teste de Rejeição de Token Forjado com o Segredo Antigo")
 class JwtForgedTokenRejectionTest {
 
-    // Segredo Oficial Ativo no Backend (HMAC-SHA256 256 bits) gerado dinamicamente para testes
-    private static final String ACTIVE_SECRET = java.util.Base64.getEncoder()
-            .encodeToString("active-secret-dummy-key-for-test-purposes-32b!".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    // Segredo Oficial Ativo no Backend (HMAC-SHA256 256 bits) gerado dinamicamente em memória
+    private static final String ACTIVE_SECRET = java.util.Base64.getEncoder().encodeToString(new byte[32]);
 
-    // Segredo Antigo / Revogado / Forjado por Atacante gerado dinamicamente para testes
-    private static final String OLD_OR_FORGED_SECRET = java.util.Base64.getEncoder()
-            .encodeToString("forged-secret-dummy-key-for-test-purposes-32b!".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    // Segredo Forjado gerado dinamicamente em memória
+    private static final String OLD_OR_FORGED_SECRET;
+    static {
+        byte[] forgedBytes = new byte[32];
+        java.util.Arrays.fill(forgedBytes, (byte) 1);
+        OLD_OR_FORGED_SECRET = java.util.Base64.getEncoder().encodeToString(forgedBytes);
+    }
 
     private static final long EXPIRATION_MS = 28800000L; // 8 horas
 

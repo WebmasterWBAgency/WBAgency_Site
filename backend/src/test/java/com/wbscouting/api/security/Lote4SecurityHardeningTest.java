@@ -119,4 +119,34 @@ class Lote4SecurityHardeningTest {
 
         assertThat(ImageSecuritySanitizer.detectImageFormat(webpBytes)).isEqualTo("webp");
     }
+
+    @Test
+    @DisplayName("ImageSanitizer: Decodifica e regrava JPEG descartando metadados e bytes extras")
+    void shouldSanitizeAndReencodeValidJpegAndStripTrailingBytes() throws IOException {
+        BufferedImage img = new BufferedImage(60, 60, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = img.createGraphics();
+        g.setColor(Color.RED);
+        g.fillRect(0, 0, 60, 60);
+        g.dispose();
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(img, "jpg", baos);
+
+        // Anexa bytes maliciosos ao final do JPEG (payload polyglot simulado)
+        baos.write("<!-- MALICIOUS_METADATA_EXIF_OR_PAYLOAD -->".getBytes());
+        byte[] dirtyJpegBytes = baos.toByteArray();
+
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", dirtyJpegBytes);
+
+        MultipartFile sanitized = ImageSecuritySanitizer.sanitizeAndReencode(file);
+
+        assertThat(sanitized).isNotNull();
+        assertThat(sanitized.getSize()).isGreaterThan(0);
+        assertThat(sanitized.getContentType()).isEqualTo("image/jpeg");
+        assertThat(ImageSecuritySanitizer.detectImageFormat(sanitized.getBytes())).isEqualTo("jpeg");
+
+        // O arquivo regravado não contém o payload de texto anexado
+        String sanitizedContent = new String(sanitized.getBytes());
+        assertThat(sanitizedContent).doesNotContain("MALICIOUS_METADATA_EXIF_OR_PAYLOAD");
+    }
 }

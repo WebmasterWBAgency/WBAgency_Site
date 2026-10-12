@@ -124,25 +124,25 @@ class EnvironmentConfigurationInitializationTest {
             }
         }
 
-        // Validação da linha de senha do banco de dados (deve ser ${DB_PASSWORD:} vazia, sem fallback com texto)
+        // Validação da linha de senha do banco de dados (deve ser ${DB_PASSWORD} estrita, sem fallback)
         String dbPasswordLine = lines.stream()
                 .filter(l -> l.contains("password:") && l.contains("DB_PASSWORD"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Linha de password do datasource com DB_PASSWORD não encontrada em application.yml"));
 
         assertThat(dbPasswordLine.trim())
-                .isEqualTo("password: ${DB_PASSWORD:}")
-                .as("A senha do banco de dados no application.yml deve usar '${DB_PASSWORD:}' sem fallback em texto plano");
+                .isEqualTo("password: ${DB_PASSWORD}")
+                .as("A senha do banco de dados no application.yml deve usar '${DB_PASSWORD}' sem fallback após ':-'");
 
-        // Validação da linha de segredo JWT (deve ser ${JWT_SECRET:} vazia, sem fallback com texto)
+        // Validação da linha de segredo JWT (deve ser ${JWT_SECRET} estrita, sem fallback)
         String jwtSecretLine = lines.stream()
                 .filter(l -> l.contains("secret:") && l.contains("JWT_SECRET"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Linha de secret JWT com JWT_SECRET não encontrada em application.yml"));
 
         assertThat(jwtSecretLine.trim())
-                .isEqualTo("secret: ${JWT_SECRET:d2Itc2NvdXRpbmctYWdlbmN5LXNlY3JldC1rZXktZm9yLWxvY2FsLWRldmVsb3BtZW50LW9ubHktMjU2Yml0cw==}")
-                .as("O segredo JWT no application.yml deve usar o fallback neutro local de 256 bits");
+                .isEqualTo("secret: ${JWT_SECRET}")
+                .as("O segredo JWT no application.yml deve usar '${JWT_SECRET}' estrito sem fallback após ':-'");
 
         // Validação de ausência absoluta de resíduos legados no application.yml
         for (String line : lines) {

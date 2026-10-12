@@ -21,7 +21,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0}
     username: ${DB_USER:postgres.stmytwsdlonpnirqiufq}
-    password: ${DB_PASSWORD:}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: WbScoutingHikariPool
@@ -65,14 +65,14 @@ spring:
           starttls:
             enable: ${SPRING_MAIL_STARTTLS_ENABLE:true}
             required: ${SPRING_MAIL_STARTTLS_REQUIRED:true}
-          connectiontimeout: ${SPRING_MAIL_CONNECTION_TIMEOUT:10000}
+          connectiontimeout: ${SPRING_MAIL_CONNECTION_TIMEOUT:5000}
           timeout: ${SPRING_MAIL_TIMEOUT:10000}
           writetimeout: ${SPRING_MAIL_WRITE_TIMEOUT:10000}
 
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:d2Itc2NvdXRpbmctYWdlbmN5LXNlY3JldC1rZXktZm9yLWxvY2FsLWRldmVsb3BtZW50LW9ubHktMjU2Yml0cw==}
+      secret: ${JWT_SECRET}
       expiration-ms: ${JWT_EXPIRATION_MS:28800000}
     admin-webmaster:
       name: ${APP_SECURITY_ADMIN_WEBMASTER_NAME:Webmaster WB Agency}
@@ -106,9 +106,9 @@ app:
 
 supabase:
   url: ${SUPABASE_URL:https://dummy-project.supabase.co}
-  key: ${SUPABASE_KEY:dummy-key}
-  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:dummy-key}
-  anon-key: ${SUPABASE_ANON_KEY:dummy-key}
+  key: ${SUPABASE_KEY:${SUPABASE_SERVICE_ROLE_KEY}}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
+  anon-key: ${SUPABASE_ANON_KEY}
   storage:
     local-fallback: ${SUPABASE_STORAGE_LOCAL_FALLBACK:false}
     local-dir: ${SUPABASE_STORAGE_LOCAL_DIR:uploads-local}

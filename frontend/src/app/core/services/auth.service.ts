@@ -1,7 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, of, tap, catchError, throwError, delay, finalize } from 'rxjs';
+import { Observable, of, tap, catchError, throwError, delay, finalize, Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   AdminUser,
@@ -30,6 +30,9 @@ export class AuthService {
   // Chaves de compatibilidade legada
   private readonly LEGACY_TOKEN_KEY = 'wb_scouting_token';
   private readonly LEGACY_USER_KEY = 'wb_scouting_user';
+
+  // Subscriptions ativas para cancelamento seguro no logout
+  private readonly activeSubscriptions = new Subscription();
 
   // Gerenciamento de estado reativo com Signals do Angular 18+
   private readonly currentUserSignal = signal<AdminUser | null>(this.getStoredUser());
@@ -94,17 +97,21 @@ export class AuthService {
   }
 
   /**
-   * Executa Hard Logout destruindo credenciais no cliente e notificando o servidor.
+   * Encerra a sessão administrativa executando rotina de Hard Logout defensivo:
    * - Limpeza estrita de localStorage e sessionStorage
+   * - Cancelamento de subscriptions ativas de dados
    * - Limpeza de todos os cookies acessíveis
    * - Redefinição reativa de sinais de usuário
-   * - Redirecionamento substituindo histórico (replaceUrl: true)
-   * - Recarregamento do contexto para forçar garbage collection
+   * - Força o redirecionamento com substituição de histórico:
+   *   this.router.navigate(['/admin/login'], { replaceUrl: true });
    */
-  secureLogout(): void {
+  logout(): void {
     const token = this.getToken();
 
-    // 1. Limpeza estrita de Storage local e de sessão
+    // 1. Cancela subscriptions ativas de dados
+    this.activeSubscriptions.unsubscribe();
+
+    // 2. Limpeza estrita de Storage local e de sessão
     try {
       localStorage.clear();
       sessionStorage.clear();
@@ -112,7 +119,7 @@ export class AuthService {
       // Ignora caso storage esteja indisponível
     }
 
-    // 2. Limpeza de cookies acessíveis
+    // 3. Limpeza de cookies acessíveis
     if (typeof document !== 'undefined' && document.cookie) {
       document.cookie.split(';').forEach((c) => {
         document.cookie = c
@@ -121,18 +128,14 @@ export class AuthService {
       });
     }
 
-    // 3. Zera estados reativos em memória
+    // 4. Zera estados reativos em memória
     this.currentUserSignal.set(null);
     this.mustChangePassword.set(false);
 
-    // 4. Redireciona no SPA para /admin/login SOMENTE se não for a página inicial pública ('/')
-    // Se o usuário estiver na Home pública ('/'), limpa as credenciais silenciosamente sem ejetar o visitante
-    const isPublicHome = typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '');
-    if (!isPublicHome) {
-      this.router.navigate(['/admin/login'], { replaceUrl: true });
-    }
+    // 5. Força redirecionamento com substituição de histórico
+    this.router.navigate(['/admin/login'], { replaceUrl: true });
 
-    // 5. Notifica o backend em segundo plano caso haja token (sem travar a interface)
+    // 6. Notifica o backend em segundo plano caso haja token (sem travar a interface)
     if (token) {
       this.http
         .post(
@@ -151,10 +154,10 @@ export class AuthService {
   }
 
   /**
-   * Encerra a sessão administrativa executando rotina de Hard Logout defensivo.
+   * Executa Hard Logout defensivo (alias para logout).
    */
-  logout(): void {
-    this.secureLogout();
+  secureLogout(): void {
+    this.logout();
   }
 
   /**

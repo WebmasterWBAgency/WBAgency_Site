@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ModelFiltersComponent } from './model-filters.component';
 import { TranslationService } from '../../../../../core/services/translation.service';
+import { ModelStatusEnum } from '../../../../../shared/models/model.interface';
 
 describe('ModelFiltersComponent', () => {
   let component: ModelFiltersComponent;
@@ -27,6 +28,7 @@ describe('ModelFiltersComponent', () => {
     expect(component).toBeTruthy();
     expect(component.searchControl.value).toBe('');
     expect(component.sortControl.value).toBe('stageName,asc');
+    expect(component.activeStatus).toBe(ModelStatusEnum.ACTIVE);
   });
 
   it('should emit filterChange after 300ms debounce when search changes', fakeAsync(() => {
@@ -44,7 +46,8 @@ describe('ModelFiltersComponent', () => {
     tick(160);
     expect(emittedEvent).toEqual({
       search: 'Isabella',
-      sort: 'stageName,asc'
+      sort: 'stageName,asc',
+      status: ModelStatusEnum.ACTIVE
     });
   }));
 
@@ -57,7 +60,8 @@ describe('ModelFiltersComponent', () => {
     component.sortControl.setValue('createdAt,desc');
     expect(emittedEvent).toEqual({
       search: '',
-      sort: 'createdAt,desc'
+      sort: 'createdAt,desc',
+      status: ModelStatusEnum.ACTIVE
     });
   });
 

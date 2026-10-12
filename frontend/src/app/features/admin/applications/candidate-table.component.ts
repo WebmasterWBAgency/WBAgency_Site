@@ -7,6 +7,7 @@ import { Subject, debounceTime, distinctUntilChanged, catchError, of } from 'rxj
 import { environment } from '../../../../environments/environment';
 import { fixUtf8, sanitizeCandidateName } from '../../../core/utils/text-sanitizer.util';
 import { extractList } from '../../../core/utils/response-extractor.util';
+import { CandidateStatusEnum } from '../../../shared/models/candidate.model';
 
 export interface CandidateApplicationRow {
   id: string;
@@ -23,7 +24,7 @@ export interface CandidateApplicationRow {
   waist: number;
   hips: number;
   shoes: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DECLINED' | 'ARCHIVED';
+  status: CandidateStatusEnum;
   hasPhotos: boolean;
   polaroidsCount: number;
   coverPhoto?: string;
@@ -51,11 +52,13 @@ export class CandidateTableComponent implements OnInit {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly searchSubject = new Subject<string>();
 
+  readonly CandidateStatusEnum = CandidateStatusEnum;
+
   applications: CandidateApplicationRow[] = [];
   isLoading = false;
 
   // Parâmetros de Filtro e Paginação
-  selectedStatus = 'PENDING';
+  selectedStatus: CandidateStatusEnum | string = CandidateStatusEnum.PENDING;
   selectedMinor = '';
   searchQuery = '';
   pendingCount = 0;
@@ -199,7 +202,7 @@ export class CandidateTableComponent implements OnInit {
     this.searchSubject.next(term);
   }
 
-  setStatusFilter(status: string): void {
+  setStatusFilter(status: CandidateStatusEnum | string): void {
     this.selectedStatus = status;
     this.pageIndex = 0;
     this.loadApplications();
@@ -251,9 +254,9 @@ export class CandidateTableComponent implements OnInit {
         }
 
         // Se na aba Arquivo Morto o endpoint /admin/applications retornar vazio, consulta fallback /admin/candidates
-        if (this.selectedStatus === 'ARCHIVED' && rawItems.length === 0) {
+        if (this.selectedStatus === CandidateStatusEnum.ARCHIVED && rawItems.length === 0) {
           let fbParams = new HttpParams()
-            .set('status', 'ARCHIVED')
+            .set('status', CandidateStatusEnum.ARCHIVED)
             .set('page', String(this.pageIndex))
             .set('size', String(this.pageSize));
           if (this.searchQuery) fbParams = fbParams.set('search', this.searchQuery);
@@ -277,9 +280,9 @@ export class CandidateTableComponent implements OnInit {
         this.renderApplications(rawItems);
       },
       error: (err) => {
-        if (this.selectedStatus === 'ARCHIVED') {
+        if (this.selectedStatus === CandidateStatusEnum.ARCHIVED) {
           let fbParams = new HttpParams()
-            .set('status', 'ARCHIVED')
+            .set('status', CandidateStatusEnum.ARCHIVED)
             .set('page', String(this.pageIndex))
             .set('size', String(this.pageSize));
           if (this.searchQuery) fbParams = fbParams.set('search', this.searchQuery);
@@ -306,9 +309,9 @@ export class CandidateTableComponent implements OnInit {
   }
 
   renderApplications(rawItems: any[]): void {
-    const isArchivedTab = this.selectedStatus === 'ARCHIVED';
+    const isArchivedTab = this.selectedStatus === CandidateStatusEnum.ARCHIVED;
     // Filtro estrito: apenas status PROMOTED não é exibido no Scouting Desk
-    const items = rawItems.filter((item: any) => item.status !== 'PROMOTED');
+    const items = rawItems.filter((item: any) => item.status !== CandidateStatusEnum.PROMOTED);
 
     this.applications = items.map((item: any) => {
       const directCover = this.getCoverPhoto(item);
@@ -319,8 +322,10 @@ export class CandidateTableComponent implements OnInit {
         if (fallback) finalCover = this._resolveCandidatePhotoUrl(fallback) || fallback;
       }
 
-      const isArchived = isArchivedTab || item.status === 'ARCHIVED' || !!item.archivedAt;
-      const normalizedStatus = isArchived ? 'ARCHIVED' : (item.status === 'DECLINED' ? 'REJECTED' : item.status);
+      const isArchived = isArchivedTab || item.status === CandidateStatusEnum.ARCHIVED || !!item.archivedAt;
+      const normalizedStatus: CandidateStatusEnum = isArchived 
+        ? CandidateStatusEnum.ARCHIVED 
+        : (item.status === CandidateStatusEnum.DECLINED ? CandidateStatusEnum.REJECTED : (item.status as CandidateStatusEnum));
 
       return {
         ...item,
@@ -407,7 +412,7 @@ export class CandidateTableComponent implements OnInit {
     this.router.navigate(['/admin/candidaturas', candidateId]);
   }
 
-  updateStatus(candidate: CandidateApplicationRow, newStatus: 'APPROVED' | 'REJECTED' | 'PENDING', event?: Event): void {
+  updateStatus(candidate: CandidateApplicationRow, newStatus: CandidateStatusEnum, event?: Event): void {
     if (event) event.stopPropagation();
     if (!candidate || this.updatingStatusId) return;
 
@@ -424,10 +429,10 @@ export class CandidateTableComponent implements OnInit {
     ).subscribe({
       next: () => {
         this.updatingStatusId = null;
-        const labelMap: Record<string, string> = {
-          'APPROVED': 'Aprovada',
-          'REJECTED': 'Declinada',
-          'PENDING': 'Pendente'
+        const labelMap: Partial<Record<CandidateStatusEnum, string>> = {
+          [CandidateStatusEnum.APPROVED]: 'Aprovada',
+          [CandidateStatusEnum.REJECTED]: 'Declinada',
+          [CandidateStatusEnum.PENDING]: 'Pendente'
         };
         this.showFeedback(`Status de "${candidate.fullName}" atualizado para ${labelMap[newStatus] || newStatus} com sucesso no banco de dados.`);
         this.loadApplications();
@@ -441,7 +446,7 @@ export class CandidateTableComponent implements OnInit {
     });
   }
 
-  updateCandidateStatus(candidate: CandidateApplicationRow, newStatus: 'APPROVED' | 'REJECTED' | 'PENDING', event?: Event): void {
+  updateCandidateStatus(candidate: CandidateApplicationRow, newStatus: CandidateStatusEnum, event?: Event): void {
     this.updateStatus(candidate, newStatus, event);
   }
 
@@ -563,7 +568,7 @@ export class CandidateTableComponent implements OnInit {
 
   // Métodos retrocompatíveis
   confirmDelete(candidate: CandidateApplicationRow, event?: Event): void {
-    if (this.selectedStatus === 'ARCHIVED') {
+    if (this.selectedStatus === CandidateStatusEnum.ARCHIVED) {
       this.confirmPermanentDelete(candidate, event);
     } else {
       this.confirmMoveToArchive(candidate, event);

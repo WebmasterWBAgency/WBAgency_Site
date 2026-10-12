@@ -74,7 +74,7 @@ public class AuditLogAspect {
                 }
             }
 
-            Map<String, Object> details = buildDetailsMap(joinPoint, result);
+            Map<String, Object> details = buildDetailsMap(joinPoint);
 
             // 4. Gravação assíncrona não-bloqueante
             auditLogService.recordLogAsync(
@@ -139,7 +139,7 @@ public class AuditLogAspect {
         return null;
     }
 
-    private Map<String, Object> buildDetailsMap(JoinPoint joinPoint, Object result) {
+    private Map<String, Object> buildDetailsMap(JoinPoint joinPoint) {
         Map<String, Object> details = new HashMap<>();
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         details.put("method", signature.getDeclaringType().getSimpleName() + "." + signature.getName());

@@ -20,8 +20,8 @@ public class StorageConfig {
     @Bean
     public RestClient supabaseStorageRestClient() {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(15));
-        requestFactory.setReadTimeout(Duration.ofSeconds(60));
+        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
 
         String baseUrl = supabaseProperties.getUrl();
         if (baseUrl != null && baseUrl.endsWith("/")) {

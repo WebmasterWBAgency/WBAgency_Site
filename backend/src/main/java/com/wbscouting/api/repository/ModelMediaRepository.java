@@ -20,7 +20,9 @@ public interface ModelMediaRepository extends JpaRepository<ModelMedia, UUID> {
 
     List<ModelMedia> findAllByModelIdAndIsCoverTrue(UUID modelId);
 
-    Optional<ModelMedia> findByIdAndModelId(UUID mediaId, UUID modelId);
+    Optional<ModelMedia> findByIdAndModelId(UUID id, UUID modelId);
+
+    void deleteByIdAndModelId(UUID id, UUID modelId);
 
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) + 1 FROM ModelMedia m WHERE m.model.id = :modelId AND m.mediaType = :mediaType")
     Integer findNextDisplayOrder(@Param("modelId") UUID modelId, @Param("mediaType") MediaType mediaType);

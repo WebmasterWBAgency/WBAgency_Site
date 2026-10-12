@@ -12,6 +12,7 @@ import com.wbscouting.api.repository.ModelMediaRepository;
 import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.storage.StorageService;
 import com.wbscouting.api.exception.BusinessException;
+import com.wbscouting.api.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -407,5 +408,48 @@ class ModelMediaServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.getId()).isEqualTo(mediaId);
         assertThat(response.getFileUrl()).startsWith("https://supabase.co/book_uhd.png");
+    }
+
+    @Test
+    @DisplayName("deleteMedia - IDOR: Deve lançar ResourceNotFoundException quando a mídia não pertencer ao modelo")
+    void deleteMedia_WhenMediaBelongsToDifferentModel_ThrowsResourceNotFoundException() {
+        when(modelMediaRepository.findByIdAndModelId(mediaId, modelId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> modelMediaService.deleteMedia(modelId, mediaId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Mídia não encontrada para o modelo especificado");
+
+        verify(storageService, never()).deleteFile(any(), any());
+        verify(modelMediaRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("setCoverMedia - IDOR: Deve lançar ResourceNotFoundException quando a mídia não pertencer ao modelo")
+    void setCoverMedia_WhenMediaBelongsToDifferentModel_ThrowsResourceNotFoundException() {
+        when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+        when(modelMediaRepository.findByIdAndModelId(mediaId, modelId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> modelMediaService.setCoverMedia(modelId, mediaId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Mídia não encontrada para o modelo especificado");
+
+        verify(modelMediaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("reorderMedia - IDOR: Deve lançar ResourceNotFoundException quando item não pertencer ao modelo")
+    void reorderMedia_WhenMediaBelongsToDifferentModel_ThrowsResourceNotFoundException() {
+        MediaReorderRequestDto request = MediaReorderRequestDto.builder()
+                .items(List.of(MediaOrderItemDto.builder().mediaId(mediaId).displayOrder(1).build()))
+                .build();
+
+        when(modelRepository.existsById(modelId)).thenReturn(true);
+        when(modelMediaRepository.findByIdAndModelId(mediaId, modelId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> modelMediaService.reorderMedia(modelId, request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Mídia não encontrada para o modelo especificado");
+
+        verify(modelMediaRepository, never()).save(any());
     }
 }

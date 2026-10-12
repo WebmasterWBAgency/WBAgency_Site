@@ -115,7 +115,8 @@ class CandidatePublicControllerTest {
                         .file(profilePhoto)
                         .file(fullBodyPhoto))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(generatedId.toString()))
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.candidateId").doesNotExist())
                 .andExpect(jsonPath("$.protocol").value("WB-20260920-A1B2C3"))
                 .andExpect(jsonPath("$.status").value("PENDING"));
     }

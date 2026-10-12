@@ -50,17 +50,34 @@ public class LocalStorageController {
             return ResponseEntity.notFound().build();
         }
 
-        String baseDir = (supabaseProperties.getStorage() != null && StringUtils.hasText(supabaseProperties.getStorage().getLocalDir()))
+        String baseDirStr = (supabaseProperties.getStorage() != null && StringUtils.hasText(supabaseProperties.getStorage().getLocalDir()))
                 ? supabaseProperties.getStorage().getLocalDir()
                 : "uploads";
 
-        Path baseFolder = Paths.get(baseDir, bucket).toAbsolutePath().normalize();
+        Path baseDir = Paths.get(baseDirStr).toAbsolutePath().normalize();
+        Path baseFolder = baseDir.resolve(bucket).normalize();
         Path targetFile = baseFolder.resolve(relativePath).normalize();
 
-        // Proteção contra Directory Traversal (CWE-22)
-        if (!targetFile.startsWith(baseFolder)) {
-            log.warn("Tentativa de directory traversal detectada para path: {}", relativePath);
-            return ResponseEntity.badRequest().build();
+        // Proteção contra Path / Directory Traversal (CWE-22):
+        // Valida se o caminho normalizado inicia estritamente com o diretório raiz configurado (baseDir) e baseFolder
+        if (!targetFile.startsWith(baseFolder) || !targetFile.startsWith(baseDir)) {
+            log.warn("Tentativa de path traversal detectada para path: '{}'", relativePath);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+
+        try {
+            if (java.nio.file.Files.exists(targetFile)) {
+                Path canonicalTarget = targetFile.toRealPath();
+                Path canonicalBaseDir = java.nio.file.Files.exists(baseDir) ? baseDir.toRealPath() : baseDir;
+                Path canonicalBaseFolder = java.nio.file.Files.exists(baseFolder) ? baseFolder.toRealPath() : baseFolder;
+                if (!canonicalTarget.startsWith(canonicalBaseFolder) || !canonicalTarget.startsWith(canonicalBaseDir)) {
+                    log.warn("Tentativa de canonical path traversal detectada para path: '{}'", relativePath);
+                    return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Falha ao resolver caminho canônico para path '{}': {}", relativePath, e.getMessage());
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
         }
 
         if (!java.nio.file.Files.exists(targetFile) || !java.nio.file.Files.isRegularFile(targetFile)) {

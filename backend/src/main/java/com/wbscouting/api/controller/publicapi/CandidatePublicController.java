@@ -46,6 +46,11 @@ public class CandidatePublicController {
         }
 
         CandidateApplyResponseDto response = applicationService.apply(data, photos);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        CandidateApplyResponseDto sanitizedResponse = CandidateApplyResponseDto.builder()
+                .protocol(response.getProtocol())
+                .status(response.getStatus() != null ? response.getStatus() : "PENDING")
+                .message("Candidatura submetida com sucesso. Guarde o protocolo para acompanhamento.")
+                .build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(sanitizedResponse);
     }
 }

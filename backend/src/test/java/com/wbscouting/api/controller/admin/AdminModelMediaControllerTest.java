@@ -24,9 +24,11 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.wbscouting.api.exception.ResourceNotFoundException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -139,5 +141,41 @@ class AdminModelMediaControllerTest {
                 .andExpect(jsonPath("$[0].id").value(mediaId.toString()))
                 .andExpect(jsonPath("$[0].mediaType").value("BOOK"))
                 .andExpect(jsonPath("$[0].isCover").value(true));
+    }
+
+    @Test
+    @DisplayName("DELETE /admin/models/{modelId}/media/{mediaId} deve retornar 404 quando mídia não pertence ao modelo (IDOR)")
+    void deleteMedia_WhenMediaNotFound_ReturnsNotFound() throws Exception {
+        doThrow(new ResourceNotFoundException("Mídia não encontrada para o modelo especificado"))
+                .when(modelMediaService).deleteMedia(modelId, mediaId);
+
+        mockMvc.perform(delete("/admin/models/{modelId}/media/{mediaId}", modelId, mediaId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("PATCH /admin/models/{modelId}/media/{mediaId}/cover deve retornar 404 quando mídia não pertence ao modelo (IDOR)")
+    void setCoverMedia_WhenMediaNotFound_ReturnsNotFound() throws Exception {
+        doThrow(new ResourceNotFoundException("Mídia não encontrada para o modelo especificado"))
+                .when(modelMediaService).setCoverMedia(modelId, mediaId);
+
+        mockMvc.perform(patch("/admin/models/{modelId}/media/{mediaId}/cover", modelId, mediaId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("PUT /admin/models/{modelId}/media/reorder deve retornar 404 quando mídia não pertence ao modelo (IDOR)")
+    void reorderMedia_WhenMediaNotFound_ReturnsNotFound() throws Exception {
+        MediaReorderRequestDto request = MediaReorderRequestDto.builder()
+                .items(List.of(MediaOrderItemDto.builder().mediaId(mediaId).displayOrder(1).build()))
+                .build();
+
+        doThrow(new ResourceNotFoundException("Mídia não encontrada para o modelo especificado"))
+                .when(modelMediaService).reorderMedia(eq(modelId), any(MediaReorderRequestDto.class));
+
+        mockMvc.perform(put("/admin/models/{modelId}/media/reorder", modelId)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
     }
 }

@@ -28,7 +28,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping({"/api/v1/admin/applications", "/admin/applications"})
+@RequestMapping({"/api/v1/admin/applications", "/admin/applications", "/api/v1/admin/submissions", "/admin/submissions"})
 @PreAuthorize("hasAnyRole('WEBMASTER', 'SUPER_ADMIN', 'CONTENT_ADMIN', 'ADMIN')")
 @RequiredArgsConstructor
 public class AdminApplicationController {
@@ -96,7 +96,7 @@ public class AdminApplicationController {
         return ResponseEntity.ok(candidateSubmissionAdminService.updateDecision(id, decisionDto));
     }
 
-    @PostMapping({"/{id}/promote", "/{id}/promote-to-model"})
+    @PostMapping({"/{id}/promote", "/{id}/promote-to-model", "/{id}/convert-to-model", "/{id}/convert"})
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'WEBMASTER', 'CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> promote(
             @PathVariable UUID id,

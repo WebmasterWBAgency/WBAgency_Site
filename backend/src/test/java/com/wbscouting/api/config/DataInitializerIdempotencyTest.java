@@ -102,6 +102,21 @@ class DataInitializerIdempotencyTest {
     }
 
     @Test
+    @DisplayName("DEVE lançar IllegalStateException se tabela vazia e INITIAL_ADMIN_PASSWORD não for informada")
+    void shouldThrowExceptionWhenTableIsEmptyAndInitialPasswordMissing() {
+        when(adminRepository.count()).thenReturn(0L);
+        ReflectionTestUtils.setField(dataInitializer, "defaultPassword", "");
+        ReflectionTestUtils.setField(dataInitializer, "webmasterPassword", "");
+        ReflectionTestUtils.setField(dataInitializer, "initialAdminPasswordEnv", null);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> dataInitializer.run(new String[0]))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("INITIAL_ADMIN_PASSWORD");
+
+        verify(adminRepository, never()).save(any(Admin.class));
+    }
+
+    @Test
     @DisplayName("Deve executar migrações DDL idempotentes sem lançar exceções")
     void shouldExecuteSchemaMigrationsResiliently() throws java.sql.SQLException {
         when(adminRepository.count()).thenReturn(1L);

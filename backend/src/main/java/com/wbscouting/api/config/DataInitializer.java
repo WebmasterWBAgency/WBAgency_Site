@@ -74,6 +74,9 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${app.security.initial-admin.password:}")
     private String defaultPassword;
 
+    @Value("${INITIAL_ADMIN_PASSWORD:#{null}}")
+    private String initialAdminPasswordEnv;
+
     // Constructor injection (Lombok @RequiredArgsConstructor nao de certeza no Wrapper)
     @Autowired
     public DataInitializer(
@@ -110,50 +113,57 @@ public class DataInitializer implements CommandLineRunner {
             log.info("[DATA INIT][H2] Banco H2 ou perfil local detectado. Pulando migrações DDL nativas PostgreSQL.");
         }
 
-        // -------------- PASSO 2: Garantir usuarios ADMIN ativos (upsert idempotente por e-mail) --------------
-        // Sempre executa, independente do adminCount. Assim:
-        //   - Ambiente LOCAL: credenciais sempre coerentes com application-local.yml
-        //   - Ambiente RENDER/SUPABASE (producao): sempre atualiza senhas dos admins padrao,
-        //     sem remover admins extras criados manualmente pela interface.
-        try {
-            AdminRole webmasterRole = parseRole(webmasterRoleStr, AdminRole.WEBMASTER);
-            garantirAdminPorEmail(
-                    "WEBMASTER",
-                    webmasterEmail,
-                    webmasterName,
-                    webmasterPassword,
-                    webmasterRole,
-                    webmasterMustChangePassword
-            );
-        } catch (Exception ex) {
-            log.error("[ADMIN INIT][WEBMASTER] Falha ao garantir admin webmaster '{}': {}", webmasterEmail, ex.getMessage(), ex);
-        }
-
-        try {
-            AdminRole infoRole = parseRole(infoRoleStr, AdminRole.ADMIN);
-            garantirAdminPorEmail(
-                    "INFO-ADMIN",
-                    infoEmail,
-                    infoName,
-                    infoPassword,
-                    infoRole,
-                    infoMustChangePassword
-            );
-        } catch (Exception ex) {
-            log.error("[ADMIN INIT][INFO-ADMIN] Falha ao garantir admin info '{}': {}", infoEmail, ex.getMessage(), ex);
-        }
-
-        // Compatibilidade LEGACY fallback: seed antigo apenas se banco TOTALMENTE vazio
+        // -------------- PASSO 2: Garantir usuarios ADMIN ativos --------------
         long adminCount = 0L;
-        try { adminCount = adminRepository.count(); } catch (Exception e) { log.warn("[ADMIN INIT] Nao foi possivel contar admins. H2 ainda nao criou schema? Motivo: {}", e.getMessage()); }
+        try {
+            adminCount = adminRepository.count();
+        } catch (Exception e) {
+            log.warn("[ADMIN INIT] Nao foi possivel contar admins. H2 ainda nao criou schema? Motivo: {}", e.getMessage());
+        }
+
+        String initialPassword = resolveInitialAdminPassword();
 
         if (adminCount == 0L) {
-            log.warn("[ADMIN INIT][LEGACY] count=0 — nenhum admin persistiu dos upserts. Criando fallback legacy {}.", defaultEmail);
-            criarAdminInicial();
-        } else if (isLocalDevProfile) {
-            log.info("[ADMIN INIT][H2] Admins persistidos no ambiente local (count={}).", adminCount);
+            if (initialPassword == null || initialPassword.isBlank()) {
+                log.error("[DATA INIT] A tabela de administradores está vazia e nenhuma senha inicial foi definida na variável de ambiente INITIAL_ADMIN_PASSWORD.");
+                throw new IllegalStateException("A variável de ambiente obrigatória INITIAL_ADMIN_PASSWORD não foi informada e a tabela de administradores está vazia. Inicialização bloqueada por segurança.");
+            }
+            log.info("[ADMIN INIT] Tabela de administradores vazia (count=0). Criando Webmaster inicial com INITIAL_ADMIN_PASSWORD...");
+            criarAdminInicial(initialPassword);
         } else {
-            log.info("[ADMIN INIT] Admins garantidos via upsert por e-mail (count={}). Nenhum admin manual foi removido.", adminCount);
+            log.info("[ADMIN INIT] Administradores já existentes no banco (count={}). Nenhum admin manual foi removido.", adminCount);
+
+            if (webmasterPassword != null && !webmasterPassword.isBlank()) {
+                try {
+                    AdminRole webmasterRole = parseRole(webmasterRoleStr, AdminRole.WEBMASTER);
+                    garantirAdminPorEmail(
+                            "WEBMASTER",
+                            webmasterEmail,
+                            webmasterName,
+                            webmasterPassword,
+                            webmasterRole,
+                            webmasterMustChangePassword
+                    );
+                } catch (Exception ex) {
+                    log.error("[ADMIN INIT][WEBMASTER] Falha ao garantir admin webmaster '{}': {}", webmasterEmail, ex.getMessage(), ex);
+                }
+            }
+
+            if (infoPassword != null && !infoPassword.isBlank()) {
+                try {
+                    AdminRole infoRole = parseRole(infoRoleStr, AdminRole.ADMIN);
+                    garantirAdminPorEmail(
+                            "INFO-ADMIN",
+                            infoEmail,
+                            infoName,
+                            infoPassword,
+                            infoRole,
+                            infoMustChangePassword
+                    );
+                } catch (Exception ex) {
+                    log.error("[ADMIN INIT][INFO-ADMIN] Falha ao garantir admin info '{}': {}", infoEmail, ex.getMessage(), ex);
+                }
+            }
         }
 
         // -------------- PASSO 3: Carga 2 a 4 modelos de exemplo (CATALOGO) --------------
@@ -328,18 +338,23 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("[ADMIN INIT][{}] ADMIN já coerente (sem alterações): {} [role={}].", tag, emailSanitizado, role);
             }
         } else {
+            // Não cria novos administradores sem senha explicitamente fornecida
+            if (senhaBruta == null || senhaBruta.isBlank()) {
+                log.warn("[ADMIN INIT][{}] Tentativa de criar admin '{}' sem senha configurada. Criação ignorada por segurança.", tag, emailSanitizado);
+                return;
+            }
             Admin a = Admin.builder()
                     .name(nome != null ? nome : "Admin WB")
                     .email(emailSanitizado)
-                    .passwordHash(passwordEncoder.encode(senhaBruta != null && !senhaBruta.isBlank() ? senhaBruta : "Admin@Trocasenha123!"))
+                    .passwordHash(passwordEncoder.encode(senhaBruta))
                     .role(role != null ? role : AdminRole.ADMIN)
                     .isActive(true)
                     .mustChangePassword(mustChangePassword)
                     .is2faEnabled(false)
                     .build();
             adminRepository.save(a);
-            log.info("[ADMIN INIT][{}] ADMIN CRIADO: {} [role={}, isActive=true, senha BCrypt OK]. Login frontend = {} / {}",
-                    tag, emailSanitizado, role, emailSanitizado, senhaBruta != null ? senhaBruta : "Admin@Trocasenha123!");
+            log.info("[ADMIN INIT][{}] ADMIN CRIADO: {} [role={}, isActive=true, senha BCrypt OK].",
+                    tag, emailSanitizado, role);
         }
     }
 
@@ -352,19 +367,48 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private void criarAdminInicial() {
+    private void criarAdminInicial(String password) {
+        String email = (defaultEmail != null && !defaultEmail.isBlank()) ? defaultEmail : webmasterEmail;
+        String name = (defaultName != null && !defaultName.isBlank()) ? defaultName : webmasterName;
         Admin initialAdmin = Admin.builder()
-                .name(defaultName)
-                .email(defaultEmail.trim().toLowerCase())
-                .passwordHash(passwordEncoder.encode(defaultPassword))
+                .name(name != null && !name.isBlank() ? name : "Webmaster WB Agency")
+                .email(email.trim().toLowerCase())
+                .passwordHash(passwordEncoder.encode(password))
                 .role(AdminRole.WEBMASTER)
                 .isActive(true)
                 .mustChangePassword(false)
                 .is2faEnabled(false)
                 .build();
         adminRepository.save(initialAdmin);
-        log.info("[ADMIN INIT] Admin CRIADO: {} [role={}, senha BCrypt OK, isActive=true] Login frontend = {} / {}",
-                defaultEmail, AdminRole.WEBMASTER, defaultEmail, defaultPassword);
+        log.info("[ADMIN INIT] Admin inicial Webmaster CRIADO: {} [role={}, senha BCrypt OK, isActive=true]",
+                email, AdminRole.WEBMASTER);
+    }
+
+    private String resolveInitialAdminPassword() {
+        if (initialAdminPasswordEnv != null && !initialAdminPasswordEnv.isBlank()) {
+            return initialAdminPasswordEnv.trim();
+        }
+        String sysEnv = System.getenv("INITIAL_ADMIN_PASSWORD");
+        if (sysEnv != null && !sysEnv.isBlank()) {
+            return sysEnv.trim();
+        }
+        if (env != null) {
+            String prop = env.getProperty("INITIAL_ADMIN_PASSWORD");
+            if (prop != null && !prop.isBlank()) return prop.trim();
+            prop = env.getProperty("APP_SECURITY_INITIAL_ADMIN_PASSWORD");
+            if (prop != null && !prop.isBlank()) return prop.trim();
+            prop = env.getProperty("app.security.initial-admin.password");
+            if (prop != null && !prop.isBlank()) return prop.trim();
+            prop = env.getProperty("app.security.admin-webmaster.password");
+            if (prop != null && !prop.isBlank()) return prop.trim();
+        }
+        if (defaultPassword != null && !defaultPassword.isBlank()) {
+            return defaultPassword.trim();
+        }
+        if (webmasterPassword != null && !webmasterPassword.isBlank()) {
+            return webmasterPassword.trim();
+        }
+        return null;
     }
 
 

@@ -12,9 +12,9 @@
       <div class="flex items-center gap-1 border border-[#E8EBE8] bg-white p-1">
         <button 
           type="button" 
-          (click)="setStatusFilter('PENDING')"
-          [class.bg-[#F4F5F4]]="selectedStatus === 'PENDING'"
-          [class.text-[#4B584E]]="selectedStatus === 'PENDING'"
+          (click)="setStatusFilter(CandidateStatusEnum.PENDING)"
+          [class.bg-[#F4F5F4]]="selectedStatus === CandidateStatusEnum.PENDING"
+          [class.text-[#4B584E]]="selectedStatus === CandidateStatusEnum.PENDING"
           class="px-3.5 py-1.5 text-xs font-sans uppercase tracking-[0.15em] text-[#5F6661] transition-all flex items-center gap-2 cursor-pointer"
         >
           <span>Pendentes</span>
@@ -23,9 +23,9 @@
 
         <button 
           type="button" 
-          (click)="setStatusFilter('APPROVED')"
-          [class.bg-[#F4F5F4]]="selectedStatus === 'APPROVED'"
-          [class.text-[#4B584E]]="selectedStatus === 'APPROVED'"
+          (click)="setStatusFilter(CandidateStatusEnum.APPROVED)"
+          [class.bg-[#F4F5F4]]="selectedStatus === CandidateStatusEnum.APPROVED"
+          [class.text-[#4B584E]]="selectedStatus === CandidateStatusEnum.APPROVED"
           class="px-3.5 py-1.5 text-xs font-sans uppercase tracking-[0.15em] text-[#5F6661] transition-all flex items-center gap-2 cursor-pointer"
         >
           <span>Aprovadas</span>
@@ -34,9 +34,9 @@
 
         <button 
           type="button" 
-          (click)="setStatusFilter('REJECTED')"
-          [class.bg-[#F4F5F4]]="selectedStatus === 'REJECTED'"
-          [class.text-[#4B584E]]="selectedStatus === 'REJECTED'"
+          (click)="setStatusFilter(CandidateStatusEnum.REJECTED)"
+          [class.bg-[#F4F5F4]]="selectedStatus === CandidateStatusEnum.REJECTED"
+          [class.text-[#4B584E]]="selectedStatus === CandidateStatusEnum.REJECTED"
           class="px-3.5 py-1.5 text-xs font-sans uppercase tracking-[0.15em] text-[#5F6661] transition-all flex items-center gap-2 cursor-pointer"
         >
           <span>Declinadas</span>
@@ -45,9 +45,9 @@
 
         <button 
           type="button" 
-          (click)="setStatusFilter('ARCHIVED')"
-          [class.bg-[#F4F5F4]]="selectedStatus === 'ARCHIVED'"
-          [class.text-[#4B584E]]="selectedStatus === 'ARCHIVED'"
+          (click)="setStatusFilter(CandidateStatusEnum.ARCHIVED)"
+          [class.bg-[#F4F5F4]]="selectedStatus === CandidateStatusEnum.ARCHIVED"
+          [class.text-[#4B584E]]="selectedStatus === CandidateStatusEnum.ARCHIVED"
           class="px-3.5 py-1.5 text-xs font-sans uppercase tracking-[0.15em] text-[#5F6661] transition-all flex items-center gap-2 cursor-pointer"
         >
           <span>Arquivo Morto</span>
@@ -99,7 +99,7 @@
     </div>
 
     <!-- PAINEL DE CONTROLE DO ARQUIVO MORTO (Visível apenas na aba Arquivo Morto) -->
-    <div *ngIf="selectedStatus === 'ARCHIVED'" class="mb-6 p-4 bg-white border border-[#E8EBE8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div *ngIf="selectedStatus === CandidateStatusEnum.ARCHIVED" class="mb-6 p-4 bg-white border border-[#E8EBE8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       
       <!-- Informativo da Retenção & Expurgo Manual -->
       <div class="space-y-1">
@@ -160,14 +160,14 @@
               
               <span 
                 [ngClass]="{
-                  'bg-[#4B584E] text-white': candidate.status === 'PENDING',
-                  'bg-emerald-700 text-white': candidate.status === 'APPROVED',
-                  'bg-neutral-600 text-white': candidate.status === 'REJECTED' || candidate.status === 'DECLINED',
-                  'bg-stone-500 text-white': candidate.status === 'ARCHIVED'
+                  'bg-[#4B584E] text-white': candidate.status === CandidateStatusEnum.PENDING,
+                  'bg-emerald-700 text-white': candidate.status === CandidateStatusEnum.APPROVED,
+                  'bg-neutral-600 text-white': candidate.status === CandidateStatusEnum.REJECTED || candidate.status === CandidateStatusEnum.DECLINED,
+                  'bg-stone-500 text-white': candidate.status === CandidateStatusEnum.ARCHIVED
                 }"
                 class="ml-auto text-[10px] uppercase font-medium tracking-[0.14em] px-2.5 py-0.5 shadow-xs"
               >
-                {{ candidate.status === 'PENDING' ? 'Pendente' : (candidate.status === 'APPROVED' ? 'Aprovada' : (candidate.status === 'ARCHIVED' ? 'Arquivo Morto' : 'Declinada')) }}
+                {{ candidate.status === CandidateStatusEnum.PENDING ? 'Pendente' : (candidate.status === CandidateStatusEnum.APPROVED ? 'Aprovada' : (candidate.status === CandidateStatusEnum.ARCHIVED ? 'Arquivo Morto' : 'Declinada')) }}
               </span>
             </div>
 
@@ -240,7 +240,7 @@
               </div>
 
               <!-- Retenção do Arquivo Morto (visível na aba Arquivo Morto) -->
-              <div *ngIf="selectedStatus === 'ARCHIVED'" class="mt-2 pt-2 border-t border-dashed border-[#E8EBE8] text-[10px] text-[#5F6661] flex flex-col gap-1">
+              <div *ngIf="selectedStatus === CandidateStatusEnum.ARCHIVED" class="mt-2 pt-2 border-t border-dashed border-[#E8EBE8] text-[10px] text-[#5F6661] flex flex-col gap-1">
                 <div class="flex items-center justify-between">
                   <span class="text-[#5F6661]">Arquivado em:</span>
                   <span class="font-medium text-[#222624]">{{ (candidate.archivedAt || candidate.updatedAt) | date:'dd/MM/yyyy' }}</span>
@@ -266,7 +266,7 @@
           </a>
 
           <!-- SE ESTIVER NA ABA ARQUIVO MORTO -->
-          <ng-container *ngIf="selectedStatus === 'ARCHIVED'">
+          <ng-container *ngIf="selectedStatus === CandidateStatusEnum.ARCHIVED">
             <!-- Botão Restaurar Candidatura -->
             <button 
               type="button" 
@@ -283,19 +283,19 @@
           </ng-container>
 
           <!-- SE ESTIVER NAS DEMAIS ABAS (ATIVAS: PENDENTES, APROVADAS, DECLINADAS, TODAS) -->
-          <ng-container *ngIf="selectedStatus !== 'ARCHIVED'">
+          <ng-container *ngIf="selectedStatus !== CandidateStatusEnum.ARCHIVED">
             <!-- 2. Aprovar e Declinar (Lado a Lado) -->
             <div class="grid grid-cols-2 gap-2">
               <button 
                 type="button" 
-                (click)="updateStatus(candidate, 'APPROVED', $event)" 
+                (click)="updateStatus(candidate, CandidateStatusEnum.APPROVED, $event)" 
                 class="py-2 border border-emerald-400 bg-emerald-50/50 hover:bg-emerald-100 text-emerald-900 text-[10px] uppercase tracking-[0.15em] font-sans font-semibold transition-colors cursor-pointer rounded-none flex items-center justify-center gap-1"
               >
                 ✓ APROVAR
               </button>
               <button 
                 type="button" 
-                (click)="updateStatus(candidate, 'REJECTED', $event)" 
+                (click)="updateStatus(candidate, CandidateStatusEnum.REJECTED, $event)" 
                 class="py-2 border border-[#E8EBE8] bg-white hover:border-neutral-400 text-[#222624] text-[10px] uppercase tracking-[0.15em] font-sans font-medium transition-colors cursor-pointer rounded-none flex items-center justify-center gap-1"
               >
                 X DECLINAR

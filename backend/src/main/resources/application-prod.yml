@@ -23,7 +23,7 @@ spring:
     # Pooler Supabase IPv4 (aws-0-sa-east-1.pooler.supabase.com:6543) com Transaction Mode
     url: "${DB_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0}}"
     username: "${DB_USER:${SPRING_DATASOURCE_USERNAME:postgres.stmytwsdlonpnirqiufq}}"
-    password: "${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}"
+    password: "${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD}}"
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: WbScoutingHikariPool
@@ -78,7 +78,7 @@ spring:
           starttls:
             enable: true
             required: true
-          connectiontimeout: 10000
+          connectiontimeout: 5000
           timeout: 10000
           writetimeout: 10000
 
@@ -118,9 +118,9 @@ app:
 
 supabase:
   url: "${SUPABASE_URL:https://dummy-project.supabase.co}"
-  key: "${SUPABASE_KEY:${SUPABASE_SERVICE_ROLE_KEY:dummy-key}}"
-  service-role-key: "${SUPABASE_SERVICE_ROLE_KEY:dummy-key}"
-  anon-key: "${SUPABASE_ANON_KEY:dummy-key}"
+  key: "${SUPABASE_KEY:${SUPABASE_SERVICE_ROLE_KEY}}"
+  service-role-key: "${SUPABASE_SERVICE_ROLE_KEY}"
+  anon-key: "${SUPABASE_ANON_KEY}"
   storage:
     local-fallback: ${SUPABASE_STORAGE_LOCAL_FALLBACK:false}
     local-dir: ${SUPABASE_STORAGE_LOCAL_DIR:uploads-local}

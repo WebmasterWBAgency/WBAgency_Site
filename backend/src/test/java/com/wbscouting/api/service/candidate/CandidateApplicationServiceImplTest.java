@@ -279,4 +279,30 @@ class CandidateApplicationServiceImplTest {
         verify(modelMediaRepository, never()).saveAll(anyList());
         verify(emailService, never()).sendCandidateApplicationNotification(anyString(), any());
     }
+
+    @Test
+    @DisplayName("Deve falhar e efetuar compensação (deleção no bucket) caso ocorra erro na persistência relacional")
+    void shouldCompensateStorageFilesWhenRelationalPersistenceFails() {
+        UUID generatedId = UUID.randomUUID();
+        when(modelRepository.saveAndFlush(any(Model.class))).thenAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.setId(generatedId);
+            return model;
+        });
+
+        when(storageService.getPublicUrl(anyString(), anyString())).thenReturn("https://supabase.co/storage/photo.jpg");
+
+        // Simula erro na persistência relacional das fotos filhas (ModelMedia) após uploads concluídos
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("Erro relacional de banco"))
+                .when(modelMediaRepository).saveAll(anyList());
+
+        assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, validPhotos))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Erro relacional de banco");
+
+        // Verifica que todas as 3 fotos enviadas foram compensadas e deletadas do storage
+        verify(storageService, times(3)).uploadFile(eq("candidates-uploads"), anyString(), any(MultipartFile.class));
+        verify(storageService, times(3)).deleteFile(eq("candidates-uploads"), anyString());
+        verify(emailService, never()).sendCandidateApplicationNotification(anyString(), any());
+    }
 }

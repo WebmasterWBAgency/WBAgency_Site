@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { CandidateTableComponent, CandidateApplicationRow } from './candidate-table.component';
+import { CandidateStatusEnum } from '../../../shared/models/candidate.model';
 import { environment } from '../../../../environments/environment';
 
 describe('CandidateTableComponent', () => {
@@ -27,7 +28,7 @@ describe('CandidateTableComponent', () => {
       waist: 59,
       hips: 88,
       shoes: 37,
-      status: 'PENDING',
+      status: CandidateStatusEnum.PENDING,
       hasPhotos: true,
       polaroidsCount: 4,
       createdAt: '2026-09-29T14:32:00Z'
@@ -47,7 +48,7 @@ describe('CandidateTableComponent', () => {
       waist: 76,
       hips: 95,
       shoes: 42,
-      status: 'PENDING',
+      status: CandidateStatusEnum.PENDING,
       hasPhotos: true,
       polaroidsCount: 5,
       createdAt: '2026-09-29T11:15:00Z'
@@ -112,13 +113,13 @@ describe('CandidateTableComponent', () => {
     httpMock.expectOne(`${environment.apiUrl}/admin/applications/counts`).flush({});
 
     component.pageIndex = 2;
-    component.setStatusFilter('APPROVED');
+    component.setStatusFilter(CandidateStatusEnum.APPROVED);
 
     expect(component.pageIndex).toBe(0);
-    expect(component.selectedStatus).toBe('APPROVED');
+    expect(component.selectedStatus).toBe(CandidateStatusEnum.APPROVED);
 
     const req = httpMock.expectOne((r) => r.url === `${environment.apiUrl}/admin/applications`);
-    expect(req.request.params.get('status')).toBe('APPROVED');
+    expect(req.request.params.get('status')).toBe(CandidateStatusEnum.APPROVED);
     req.flush(mockPageResponse);
   });
 

@@ -66,7 +66,7 @@ public class AdminCandidateController {
         return ResponseEntity.ok(updated);
     }
 
-    @PostMapping({"/{id}/promote-to-model", "/{id}/promote"})
+    @PostMapping({"/{id}/promote-to-model", "/{id}/promote", "/{id}/convert-to-model", "/{id}/convert"})
     public ResponseEntity<Map<String, Object>> promoteToModel(
             @PathVariable UUID id,
             @RequestParam(required = false, defaultValue = "true") Boolean activateImmediately) {

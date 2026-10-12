@@ -31,8 +31,9 @@ public final class ImageSecuritySanitizer {
     }
 
     /**
-     * Valida magic bytes, decodifica via ImageIO e regrava em um buffer limpo na memória,
-     * expurgando metadados EXIF maliciosos ou bytes anexados no final do arquivo (polyglots).
+     * Valida magic bytes, decodifica via ImageIO.read() e regrava em um buffer limpo na memória via ImageIO.write(),
+     * descartando todos os metadados não visuais (incluindo tags EXIF, dados de GPS e comentários de texto)
+     * e expurgando bytes anexados no final do arquivo (polyglots) antes de encapsular o resultado em SanitizedMultipartFile.
      */
     public static MultipartFile sanitizeAndReencode(MultipartFile file) {
         if (file == null || file.isEmpty()) {

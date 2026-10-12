@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -38,7 +39,7 @@ public class TokenBlacklistService {
     /**
      * Invalida todas as sessões ativas do usuário identificado por ID único (UUID).
      */
-    public void revokeAllUserTokens(java.util.UUID userId) {
+    public void revokeAllUserTokens(UUID userId) {
         if (userId != null) {
             revokeAllUserTokens(userId.toString());
         }

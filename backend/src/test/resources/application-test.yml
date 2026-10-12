@@ -28,3 +28,12 @@ supabase:
   key: dummy-key
   service-role-key: dummy-key
   anon-key: dummy-key
+
+app:
+  security:
+    jwt:
+      secret: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      expiration-ms: 28800000
+    initial-admin:
+      password: "TestInitialPassword#2026"
+

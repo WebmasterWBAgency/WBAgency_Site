@@ -1,3 +1,22 @@
+export enum ModelStatusEnum {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE'
+}
+
+export enum ModelGenderEnum {
+  FEMALE = 'FEMALE',
+  MALE = 'MALE',
+  NON_BINARY = 'NON_BINARY'
+}
+
+export enum ModelCategoryEnum {
+  FASHION = 'FASHION',
+  COMMERCIAL = 'COMMERCIAL',
+  PLUS_SIZE = 'PLUS_SIZE',
+  NEW_FACE = 'NEW_FACE',
+  SPECIAL = 'SPECIAL'
+}
+
 export type ModelGender = 'FEMALE' | 'MALE' | 'NON_BINARY';
 export type ModelCategory = 'FASHION' | 'COMMERCIAL' | 'PLUS_SIZE' | 'NEW_FACE' | 'SPECIAL';
 

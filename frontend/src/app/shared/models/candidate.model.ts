@@ -1,13 +1,30 @@
+export enum CandidateStatusEnum {
+  PENDING = 'PENDING',
+  REVIEWING = 'REVIEWING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  DECLINED = 'DECLINED',
+  CONTACTED = 'CONTACTED',
+  ARCHIVED = 'ARCHIVED',
+  PROMOTED = 'PROMOTED',
+  APPLICANT_PENDING = 'APPLICANT_PENDING',
+  CAST_PUBLIC = 'CAST_PUBLIC'
+}
+
+export const CandidateStatus = CandidateStatusEnum;
 export type CandidateStatus =
   | 'PENDING'
   | 'REVIEWING'
   | 'APPROVED'
   | 'REJECTED'
+  | 'DECLINED'
   | 'CONTACTED'
   | 'ARCHIVED'
+  | 'PROMOTED'
   | 'APPLICANT_PENDING'
   | 'CAST_PUBLIC';
 
+export const SubmissionStatusEnum = CandidateStatusEnum;
 export type SubmissionStatus = CandidateStatus;
 
 export type CandidateGender = 'FEMALE' | 'MALE' | 'NON_BINARY' | 'OTHER';
