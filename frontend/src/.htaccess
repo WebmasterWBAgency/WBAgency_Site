@@ -1,15 +1,36 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  
-  # Se o arquivo ou pasta requisitado existir fisicamente, serve diretamente
+  RewriteBase /
+
+  # Forçar HTTPS
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Ignorar arquivos e diretórios físicos existentes
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Caso contrário, redireciona todas as requisições para o index.html do Angular
+  # Redirecionar todas as outras requisições para o index.html da SPA
   RewriteRule ^ index.html [L]
 </IfModule>
 
-# Forçar HTTPS
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+<IfModule mod_headers.c>
+  # Cabeçalhos de Segurança Defensivos
+  Header set X-Frame-Options "DENY"
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+  # Cache agressivo para assets versionados
+  <FilesMatch "\.(js|css|webp|png|jpg|jpeg|svg|woff2|woff|ico)$">
+    Header set Cache-Control "max-age=31536000, public, immutable"
+  </FilesMatch>
+
+  # index.html nunca deve ser cacheado para permitir deploys instantâneos
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+</IfModule>

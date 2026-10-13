@@ -3,7 +3,7 @@
     <div class="modal-dialog card-editorial" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3 class="modal-title font-serif">{{ title() }}</h3>
-        <button class="modal-close-btn" (click)="onClose()" aria-label="Fechar">&times;</button>
+        <button class="modal-close-btn min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 sm:p-1.5 cursor-pointer" (click)="onClose()" aria-label="Fechar">&times;</button>
       </div>
       <div class="modal-body">
         <ng-content></ng-content>

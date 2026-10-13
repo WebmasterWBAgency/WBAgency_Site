@@ -13,7 +13,7 @@
     
     <button 
       type="button" 
-      class="btn-close" 
+      class="btn-close min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 sm:p-1.5 cursor-pointer" 
       (click)="closeModal()" 
       [attr.aria-label]="'model_detail.lightbox_close' | translate">
       &times;
@@ -24,7 +24,7 @@
   @if (images().length > 1) {
     <button 
       type="button" 
-      class="btn-nav btn-prev" 
+      class="btn-nav btn-prev min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 sm:p-1.5 cursor-pointer" 
       (click)="prevImage()" 
       [attr.aria-label]="'model_detail.lightbox_prev' | translate">
       &#10094;
@@ -44,7 +44,7 @@
   @if (images().length > 1) {
     <button 
       type="button" 
-      class="btn-nav btn-next" 
+      class="btn-nav btn-next min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 sm:p-1.5 cursor-pointer" 
       (click)="nextImage()" 
       [attr.aria-label]="'model_detail.lightbox_next' | translate">
       &#10095;

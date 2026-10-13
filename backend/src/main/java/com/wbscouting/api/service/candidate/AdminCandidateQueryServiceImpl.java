@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("deprecation")
 public class AdminCandidateQueryServiceImpl implements AdminCandidateQueryService {
 
     public static final int SIGNED_URL_EXPIRES_IN_SECONDS = 900;

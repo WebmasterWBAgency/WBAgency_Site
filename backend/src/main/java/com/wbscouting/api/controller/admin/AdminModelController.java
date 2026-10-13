@@ -21,11 +21,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.util.StringUtils;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -43,14 +41,6 @@ public class AdminModelController {
 
     @Autowired(required = false)
     private com.wbscouting.api.service.storage.StorageService storageService;
-
-    /**
-     * JDBC Template (SQL PURO, sem Hibernate) para diagnostico de dados.
-     * Util quando findAll/JPA mascara registros por EntityGraph / Join Fetch /
-     * Specifications incorretas — SQL puro mostra exatamente o que existe no DB.
-     */
-    @Autowired(required = false)
-    private JdbcTemplate jdbcTemplate;
 
     @PostMapping
     @AuditAction(action = "CREATE", resource = "MODEL", description = "Criação de novo modelo no casting")

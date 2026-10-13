@@ -166,58 +166,31 @@ describe('FooterComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Social Media');
   });
 
-  it('should open institutional modal for TERMS and load content', () => {
-    const httpTesting = TestBed.inject(HttpTestingController);
+  it('should open institutional modal for TERMS and load content synchronously from TranslationService', () => {
     component.openInstitutionalModal('TERMS');
     expect(component.isModalOpen()).toBeTrue();
     expect(component.modalTitle()).toBe('Termos de Uso');
-    expect(component.isLoadingContent()).toBeTrue();
-
-    const req = httpTesting.expectOne((r) => r.urlWithParams.includes('/public/content/TERMS') && r.urlWithParams.includes('lang=pt'));
-    expect(req.request.method).toBe('GET');
-    req.flush({ content: 'Termos e Condições WB Agency' });
-
-    expect(component.isLoadingContent()).toBeFalse();
-    expect(component.modalContent()).toBe('Termos e Condições WB Agency');
-
-    fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('Termos e Condições WB Agency');
-
-    component.closeModal();
-    expect(component.isModalOpen()).toBeFalse();
-  });
-
-  it('should open institutional modal for PRIVACY in EN and load content', () => {
-    const httpTesting = TestBed.inject(HttpTestingController);
-    translationService.setLanguage('en');
-    component.openInstitutionalModal('PRIVACY');
-    expect(component.isModalOpen()).toBeTrue();
-    expect(component.modalTitle()).toBe('Privacy & GDPR');
-
-    const req = httpTesting.expectOne((r) => r.urlWithParams.includes('/public/content/PRIVACY') && r.urlWithParams.includes('lang=en'));
-    expect(req.request.method).toBe('GET');
-    req.flush({ content: 'Privacy Policy WB Agency' });
-
-    expect(component.modalContent()).toBe('Privacy Policy WB Agency');
-
-    fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('Privacy Policy WB Agency');
-  });
-
-  it('should use i18n fallback when API fails or returns empty', () => {
-    const httpTesting = TestBed.inject(HttpTestingController);
-    component.openInstitutionalModal('TERMS');
-
-    const req = httpTesting.expectOne((r) => r.urlWithParams.includes('/public/content/TERMS') && r.urlWithParams.includes('lang=pt'));
-    req.error(new ProgressEvent('Network error'));
-
     expect(component.isLoadingContent()).toBeFalse();
     expect(component.modalContent()).toContain('TERMOS E CONDIÇÕES DE USO');
 
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('TERMOS E CONDIÇÕES DE USO');
+
+    component.closeModal();
+    expect(component.isModalOpen()).toBeFalse();
+  });
+
+  it('should open institutional modal for PRIVACY in EN and load content synchronously from TranslationService', () => {
+    translationService.setLanguage('en');
+    component.openInstitutionalModal('PRIVACY');
+    expect(component.isModalOpen()).toBeTrue();
+    expect(component.modalTitle()).toBe('Privacy & GDPR');
+    expect(component.isLoadingContent()).toBeFalse();
+    expect(component.modalContent()).toContain('PRIVACY POLICY');
+
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('PRIVACY POLICY');
   });
 });

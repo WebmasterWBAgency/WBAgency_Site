@@ -452,4 +452,29 @@ class ModelMediaServiceImplTest {
 
         verify(modelMediaRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("uploadMedia - Deve realizar rollback compensatório no storage caso a persistência no banco falhe")
+    void uploadMedia_WhenDbFails_CompensatesFileInStorage() throws Exception {
+        BufferedImage uhdImg = new BufferedImage(2000, 2000, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(uhdImg, "png", baos);
+        byte[] uhdBytes = baos.toByteArray();
+
+        MockMultipartFile file = new MockMultipartFile("file", "book_photo.png", "image/png", uhdBytes);
+        when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+        when(modelMediaRepository.findNextDisplayOrder(modelId, MediaType.BOOK)).thenReturn(1);
+        when(storageService.uploadFile(eq("models-media"), any(), eq(file))).thenReturn("models-media/book_photo.png");
+
+        // Simula falha relacional no PostgreSQL ao salvar o registro de ModelMedia
+        when(modelMediaRepository.save(any(ModelMedia.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Erro de constraint no banco"));
+
+        assertThatThrownBy(() -> modelMediaService.uploadMedia(modelId, MediaType.BOOK, false, file))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+                .hasMessageContaining("Erro de constraint no banco");
+
+        // Valida que o arquivo órfão foi compensado e deletado do storage
+        verify(storageService, times(1)).deleteFile("models-media", "models-media/book_photo.png");
+    }
 }

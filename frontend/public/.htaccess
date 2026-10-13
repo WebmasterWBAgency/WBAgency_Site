@@ -1,24 +1,36 @@
-Options -Indexes +FollowSymLinks
-DirectoryIndex index.html
-<IfModule mod_deflate.c>
-AddOutputFilterByType DEFLATE text/plain text/html text/css application/javascript application/json
-</IfModule>
-<IfModule mod_expires.c>
-ExpiresActive On
-ExpiresByType text/html "access plus 0 seconds"
-ExpiresByType text/css "access plus 1 year"
-ExpiresByType application/javascript "access plus 1 year"
-ExpiresByType image/jpeg "access plus 1 year"
-ExpiresByType image/png "access plus 1 year"
-</IfModule>
 <IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteBase /
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
-RewriteRule ^ index.html [L]
+  RewriteEngine On
+  RewriteBase /
+
+  # Forçar HTTPS
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Ignorar arquivos e diretórios físicos existentes
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Redirecionar todas as outras requisições para o index.html da SPA
+  RewriteRule ^ index.html [L]
 </IfModule>
-<Files ~ "^\.(env|git|htaccess)$">
-Require all denied
-</Files>
+
+<IfModule mod_headers.c>
+  # Cabeçalhos de Segurança Defensivos
+  Header set X-Frame-Options "DENY"
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+  # Cache agressivo para assets versionados
+  <FilesMatch "\.(js|css|webp|png|jpg|jpeg|svg|woff2|woff|ico)$">
+    Header set Cache-Control "max-age=31536000, public, immutable"
+  </FilesMatch>
+
+  # index.html nunca deve ser cacheado para permitir deploys instantâneos
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+</IfModule>

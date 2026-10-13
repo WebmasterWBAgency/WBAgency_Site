@@ -8,7 +8,6 @@ import com.wbscouting.api.dto.content.SiteContentUpdateRequestDto;
 import com.wbscouting.api.entity.SiteContent;
 import com.wbscouting.api.exception.FileSizeExceededException;
 import com.wbscouting.api.exception.InvalidFileException;
-import com.wbscouting.api.exception.ResourceNotFoundException;
 import com.wbscouting.api.repository.SiteContentRepository;
 import com.wbscouting.api.service.storage.StorageService;
 import org.junit.jupiter.api.BeforeEach;

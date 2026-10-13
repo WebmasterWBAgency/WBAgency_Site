@@ -14,7 +14,6 @@ import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +31,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("deprecation")
 public class AdminCandidateServiceImpl implements AdminCandidateService {
 
     public static final int SIGNED_URL_EXPIRES_IN_SECONDS = 900;

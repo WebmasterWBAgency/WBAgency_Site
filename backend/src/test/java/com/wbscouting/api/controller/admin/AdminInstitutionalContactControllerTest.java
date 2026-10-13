@@ -1,7 +1,6 @@
 package com.wbscouting.api.controller.admin;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wbscouting.api.dto.content.ContactSettingsDto;
 import com.wbscouting.api.entity.SiteContent;
 import com.wbscouting.api.exception.GlobalExceptionHandler;
 import com.wbscouting.api.repository.ContactChannelRepository;

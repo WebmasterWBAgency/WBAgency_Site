@@ -82,12 +82,20 @@ public final class ImageSecuritySanitizer {
                 }
 
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                String writeFormat = "png".equalsIgnoreCase(format) ? "png" : "jpg";
+                String writeFormat;
+                if ("png".equalsIgnoreCase(format)) {
+                    writeFormat = "png";
+                } else if ("webp".equalsIgnoreCase(format) && canWriteFormat("webp")) {
+                    writeFormat = "webp";
+                } else {
+                    writeFormat = "jpg";
+                }
+
                 boolean success = ImageIO.write(cleanImage, writeFormat, outputStream);
 
                 if (success && outputStream.size() > 0) {
                     byte[] sanitizedBytes = outputStream.toByteArray();
-                    log.debug("Imagem '{}' higienizada e regravada com sucesso. De {} para {} bytes.",
+                    log.debug("Imagem '{}' higienizada e regravada com sucesso (metadados EXIF/GPS expurgados). De {} para {} bytes.",
                             file.getOriginalFilename(), originalBytes.length, sanitizedBytes.length);
 
                     return new SanitizedMultipartFile(
@@ -154,5 +162,9 @@ public final class ImageSecuritySanitizer {
             return "image/webp";
         }
         return "image/jpeg";
+    }
+
+    private static boolean canWriteFormat(String formatName) {
+        return ImageIO.getImageWritersByFormatName(formatName).hasNext();
     }
 }

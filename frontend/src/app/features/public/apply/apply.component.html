@@ -111,7 +111,7 @@
 
               <div class="form-group">
                 <label for="phone">Telefone / WhatsApp *</label>
-                <input id="phone" type="tel" formControlName="phone" class="form-control" placeholder="(11) 99999-9999" />
+                <input id="phone" type="tel" inputmode="tel" formControlName="phone" class="form-control" placeholder="(11) 99999-9999" />
                 @if (applyForm.get('phone')?.touched && applyForm.get('phone')?.invalid) {
                   <span class="form-error">O telefone de contato é obrigatório.</span>
                 }
@@ -121,7 +121,7 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="age">Idade *</label>
-                <input id="age" type="number" formControlName="age" class="form-control" placeholder="Ex: 19" />
+                <input id="age" type="number" inputmode="numeric" formControlName="age" class="form-control" placeholder="Ex: 19" />
                 @if (applyForm.get('age')?.touched && applyForm.get('age')?.invalid) {
                   <span class="form-error">Informe uma idade válida.</span>
                 }
@@ -161,7 +161,7 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="heightCm">Altura (cm) *</label>
-                <input id="heightCm" type="number" formControlName="heightCm" class="form-control" placeholder="Ex: 178" />
+                <input id="heightCm" type="number" inputmode="numeric" formControlName="heightCm" class="form-control" placeholder="Ex: 178" />
                 @if (applyForm.get('heightCm')?.touched && applyForm.get('heightCm')?.invalid) {
                   <span class="form-error">Altura é obrigatória (em centímetros).</span>
                 }
@@ -169,24 +169,24 @@
 
               <div class="form-group">
                 <label for="weightKg">Peso (kg)</label>
-                <input id="weightKg" type="number" formControlName="weightKg" class="form-control" placeholder="Ex: 58" />
+                <input id="weightKg" type="number" inputmode="numeric" formControlName="weightKg" class="form-control" placeholder="Ex: 58" />
               </div>
             </div>
 
             <div class="form-row form-row-3">
               <div class="form-group">
                 <label for="bustChestCm">Busto / Tórax (cm)</label>
-                <input id="bustChestCm" type="number" formControlName="bustChestCm" class="form-control" placeholder="Ex: 85" />
+                <input id="bustChestCm" type="number" inputmode="numeric" formControlName="bustChestCm" class="form-control" placeholder="Ex: 85" />
               </div>
 
               <div class="form-group">
                 <label for="waistCm">Cintura (cm)</label>
-                <input id="waistCm" type="number" formControlName="waistCm" class="form-control" placeholder="Ex: 61" />
+                <input id="waistCm" type="number" inputmode="numeric" formControlName="waistCm" class="form-control" placeholder="Ex: 61" />
               </div>
 
               <div class="form-group">
                 <label for="hipsCm">Quadril (cm)</label>
-                <input id="hipsCm" type="number" formControlName="hipsCm" class="form-control" placeholder="Ex: 90" />
+                <input id="hipsCm" type="number" inputmode="numeric" formControlName="hipsCm" class="form-control" placeholder="Ex: 90" />
               </div>
             </div>
 

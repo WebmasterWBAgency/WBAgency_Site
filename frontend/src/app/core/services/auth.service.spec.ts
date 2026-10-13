@@ -73,18 +73,21 @@ describe('AuthService', () => {
     req.flush(mockResponse);
   });
 
-  it('should handle mock fallback for local testing with webmaster credentials when backend is offline', () => {
+  it('should propagate error when backend is offline and credentials are used without mock fallback', () => {
     const credentials = { email: 'webmaster@wbagency.com.br', password: 'admin123' };
+    let errorThrown = false;
 
-    service.login(credentials).subscribe((res) => {
-      expect(res).toBeTruthy();
-      expect(service.isAuthenticated()).toBeTrue();
-      expect(service.currentUser()?.email).toBe('webmaster@wbagency.com.br');
-      expect(service.currentUser()?.role).toBe('WEBMASTER');
+    service.login(credentials).subscribe({
+      next: () => fail('Should not authenticate offline without backend'),
+      error: (err) => {
+        errorThrown = true;
+        expect(err.status).toBe(0);
+      }
     });
 
     const req = httpTesting.expectOne(`${environment.apiUrl}/auth/login`);
     req.flush('Network Error', { status: 0, statusText: 'Unknown Error' });
+    expect(errorThrown).toBeTrue();
   });
 
   it('should reject legacy admin@wbscouting.com in offline mock fallback', () => {

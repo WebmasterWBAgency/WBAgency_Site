@@ -331,13 +331,16 @@ export class BecomeModelComponent implements OnInit {
   }
 
   private loadEditorialContent(): void {
-    this.faqService.getPublicApplyHeader().subscribe(header => {
-      if (header) {
-        this.headerTitle = header.title || this.headerTitle;
-        this.headerSubtitle = header.subtitle || this.headerSubtitle;
-        this.headerDescription = header.description || this.headerDescription;
-      }
-    });
+    const t = (key: string) => this.translationService.translate(key);
+    const transTitle = t('apply_page.header_title');
+    if (transTitle && transTitle !== 'apply_page.header_title') {
+      this.headerTitle = transTitle;
+    }
+    const transDesc = t('apply_page.header_description');
+    if (transDesc && transDesc !== 'apply_page.header_description') {
+      this.headerDescription = transDesc;
+    }
+    this.headerSubtitle = 'WB SCOUTING DESK';
 
     const langRaw = this.translationService.currentLang?.();
     const lang = typeof langRaw === 'string' ? (langRaw || 'pt') : 'pt';
@@ -345,38 +348,45 @@ export class BecomeModelComponent implements OnInit {
   }
 
   loadFaqItems(lang: string = 'pt'): void {
-    this.faqService.getPublicFaqs(lang).subscribe(faqs => {
-      if (faqs && faqs.length > 0) {
-        this.faqs = faqs;
-        this.faqItems = faqs.map((f, i) => ({
-          question: this.getFaqQuestion(f, i),
-          answer: this.getFaqAnswer(f, i),
-          questionEn: f.questionEn,
-          answerEn: f.answerEn
-        }));
-      } else {
-        this.faqs = [];
-        this.faqItems = [];
-      }
-    });
+    const faqKeys = [
+      { q: 'apply_page.faq_measurements_q', a: 'apply_page.faq_measurements_a' },
+      { q: 'apply_page.faq_height_q', a: 'apply_page.faq_height_a' },
+      { q: 'apply_page.faq_apply_steps_q', a: 'apply_page.faq_apply_steps_a' },
+      { q: 'apply_page.faq_photos_q', a: 'apply_page.faq_photos_a' },
+      { q: 'apply_page.faq_age_q', a: 'apply_page.faq_age_a' },
+      { q: 'apply_page.faq_fee_q', a: 'apply_page.faq_fee_a' },
+      { q: 'apply_page.faq_sp_q', a: 'apply_page.faq_sp_a' },
+      { q: 'apply_page.faq_1_q', a: 'apply_page.faq_1_a' },
+      { q: 'apply_page.faq_3_q', a: 'apply_page.faq_3_a' },
+      { q: 'apply_page.faq_4_q', a: 'apply_page.faq_4_a' },
+      { q: 'apply_page.faq_8_q', a: 'apply_page.faq_8_a' },
+      { q: 'apply_page.faq_9_q', a: 'apply_page.faq_9_a' }
+    ];
+
+    this.faqItems = faqKeys.map((k, idx) => ({
+      question: this.translationService.translate(k.q),
+      answer: this.translationService.translate(k.a),
+      questionEn: this.translationService.translate(k.q),
+      answerEn: this.translationService.translate(k.a)
+    }));
+    this.faqs = this.faqItems.map((item, idx) => ({
+      id: `faq-${idx}`,
+      question: item.question,
+      answer: item.answer,
+      questionEn: item.questionEn,
+      answerEn: item.answerEn,
+      displayOrder: idx,
+      isActive: true
+    }));
   }
 
   private loadDefaultFaqItems(lang: string = 'pt'): void {
-    this.faqItems = [];
+    this.loadFaqItems(lang);
   }
 
-  // Carrega o texto "Proximos Passos / Como Funciona" do Admin Bilingual Editor.
-  // Se API voltar vazio/nulo ou tabela limpa -> null (não exibe bloco)
+  // Carrega o texto "Proximos Passos / Como Funciona" a partir do i18n local síncrono
   private loadApplyHowItWorks(lang: string = 'pt'): void {
-    this.contentSvc.getApplyHowItWorksContent(lang).subscribe(content => {
-      if (!content || !content.steps || content.steps.length === 0) {
-        this.applyHowItWorks = null;
-      } else {
-        this.applyHowItWorks = content;
-      }
-    }, () => {
-      this.applyHowItWorks = null;
-    });
+    this.applyHowItWorks = this.fallbackHowItWorksFromI18n(lang);
   }
 
   private fallbackHowItWorksFromI18n(lang: string): ApplyHowItWorksPayload {

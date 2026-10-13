@@ -40,23 +40,25 @@ export class ApplyComponent implements OnInit {
   }
 
   loadFaqs(lang: string = 'pt'): void {
-    const langParam = lang?.startsWith('en') ? 'en' : 'pt';
-    this.api.get<any[]>(`/public/apply-faq?lang=${langParam}`).subscribe({
-      next: (faqs) => {
-        if (faqs && Array.isArray(faqs)) {
-          this.faqItems = faqs.map(item => ({
-            question: (langParam === 'en' && item.questionEn) ? item.questionEn : item.question,
-            answer: (langParam === 'en' && item.answerEn) ? item.answerEn : item.answer
-          }));
-        } else {
-          this.faqItems = [];
-        }
-      },
-      error: (err) => {
-        console.warn('[APPLY] Erro ao carregar FAQs:', err);
-        this.faqItems = [];
-      }
-    });
+    const faqKeys = [
+      { q: 'apply_page.faq_measurements_q', a: 'apply_page.faq_measurements_a' },
+      { q: 'apply_page.faq_height_q', a: 'apply_page.faq_height_a' },
+      { q: 'apply_page.faq_apply_steps_q', a: 'apply_page.faq_apply_steps_a' },
+      { q: 'apply_page.faq_photos_q', a: 'apply_page.faq_photos_a' },
+      { q: 'apply_page.faq_age_q', a: 'apply_page.faq_age_a' },
+      { q: 'apply_page.faq_fee_q', a: 'apply_page.faq_fee_a' },
+      { q: 'apply_page.faq_sp_q', a: 'apply_page.faq_sp_a' },
+      { q: 'apply_page.faq_1_q', a: 'apply_page.faq_1_a' },
+      { q: 'apply_page.faq_3_q', a: 'apply_page.faq_3_a' },
+      { q: 'apply_page.faq_4_q', a: 'apply_page.faq_4_a' },
+      { q: 'apply_page.faq_8_q', a: 'apply_page.faq_8_a' },
+      { q: 'apply_page.faq_9_q', a: 'apply_page.faq_9_a' }
+    ];
+
+    this.faqItems = faqKeys.map(k => ({
+      question: this.translate.translate(k.q),
+      answer: this.translate.translate(k.a)
+    }));
   }
 
   toggleFaq(index: number): void {

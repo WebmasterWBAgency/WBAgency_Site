@@ -21,6 +21,28 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
+    path: 'termos',
+    loadComponent: () => import('./features/public/institutional/institutional-legal.component').then(m => m.InstitutionalLegalComponent),
+    data: { sectionKey: 'TERMS' },
+    title: 'Termos de Uso | WB Agency'
+  },
+  {
+    path: 'terms',
+    redirectTo: 'termos',
+    pathMatch: 'full'
+  },
+  {
+    path: 'privacidade',
+    loadComponent: () => import('./features/public/institutional/institutional-legal.component').then(m => m.InstitutionalLegalComponent),
+    data: { sectionKey: 'PRIVACY' },
+    title: 'Privacidade & LGPD | WB Agency'
+  },
+  {
+    path: 'privacy',
+    redirectTo: 'privacidade',
+    pathMatch: 'full'
+  },
+  {
     path: 'models',
     loadComponent: () => import('./features/public/models/model-list.component').then(m => m.ModelListComponent),
     title: 'Modelos | WB Agency'

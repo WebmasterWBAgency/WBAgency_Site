@@ -2,7 +2,6 @@ package com.wbscouting.api.controller.publicapi;
 
 import com.wbscouting.api.dto.content.SiteContentPublicDto;
 import com.wbscouting.api.exception.GlobalExceptionHandler;
-import com.wbscouting.api.exception.ResourceNotFoundException;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
 import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtService;

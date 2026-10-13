@@ -31,6 +31,14 @@
     "cta_banner_desc": "Envie sua ficha de avaliação e fotos polaroids diretamente para os nossos olheiros e bookers.",
     "cta_banner_button": "Iniciar Inscrição"
   },
+  "about_page": {
+    "headline": "A Nova Estética do Scouting Global",
+    "quote": "Acreditamos na autenticidade, na força da personalidade e na beleza singular de cada indivíduo.",
+    "section_title": "Nossa Filosofia",
+    "body": "A WB Agency consolidou-se como um núcleo editorial focado no desenvolvimento integral de modelos para os principais mercados da moda internacional. Nossa metodologia rejeita a padronização e prioriza a identidade visual autêntica, conectando talentos a marcas com relevância estética global.\n\nConectamos talentos às principais marcas com curadoria estratégica, visão de vanguarda e compromisso com o desenvolvimento humano e profissional em escala global.",
+    "meta_title": "Sobre Nós | WB Agency - Scouting & Model Management",
+    "meta_description": "Conheça a WB Agency, agência de modelos e scouting internacional focada na autenticidade, excelência editorial e gestão de carreiras globais."
+  },
   "footer": {
     "navigation_title": "Navegação",
     "nav_female": "Modelos Femininos",

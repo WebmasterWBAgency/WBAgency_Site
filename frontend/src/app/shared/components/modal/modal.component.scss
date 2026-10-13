@@ -42,6 +42,13 @@
     color: var(--text-muted);
     background: transparent;
     line-height: 1;
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
     transition: color var(--transition-fast);
 
     &:hover {

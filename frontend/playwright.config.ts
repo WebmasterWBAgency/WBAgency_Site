@@ -23,5 +23,11 @@ export default defineConfig({
       name: 'Google Chrome Desktop',
       use: { ...devices['Desktop Chrome'] },
     }
-  ]
+  ],
+  webServer: {
+    command: 'npx serve -s dist/frontend/browser -l 4200',
+    url: 'http://localhost:4200',
+    reuseExistingServer: true,
+    timeout: 30000,
+  }
 });

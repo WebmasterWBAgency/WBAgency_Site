@@ -1,7 +1,6 @@
 package com.wbscouting.api.dto;
 
 import com.wbscouting.api.entity.Model;
-import com.wbscouting.api.entity.ModelMedia;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;

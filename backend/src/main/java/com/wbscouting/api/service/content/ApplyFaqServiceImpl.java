@@ -443,10 +443,6 @@ public class ApplyFaqServiceImpl implements ApplyFaqService {
                 .build();
     }
 
-    private List<ApplyFaqDto> getDefaultFaqs() {
-        return Collections.emptyList();
-    }
-
     private ApplyFaqDto toDto(ApplyFaq faq) {
         return ApplyFaqDto.builder()
                 .id(faq.getId())

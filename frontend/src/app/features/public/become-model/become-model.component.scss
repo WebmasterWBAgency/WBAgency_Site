@@ -508,10 +508,11 @@ input[type="number"] {
 .photo-slots-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.25rem;
+  gap: 0.75rem; /* gap-3 no mobile para respiro e evitar overflow */
 
   @include sm {
     grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
   }
 }
 

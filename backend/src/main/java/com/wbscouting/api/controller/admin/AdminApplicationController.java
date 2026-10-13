@@ -5,7 +5,6 @@ import com.wbscouting.api.dto.admin.candidate.CandidateApplicationSummaryDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDecisionRequestDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDetailResponseDto;
 import com.wbscouting.api.enums.SubmissionGender;
-import com.wbscouting.api.enums.SubmissionStatus;
 import com.wbscouting.api.security.audit.AuditAction;
 import com.wbscouting.api.service.candidate.AdminCandidateService;
 import com.wbscouting.api.service.candidate.CandidateSubmissionAdminService;

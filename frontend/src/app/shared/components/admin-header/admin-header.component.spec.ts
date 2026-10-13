@@ -80,8 +80,8 @@ describe('AdminHeaderComponent', () => {
     expect(logoAnchor.getAttribute('routerLink')).toBe('/admin/dashboard');
 
     // Inline style defensivo e dimensões intrínsecas
-    expect(logoImg.style.height).toBe('48px');
-    expect(logoImg.style.maxHeight).toBe('48px');
+    expect(logoImg.style.height).toBe('32px');
+    expect(logoImg.style.maxHeight).toBe('32px');
     expect(logoImg.getAttribute('width')).toBe('765');
     expect(logoImg.getAttribute('height')).toBe('507');
   });

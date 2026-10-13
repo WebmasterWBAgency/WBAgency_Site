@@ -159,10 +159,13 @@ export class ImageProcessingService {
       const img = new Image();
       img.onload = () => {
         URL.revokeObjectURL(url);
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        const dims = { width: img.naturalWidth, height: img.naturalHeight };
+        img.src = '';
+        resolve(dims);
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
+        img.src = '';
         reject(new Error('Falha ao decodificar imagem.'));
       };
       img.src = url;
@@ -200,6 +203,9 @@ export class ImageProcessingService {
 
         const ctx = canvas.getContext('2d', { alpha: file.type === 'image/png' });
         if (!ctx) {
+          canvas.width = 0;
+          canvas.height = 0;
+          img.src = '';
           reject(new Error('Contexto 2D do Canvas indisponível.'));
           return;
         }
@@ -211,6 +217,11 @@ export class ImageProcessingService {
         const outputMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
         canvas.toBlob(
           (blob) => {
+            // Desalocação explícita de buffer gráfico para evitar OOM crash no mobile
+            canvas.width = 0;
+            canvas.height = 0;
+            img.src = '';
+
             if (blob) {
               resolve({
                 blob,
@@ -227,6 +238,7 @@ export class ImageProcessingService {
 
       img.onerror = () => {
         URL.revokeObjectURL(url);
+        img.src = '';
         reject(new Error('Erro ao carregar imagem no Canvas.'));
       };
 

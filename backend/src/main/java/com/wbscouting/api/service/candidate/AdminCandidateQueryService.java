@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
+@SuppressWarnings("deprecation")
 public interface AdminCandidateQueryService {
 
     /**

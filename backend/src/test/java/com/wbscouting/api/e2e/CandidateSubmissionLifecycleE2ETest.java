@@ -11,11 +11,9 @@ import com.wbscouting.api.dto.auth.LoginRequestDto;
 import com.wbscouting.api.dto.auth.LoginResponseDto;
 import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
 import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
-import com.wbscouting.api.entity.Model;
 import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.GenderType;
 import com.wbscouting.api.enums.SubmissionStatus;
-import com.wbscouting.api.enums.TalentLifecycleStatus;
 import com.wbscouting.api.exception.GlobalExceptionHandler;
 import com.wbscouting.api.exception.InvalidFileException;
 import com.wbscouting.api.repository.ModelMediaRepository;
@@ -38,7 +36,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -47,9 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
@@ -127,7 +122,6 @@ class CandidateSubmissionLifecycleE2ETest {
     private com.wbscouting.api.repository.AdminRepository adminRepository;
 
     private CandidateApplyRequestDto validSubmissionDto;
-    private Model candidateEntity;
     private CandidateApplyResponseDto submissionResponseDto;
     private UUID candidateId;
     private String protocol;
@@ -153,32 +147,6 @@ class CandidateSubmissionLifecycleE2ETest {
                 .hipsCm(new BigDecimal("89.0"))
                 .shoeSize("38")
                 .instagramHandle("@isabellafontana")
-                .build();
-
-        candidateEntity = Model.builder()
-                .id(candidateId)
-                .protocol(protocol)
-                .stageName("Isabella Fontana")
-                .fullName("Isabella Fontana")
-                .email("isabella.fontana@models.com")
-                .phone("+5511999998888")
-                .birthDate(LocalDate.of(2002, 3, 23))
-                .age(24)
-                .gender(GenderType.FEMALE)
-                .city("Curitiba")
-                .state("PR")
-                .heightCm(177)
-                .bustChestCm(new BigDecimal("84.0"))
-                .waistCm(new BigDecimal("60.0"))
-                .hipsCm(new BigDecimal("89.0"))
-                .shoeSize("38")
-                .eyesColor("Verdes")
-                .hairColor("Castanho Claro")
-                .instagramUrl("@isabellafontana")
-                .lgpdAccepted(true)
-                .status(TalentLifecycleStatus.APPLICANT_PENDING)
-                .primaryPhotoUrl("https://example.com/storage/face.jpg")
-                .createdAt(OffsetDateTime.now())
                 .build();
 
         submissionResponseDto = CandidateApplyResponseDto.builder()

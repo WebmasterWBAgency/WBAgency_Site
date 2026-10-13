@@ -105,7 +105,6 @@ public class AdminContentController {
         return ResponseEntity.ok(response);
     }
 
-    @SuppressWarnings("unchecked")
     @RequestMapping(
             method = {RequestMethod.PUT, RequestMethod.POST},
             value = {"/translations/{sectionKey}", "/institutional/translations/{sectionKey}"}

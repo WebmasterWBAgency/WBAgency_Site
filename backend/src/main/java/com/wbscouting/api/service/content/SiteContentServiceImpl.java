@@ -8,7 +8,6 @@ import com.wbscouting.api.dto.content.SiteContentUpdateRequestDto;
 import com.wbscouting.api.entity.SiteContent;
 import com.wbscouting.api.exception.FileSizeExceededException;
 import com.wbscouting.api.exception.InvalidFileException;
-import com.wbscouting.api.exception.ResourceNotFoundException;
 import com.wbscouting.api.repository.SiteContentRepository;
 import com.wbscouting.api.service.storage.StorageService;
 import com.wbscouting.api.service.storage.SupabaseStorageService;
@@ -324,46 +323,6 @@ public class SiteContentServiceImpl implements SiteContentService {
         }
     }
 
-    private SiteContent createDefaultAboutManifesto() {
-        Map<String, Object> pt = new HashMap<>();
-        pt.put("headline", "A Nova Estética do Scouting Global");
-        pt.put("quote", "Acreditamos na autenticidade, na força da personalidade e na beleza singular de cada indivíduo.");
-        pt.put("sectionTitle", "Nossa Filosofia");
-        pt.put("body", "Conectamos talentos às principais marcas com curadoria estratégica, visão de vanguarda e compromisso com o desenvolvimento humano e profissional em escala global.");
-
-        Map<String, Object> en = new HashMap<>();
-        en.put("headline", "The New Aesthetic of Global Scouting");
-        en.put("quote", "We believe in authenticity, personal strength, and the unique beauty of every individual.");
-        en.put("sectionTitle", "Our Philosophy");
-        en.put("body", "We connect talent to leading global brands with strategic curation, avant-garde vision, and a commitment to human and professional growth on a global scale.");
-
-        return SiteContent.builder()
-                .sectionKey("ABOUT_MANIFESTO")
-                .payloadPt(pt)
-                .payloadEn(en)
-                .build();
-    }
-
-    // 🆕 Fallback padrão para a seção de Próximos Passos / Como Funciona do Apply.
-    // Idêntico ao conteúdo do i18n (apply_page.step1/2/3) em PT e EN.
-    private SiteContent createDefaultApplyHowItWorks() {
-        Map<String, Object> pt = new HashMap<>();
-        pt.put("headline", "Próximos Passos • Como Funciona");
-        pt.put("quote", "Transparência total no processo de avaliação de novos talentos.");
-        // 3 passos separados por "|||" — o frontend faz split e renderiza <ul><li>
-        pt.put("body", "Nossa diretoria de casting analisa todas as candidaturas em até 5 dias úteis.|||Em caso de compatibilidade de perfil com nosso casting comercial ou fashion, nossa equipe entrará em contato via telefone ou e-mail cadastrado.|||A WB Agency nunca cobra taxas para avaliação de perfil ou agenciamento inicial.");
-
-        Map<String, Object> en = new HashMap<>();
-        en.put("headline", "Next Steps • How It Works");
-        en.put("quote", "Full transparency throughout our new talent evaluation workflow.");
-        en.put("body", "Our casting board reviews every submission within 5 business days.|||When your profile matches our commercial or high fashion rosters, our scouting team contacts you via the phone or email you registered.|||WB Agency never charges assessment fees or upfront agency deposits of any kind.");
-
-        return SiteContent.builder()
-                .sectionKey("APPLY_HOW_IT_WORKS")
-                .payloadPt(pt)
-                .payloadEn(en)
-                .build();
-    }
 
     private Optional<SiteContent> findSectionWithAlias(String sectionKey) {
         if (sectionKey == null) return Optional.empty();
@@ -391,41 +350,5 @@ public class SiteContentServiceImpl implements SiteContentService {
             return siteContentRepository.findBySectionKey("ABOUT");
         }
         return Optional.empty();
-    }
-
-    private SiteContent createDefaultTerms() {
-        Map<String, Object> pt = new HashMap<>();
-        String ptText = "Termos e Condições de Uso da WB Agency.\n\nAo acessar e utilizar este website, você concorda expressamente com os termos e condições aqui estabelecidos. O conteúdo, fotografias, marcas e composites são de titularidade da WB Agency ou de seus parceiros credenciados.";
-        pt.put("content", ptText);
-        pt.put("body", ptText);
-
-        Map<String, Object> en = new HashMap<>();
-        String enText = "WB Agency Terms of Use.\n\nBy accessing and using this website, you agree to comply with the terms and conditions set forth herein. All imagery, trademarks, composites, and texts are property of WB Agency or accredited partners.";
-        en.put("content", enText);
-        en.put("body", enText);
-
-        return SiteContent.builder()
-                .sectionKey("TERMS")
-                .payloadPt(pt)
-                .payloadEn(en)
-                .build();
-    }
-
-    private SiteContent createDefaultPrivacy() {
-        Map<String, Object> pt = new HashMap<>();
-        String ptText = "Política de Privacidade & Diretrizes LGPD (Lei nº 13.709/2018).\n\nA WB Agency trata dados pessoais exclusivamente para finalidades de triagem, comunicação profissional e representação artística. Garantimos o sigilo de fotografias de candidaturas e o direito de exclusão conforme a legislação vigente.";
-        pt.put("content", ptText);
-        pt.put("body", ptText);
-
-        Map<String, Object> en = new HashMap<>();
-        String enText = "Privacy Policy & GDPR/LGPD Compliance.\n\nWB Agency handles personal data strictly for casting screening, professional communication, and representation. Candidate photos and personal data are kept confidential under strict legal guidelines.";
-        en.put("content", enText);
-        en.put("body", enText);
-
-        return SiteContent.builder()
-                .sectionKey("PRIVACY")
-                .payloadPt(pt)
-                .payloadEn(en)
-                .build();
     }
 }

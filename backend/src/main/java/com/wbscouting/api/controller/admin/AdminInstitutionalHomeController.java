@@ -1,7 +1,6 @@
 package com.wbscouting.api.controller.admin;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.wbscouting.api.constant.ContentSectionKey;
 import com.wbscouting.api.dto.content.AssetUploadResponseDto;
 import com.wbscouting.api.dto.content.HomeContentDto;
@@ -29,7 +28,6 @@ public class AdminInstitutionalHomeController {
 
     private final SiteContentRepository siteContentRepository;
     private final SiteContentService siteContentService;
-    private final ObjectMapper objectMapper;
 
     /**
      * Endpoint PÚBLICO para leitura das configurações e disclaimer da Home

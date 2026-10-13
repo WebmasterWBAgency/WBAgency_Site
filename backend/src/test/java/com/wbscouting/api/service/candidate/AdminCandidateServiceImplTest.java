@@ -11,7 +11,6 @@ import com.wbscouting.api.enums.CandidateStatus;
 import com.wbscouting.api.enums.GenderType;
 import com.wbscouting.api.enums.TalentLifecycleStatus;
 import com.wbscouting.api.exception.ResourceNotFoundException;
-import com.wbscouting.api.repository.CandidateSubmissionRepository;
 import com.wbscouting.api.repository.ModelMediaRepository;
 import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.storage.StorageService;
@@ -27,7 +26,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -40,6 +38,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("deprecation")
 class AdminCandidateServiceImplTest {
 
     @Mock

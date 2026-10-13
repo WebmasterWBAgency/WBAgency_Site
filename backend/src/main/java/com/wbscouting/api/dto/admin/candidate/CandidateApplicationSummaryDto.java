@@ -369,12 +369,6 @@ public class CandidateApplicationSummaryDto {
         return (u != null && !u.isBlank()) ? u.trim() : null;
     }
 
-    private static String blankToNull(String s) {
-        if (s == null) return null;
-        String t = s.trim();
-        return t.isEmpty() ? null : t;
-    }
-
     // ===================== GETTERS =====================
     public UUID getId() { return id; }
     public String getFullName() { return fullName; }

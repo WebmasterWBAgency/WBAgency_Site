@@ -19,7 +19,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-@SuppressWarnings("null")
 @DisplayName("3.3. Teste do DataInitializer (Sem Recriação de Admin Padrão)")
 class DataInitializerIdempotencyTest {
 

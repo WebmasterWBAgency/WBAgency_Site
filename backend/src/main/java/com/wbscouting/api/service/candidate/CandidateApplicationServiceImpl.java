@@ -16,7 +16,6 @@ import com.wbscouting.api.exception.FileSizeExceededException;
 import com.wbscouting.api.exception.InvalidApplicationException;
 import com.wbscouting.api.exception.InvalidFileException;
 import com.wbscouting.api.exception.StorageException;
-import com.wbscouting.api.repository.CandidatePhotoRepository;
 import com.wbscouting.api.repository.CandidateSubmissionRepository;
 import com.wbscouting.api.repository.ModelMediaRepository;
 import com.wbscouting.api.repository.ModelRepository;
@@ -24,6 +23,8 @@ import com.wbscouting.api.service.email.EmailService;
 import com.wbscouting.api.service.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -68,7 +69,6 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
     private final ModelRepository modelRepository;
     private final ModelMediaRepository modelMediaRepository;
     private final CandidateSubmissionRepository candidateSubmissionRepository;
-    private final CandidatePhotoRepository candidatePhotoRepository;
     private final StorageService storageService;
     private final EmailService emailService;
     private final MailProperties mailProperties;
@@ -130,7 +130,7 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
             // Ordena as fotos pela ordem de exibição
             uploadedPhotos.sort(Comparator.comparingInt(UploadedPhoto::displayOrder));
 
-            // 7. Persistência dos registros das fotos na entidade canônica ModelMedia
+            // 7. Persistência dos registros das fotos na entidade canônica ModelMedia e CandidateSubmission (JPA)
             List<ModelMedia> mediaEntities = new ArrayList<>();
             for (int i = 0; i < uploadedPhotos.size(); i++) {
                 UploadedPhoto upload = uploadedPhotos.get(i);
@@ -149,27 +149,48 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                 mediaEntities.add(media);
             }
 
-            modelMediaRepository.saveAll(mediaEntities);
+            try {
+                modelMediaRepository.saveAll(mediaEntities);
 
-            // Sincroniza foto de capa primária e fotos específicas no modelo
-            String faceUrl = !uploadedPhotos.isEmpty() ? uploadedPhotos.get(0).publicUrl() : "";
-            String profileUrl = uploadedPhotos.size() > 1 ? uploadedPhotos.get(1).publicUrl() : faceUrl;
-            String fullBodyUrl = uploadedPhotos.size() > 2 ? uploadedPhotos.get(2).publicUrl() : faceUrl;
+                // Sincroniza foto de capa primária e fotos específicas no modelo
+                String faceUrl = !uploadedPhotos.isEmpty() ? uploadedPhotos.get(0).publicUrl() : "";
+                String profileUrl = uploadedPhotos.size() > 1 ? uploadedPhotos.get(1).publicUrl() : faceUrl;
+                String fullBodyUrl = uploadedPhotos.size() > 2 ? uploadedPhotos.get(2).publicUrl() : faceUrl;
 
-            if (StringUtils.hasText(faceUrl)) {
-                model.setPrimaryPhotoUrl(faceUrl);
-                model.setFacePhotoUrl(faceUrl);
-            }
-            if (StringUtils.hasText(profileUrl)) {
-                model.setProfilePhotoUrl(profileUrl);
-            }
-            if (StringUtils.hasText(fullBodyUrl)) {
-                model.setFullBodyPhotoUrl(fullBodyUrl);
-            }
-            model = modelRepository.save(model);
+                if (StringUtils.hasText(faceUrl)) {
+                    model.setPrimaryPhotoUrl(faceUrl);
+                    model.setFacePhotoUrl(faceUrl);
+                }
+                if (StringUtils.hasText(profileUrl)) {
+                    model.setProfilePhotoUrl(profileUrl);
+                }
+                if (StringUtils.hasText(fullBodyUrl)) {
+                    model.setFullBodyPhotoUrl(fullBodyUrl);
+                }
+                model = modelRepository.save(model);
 
-            // 8. Persistência Atômica na tabela canônica candidate_submissions e candidate_photos via JPA
-            persistCandidateSubmission(requestDto, age, protocol, modelId, faceUrl, profileUrl, fullBodyUrl, uploadedPhotos);
+                // 8. Persistência Atômica na tabela canônica candidate_submissions e candidate_photos via JPA
+                persistCandidateSubmission(requestDto, age, protocol, modelId, faceUrl, profileUrl, fullBodyUrl, uploadedPhotos);
+
+                // Registro defensivo pós-commit/rollback no nível de transação
+                if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                    final List<String> pathsForRollback = new ArrayList<>(uploadedPaths);
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                                log.warn("[ROLLBACK COMPENSATÓRIO] Transação revertida no commit (STATUS_ROLLED_BACK). Limpando fotos órfãs do bucket '{}'...", bucket);
+                                compensateUploadedFiles(bucket, pathsForRollback);
+                            }
+                        }
+                    });
+                }
+            } catch (RuntimeException dbEx) {
+                log.error("[ROLLBACK COMPENSATÓRIO] Falha na persistência relacional do banco de dados (JPA/PostgreSQL) para candidato ID={}. Executando remoção imediata de {} fotos do storage...",
+                        modelId, uploadedPaths.size(), dbEx);
+                compensateUploadedFiles(bucket, uploadedPaths);
+                throw dbEx;
+            }
 
             // 9. Notificação por e-mail assíncrona pós-commit
             CandidateApplicationDto applicationDto = CandidateApplicationDto.fromModel(model);
@@ -205,6 +226,12 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
             }
             if (root instanceof FileSizeExceededException fse) {
                 throw fse;
+            }
+            if (root instanceof DataAccessException dae) {
+                throw dae;
+            }
+            if (root instanceof ConstraintViolationException cve) {
+                throw cve;
             }
             if (root instanceof StorageException se) {
                 log.warn("[APPLY] StorageException convertida para IllegalArgumentException: {}", se.getMessage());
@@ -439,12 +466,17 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
     }
 
     private void compensateUploadedFiles(String bucket, List<String> uploadedPaths) {
-        for (String path : uploadedPaths) {
+        if (uploadedPaths == null || uploadedPaths.isEmpty()) {
+            return;
+        }
+        List<String> pathsToDelete = new ArrayList<>(uploadedPaths);
+        uploadedPaths.clear();
+        for (String path : pathsToDelete) {
             try {
-                log.info("Compensação: deletando arquivo órfão do bucket '{}', path='{}'", bucket, path);
+                log.info("[COMPENSAÇÃO STORAGE] Deletando arquivo órfão do bucket '{}', path='{}'", bucket, path);
                 storageService.deleteFile(bucket, path);
             } catch (Exception ex) {
-                log.warn("Falha na compensação de deleção do arquivo '{}' no bucket '{}': {}",
+                log.warn("[COMPENSAÇÃO STORAGE] Falha na compensação de deleção do arquivo '{}' no bucket '{}': {}",
                         path, bucket, ex.getMessage());
             }
         }

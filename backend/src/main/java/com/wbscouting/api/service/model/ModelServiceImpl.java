@@ -12,10 +12,8 @@ import com.wbscouting.api.repository.ModelRepository;
 import com.wbscouting.api.service.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -23,7 +21,6 @@ import org.springframework.util.StringUtils;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import com.wbscouting.api.dto.media.MediaUploadResponseDto;
@@ -37,14 +34,6 @@ public class ModelServiceImpl implements ModelService {
     private final ModelMediaRepository modelMediaRepository;
     private final StorageService storageService;
     private final SupabaseProperties supabaseProperties;
-
-    /**
-     * JDBC Template com SQL PURO para diagnostico de conexao/dados.
-     * required=false: injecao falha silenciosamente em ambientes sem DataSource
-     * (ex: testes unitarios leves). Null-safe check em cada uso.
-     */
-    @Autowired(required = false)
-    private JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional

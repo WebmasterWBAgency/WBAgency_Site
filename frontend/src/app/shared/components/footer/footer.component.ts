@@ -136,7 +136,7 @@ export class FooterComponent implements OnInit {
 
   openInstitutionalModal(sectionKey: 'TERMS' | 'PRIVACY'): void {
     const isEn = this.isCurrentLangEn();
-    const fallbackKey = sectionKey === 'TERMS' ? 'footer.terms_content' : 'footer.privacy_content';
+    const contentKey = sectionKey === 'TERMS' ? 'footer.terms_content' : 'footer.privacy_content';
 
     // 1. Define o título do Modal
     this.modalTitle.set(
@@ -145,85 +145,16 @@ export class FooterComponent implements OnInit {
         : (isEn ? 'Privacy & GDPR' : 'Privacidade & LGPD')
     );
 
-    // 2. Abre o modal com loading
-    this.modalContent.set('');
-    this.isLoadingContent.set(true);
+    // 2. Carrega o conteúdo textual diretamente das traduções i18n locais
+    const content = this.translate.instant(contentKey);
+    if (sectionKey === 'TERMS') {
+      this.termsContent.set(content);
+    } else {
+      this.privacyContent.set(content);
+    }
+    this.modalContent.set(content);
+    this.isLoadingContent.set(false);
     this.isModalOpen.set(true);
-
-    const lang = isEn ? 'en' : 'pt';
-    const cacheBuster = Date.now();
-
-    // 3. Consulta a API com blindagem anti-cache
-    this.http.get<any>(`${environment.apiUrl}/public/content/${sectionKey}?lang=${lang}&_t=${cacheBuster}`, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
-    }).subscribe({
-      next: (res) => {
-        this.isLoadingContent.set(false);
-
-        // 4. Desempacotamento resiliente de qualquer formato retornado pela API
-        let extractedText = '';
-
-        if (typeof res === 'string') {
-          extractedText = res;
-        } else if (res && typeof res === 'object') {
-          const raw = 
-            res.body ||
-            res.text ||
-            res.content || 
-            res.data?.body || 
-            res.data?.content || 
-            res.payload?.body ||
-            res.payload?.content ||
-            res.payload?.text ||
-            res.translations?.[lang]?.body || 
-            res.translations?.[lang]?.content || 
-            res.payloadPt?.body ||
-            res.payloadPt?.content || 
-            res.payloadEn?.body ||
-            res.payloadEn?.content || 
-            '';
-
-          if (typeof raw === 'string') {
-            extractedText = raw;
-          } else if (raw && typeof raw === 'object') {
-            extractedText = raw.body || raw.content || raw.text || raw.description || '';
-          }
-        }
-
-        // 5. Se o texto extraído for válido, exibe. Se vier vazio, usa o fallback i18n:
-        if (extractedText && typeof extractedText === 'string' && extractedText.trim().length > 0) {
-          const trimmed = extractedText.trim();
-          if (sectionKey === 'TERMS') {
-            this.termsContent.set(trimmed);
-          } else {
-            this.privacyContent.set(trimmed);
-          }
-          this.modalContent.set(trimmed);
-        } else {
-          const fallback = this.translate.instant(fallbackKey);
-          if (sectionKey === 'TERMS') {
-            this.termsContent.set(fallback);
-          } else {
-            this.privacyContent.set(fallback);
-          }
-          this.modalContent.set(fallback);
-        }
-      },
-      error: (err) => {
-        console.warn(`[FOOTER] Erro ao carregar ${sectionKey} da API. Aplicando fallback local:`, err);
-        this.isLoadingContent.set(false);
-        const fallback = this.translate.instant(fallbackKey);
-        if (sectionKey === 'TERMS') {
-          this.termsContent.set(fallback);
-        } else {
-          this.privacyContent.set(fallback);
-        }
-        this.modalContent.set(fallback);
-      }
-    });
   }
 
   closeModal(): void {

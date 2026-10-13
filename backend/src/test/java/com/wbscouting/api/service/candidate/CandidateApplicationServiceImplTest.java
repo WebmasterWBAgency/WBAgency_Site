@@ -297,10 +297,60 @@ class CandidateApplicationServiceImplTest {
                 .when(modelMediaRepository).saveAll(anyList());
 
         assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, validPhotos))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
                 .hasMessageContaining("Erro relacional de banco");
 
         // Verifica que todas as 3 fotos enviadas foram compensadas e deletadas do storage
+        verify(storageService, times(3)).uploadFile(eq("candidates-uploads"), anyString(), any(MultipartFile.class));
+        verify(storageService, times(3)).deleteFile(eq("candidates-uploads"), anyString());
+        verify(emailService, never()).sendCandidateApplicationNotification(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("Deve efetuar rollback compensatório no storage quando candidateSubmissionRepository falhar com DataAccessException")
+    void shouldCompensateStorageFilesWhenCandidateSubmissionFailsWithDataAccessException() {
+        UUID generatedId = UUID.randomUUID();
+        when(modelRepository.saveAndFlush(any(Model.class))).thenAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.setId(generatedId);
+            return model;
+        });
+
+        when(storageService.getPublicUrl(anyString(), anyString())).thenReturn("https://supabase.co/storage/photo.jpg");
+
+        // Simula falha de persistência no PostgreSQL ao salvar candidate_submissions
+        doThrow(new org.springframework.dao.RecoverableDataAccessException("Falha de conexão com PostgreSQL"))
+                .when(candidateSubmissionRepository).saveAndFlush(any());
+
+        assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, validPhotos))
+                .isInstanceOf(org.springframework.dao.DataAccessException.class)
+                .hasMessageContaining("Falha de conexão com PostgreSQL");
+
+        // Garante que todos os 3 arquivos enviados foram imediatamente deletados do storage
+        verify(storageService, times(3)).uploadFile(eq("candidates-uploads"), anyString(), any(MultipartFile.class));
+        verify(storageService, times(3)).deleteFile(eq("candidates-uploads"), anyString());
+        verify(emailService, never()).sendCandidateApplicationNotification(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("Deve efetuar rollback compensatório no storage quando ocorrer ConstraintViolationException")
+    void shouldCompensateStorageFilesWhenCandidateSubmissionFailsWithConstraintViolation() {
+        UUID generatedId = UUID.randomUUID();
+        when(modelRepository.saveAndFlush(any(Model.class))).thenAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.setId(generatedId);
+            return model;
+        });
+
+        when(storageService.getPublicUrl(anyString(), anyString())).thenReturn("https://supabase.co/storage/photo.jpg");
+
+        doThrow(new jakarta.validation.ConstraintViolationException("Violação de restrição", java.util.Set.of()))
+                .when(candidateSubmissionRepository).saveAndFlush(any());
+
+        assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, validPhotos))
+                .isInstanceOf(jakarta.validation.ConstraintViolationException.class);
+
+        // Garante que todos os 3 arquivos enviados foram deletados do storage
         verify(storageService, times(3)).uploadFile(eq("candidates-uploads"), anyString(), any(MultipartFile.class));
         verify(storageService, times(3)).deleteFile(eq("candidates-uploads"), anyString());
         verify(emailService, never()).sendCandidateApplicationNotification(anyString(), any());

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wbscouting.api.dto.candidate.CandidateApplyRequestDto;
 import com.wbscouting.api.dto.candidate.CandidateApplyResponseDto;
 import com.wbscouting.api.enums.GenderType;
-import com.wbscouting.api.exception.BusinessException;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
 import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtService;

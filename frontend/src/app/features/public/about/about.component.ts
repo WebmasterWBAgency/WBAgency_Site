@@ -4,7 +4,6 @@ import { RouterModule } from '@angular/router';
 import { Title, Meta } from '@angular/platform-browser';
 import { TranslatePipe } from '../../../shared/pipes/translate.pipe';
 import { TranslationService } from '../../../core/services/translation.service';
-import { AboutPageService } from '../../../core/services/about-page.service';
 import { AboutPillar } from '../../../shared/models/about-page.interface';
 
 export interface AboutContent {
@@ -22,7 +21,6 @@ export interface AboutContent {
   styleUrls: ['./about.component.scss']
 })
 export class AboutComponent implements OnInit {
-  private readonly aboutService = inject(AboutPageService);
   private readonly titleService = inject(Title);
   private readonly metaService = inject(Meta);
   private readonly translationService = inject(TranslationService);
@@ -46,7 +44,7 @@ export class AboutComponent implements OnInit {
   readonly pillarsTitle = signal<string>('');
   readonly pillars = signal<AboutPillar[]>([]);
 
-  readonly isLoading = signal<boolean>(true);
+  readonly isLoading = signal<boolean>(false);
   readonly hasError = signal<boolean>(false);
 
   constructor() {
@@ -57,49 +55,37 @@ export class AboutComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Carregamento reativo orquestrado pelo effect()
+    this.loadAboutData(this.translationService.currentLang());
   }
 
   loadAboutData(lang: string = 'pt'): void {
-    this.isLoading.set(true);
+    this.isLoading.set(false);
     this.hasError.set(false);
 
-    const isEn = lang?.toLowerCase().startsWith('en');
+    const headline = this.translationService.translate('about_page.headline') || 'A Nova Estética do Scouting Global';
+    const quote = this.translationService.translate('about_page.quote') || 'Acreditamos na autenticidade, na força da personalidade e na beleza singular de cada indivíduo.';
+    const sectionTitle = this.translationService.translate('about_page.section_title') || 'Nossa Filosofia';
+    const body = this.translationService.translate('about_page.body') || 'A WB Agency consolidou-se como um núcleo editorial focado no desenvolvimento integral de modelos para os principais mercados da moda internacional. Nossa metodologia rejeita a padronização e prioriza a identidade visual autêntica, conectando talentos a marcas com relevância estética global.\n\nConectamos talentos às principais marcas com curadoria estratégica, visão de vanguarda e compromisso com o desenvolvimento humano e profissional em escala global.';
 
-    this.aboutService.getAboutContent(lang).subscribe({
-      next: (data: any) => {
-        if (data) {
-          this.content = {
-            headline: data.headline ?? data.pageTitle ?? data.title ?? '',
-            quote: data.quote ?? data.heroQuote ?? '',
-            sectionTitle: data.sectionTitle ?? data.manifestoTitle ?? '',
-            body: data.body ?? data.manifestoText ?? data.bodyText ?? data.description ?? ''
-          };
+    this.content = {
+      headline,
+      quote,
+      sectionTitle,
+      body
+    };
 
-          this.title.set(this.content.headline);
-          this.subtitle.set('');
-          this.description.set(this.content.body);
-          this.heroQuote.set(this.content.quote);
-          this.sectionTitle.set(this.content.sectionTitle);
-          this.manifestoTitle.set(this.content.sectionTitle);
-          this.manifestoText.set(this.content.body);
-          this.pillarsTitle.set(data.pillarsTitle || '');
-          this.pillars.set(data.pillars || []);
+    this.title.set(headline);
+    this.subtitle.set('');
+    this.description.set(body);
+    this.heroQuote.set(quote);
+    this.sectionTitle.set(sectionTitle);
+    this.manifestoTitle.set(sectionTitle);
+    this.manifestoText.set(body);
 
-          if (data.seo?.metaTitle) {
-            this.titleService.setTitle(data.seo.metaTitle);
-          }
-          if (data.seo?.metaDescription) {
-            this.metaService.updateTag({ name: 'description', content: data.seo.metaDescription });
-          }
-        }
-        this.isLoading.set(false);
-      },
-      error: (err) => {
-        console.error('[ABOUT] Erro ao carregar dados:', err);
-        this.isLoading.set(false);
-        this.hasError.set(true);
-      }
-    });
+    const metaTitle = this.translationService.translate('about_page.meta_title') || 'Sobre Nós | WB Agency - Scouting & Model Management';
+    const metaDescription = this.translationService.translate('about_page.meta_description') || 'Conheça a WB Agency, agência de modelos e scouting internacional focada na autenticidade, excelência editorial e gestão de carreiras globais.';
+
+    this.titleService.setTitle(metaTitle);
+    this.metaService.updateTag({ name: 'description', content: metaDescription });
   }
 }

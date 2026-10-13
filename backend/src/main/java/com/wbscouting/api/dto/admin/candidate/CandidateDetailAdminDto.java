@@ -19,6 +19,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@SuppressWarnings("deprecation")
 public class CandidateDetailAdminDto {
 
     private UUID id;

@@ -1,6 +1,5 @@
 package com.wbscouting.api.controller.admin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wbscouting.api.dto.admin.AdminAuditLogResponseDto;
 import com.wbscouting.api.exception.GlobalExceptionHandler;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
@@ -47,9 +46,6 @@ class AdminAuditLogControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockitoBean
     private AuditLogService auditLogService;

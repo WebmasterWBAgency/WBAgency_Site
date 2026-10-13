@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.wbscouting.api.entity.Model;
 import com.wbscouting.api.entity.ModelMedia;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 

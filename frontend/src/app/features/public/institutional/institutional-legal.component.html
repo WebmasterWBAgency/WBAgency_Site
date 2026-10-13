@@ -1,0 +1,33 @@
+<div class="legal-page min-h-screen bg-[#FFFFFF] text-[#222624] font-sans selection:bg-[#4B584E] selection:text-white">
+  
+  <!-- Breadcrumbs & Top Header -->
+  <header class="border-b border-[#E8EBE8] bg-[#FBFBF9] py-8 sm:py-12">
+    <div class="max-w-4xl mx-auto px-6 sm:px-8">
+      <nav class="legal-breadcrumbs mb-4 flex items-center gap-2 text-xs font-sans uppercase tracking-[0.15em] text-[#5F6661]">
+        <a routerLink="/" class="hover:text-[#4B584E] transition-colors">
+          {{ 'nav.home' | translate }}
+        </a>
+        <span class="text-[#D0D4D0]">&bull;</span>
+        <span class="text-[#222624] font-medium">{{ pageTitle() }}</span>
+      </nav>
+
+      <span class="block text-[11px] font-sans uppercase tracking-[0.25em] text-[#4B584E] font-medium mb-2">
+        {{ pageSubtitle() }}
+      </span>
+
+      <h1 class="page-title text-2xl sm:text-3xl lg:text-4xl font-serif text-[#222624] tracking-tight">
+        {{ pageTitle() }}
+      </h1>
+    </div>
+  </header>
+
+  <!-- Corpo Editorial de Leitura -->
+  <main class="max-w-4xl mx-auto px-6 sm:px-8 py-12 sm:py-16">
+    <article class="prose max-w-none">
+      <div class="content-box bg-[#FFFFFF] border border-[#E8EBE8] p-6 sm:p-10 text-sm leading-relaxed text-[#222624] font-sans whitespace-pre-line rounded-none">
+        {{ pageContent() }}
+      </div>
+    </article>
+  </main>
+
+</div>

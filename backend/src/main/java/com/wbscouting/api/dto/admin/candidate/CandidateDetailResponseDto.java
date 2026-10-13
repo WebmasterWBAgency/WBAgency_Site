@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wbscouting.api.entity.Model;
 import com.wbscouting.api.entity.ModelMedia;
 import com.wbscouting.api.enums.SubmissionStatus;
-import com.wbscouting.api.enums.TalentLifecycleStatus;
 import com.wbscouting.api.service.storage.StorageService;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

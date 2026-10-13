@@ -22,6 +22,7 @@ import java.util.UUID;
 @RequestMapping({"/api/v1/admin/candidates", "/admin/candidates"})
 @PreAuthorize("hasAnyRole('WEBMASTER', 'SUPER_ADMIN', 'CONTENT_ADMIN', 'ADMIN')")
 @RequiredArgsConstructor
+@SuppressWarnings("deprecation")
 public class AdminCandidateController {
 
     private final AdminCandidateQueryService adminCandidateQueryService;

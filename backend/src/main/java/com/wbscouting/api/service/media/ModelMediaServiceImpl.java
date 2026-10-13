@@ -149,16 +149,28 @@ public class ModelMediaServiceImpl implements ModelMediaService {
                 .isActive(true)
                 .build();
 
-        ModelMedia savedMedia = modelMediaRepository.save(media);
+        try {
+            ModelMedia savedMedia = modelMediaRepository.save(media);
 
-        // Se for capa, sincroniza a foto principal do modelo (também com URL segura + bust cache)
-        if (isCover) {
-            model.setPrimaryPhotoUrl(displayUrl);
-            modelRepository.save(model);
+            // Se for capa, sincroniza a foto principal do modelo (também com URL segura + bust cache)
+            if (isCover) {
+                model.setPrimaryPhotoUrl(displayUrl);
+                modelRepository.save(model);
+            }
+
+            log.info("Mídia cadastrada com sucesso: id='{}', modelId='{}', url='{}'", savedMedia.getId(), modelId, safePublicUrl);
+            return toDto(savedMedia);
+        } catch (Exception ex) {
+            log.error("[ROLLBACK COMPENSATÓRIO] Falha na persistência da mídia para modelId='{}' no PostgreSQL. Deletando arquivo órfão '{}' do bucket '{}'...",
+                    modelId, uploadedPath, bucket, ex);
+            try {
+                storageService.deleteFile(bucket, uploadedPath);
+            } catch (Exception deleteEx) {
+                log.warn("[ROLLBACK COMPENSATÓRIO] Falha na exclusão do arquivo órfão '{}' no bucket '{}': {}",
+                        uploadedPath, bucket, deleteEx.getMessage());
+            }
+            throw ex;
         }
-
-        log.info("Mídia cadastrada com sucesso: id='{}', modelId='{}', url='{}'", savedMedia.getId(), modelId, safePublicUrl);
-        return toDto(savedMedia);
     }
 
     @Override
@@ -322,6 +334,8 @@ public class ModelMediaServiceImpl implements ModelMediaService {
     @Override
     @Transactional
     public com.wbscouting.api.dto.media.ModelCompositeResponseDto uploadOrReplaceComposite(UUID modelId, MultipartFile file) {
+        String bucket = null;
+        String filename = null;
         try {
             // ============================================================
             // 🛡️ ENVELOPE ANTI-500 TOTAL
@@ -375,7 +389,7 @@ public class ModelMediaServiceImpl implements ModelMediaService {
             Model model = modelRepository.findById(modelId)
                     .orElseThrow(() -> new ResourceNotFoundException("Modelo", "id", modelId));
 
-            String bucket = supabaseProperties.resolveBucketModelsMedia();
+            bucket = supabaseProperties.resolveBucketModelsMedia();
 
             // Substituição atômica: remove composite anterior do storage e banco se houver
             Optional<ModelMedia> existingComposite = modelMediaRepository.findByModelIdAndMediaTypeAndIsActiveTrue(modelId, MediaType.COMPOSITE);
@@ -410,7 +424,7 @@ public class ModelMediaServiceImpl implements ModelMediaService {
             if (originalName == null || originalName.isBlank()) {
                 originalName = isPdf ? "composite-document.pdf" : "composite-image.jpg";
             }
-            String filename = "models/" + modelId + "/composite/" + UUID.randomUUID() + "-" + originalName;
+            filename = "models/" + modelId + "/composite/" + UUID.randomUUID() + "-" + originalName;
 
             // 🔴 TRATAMENTO ESPECÍFICO DE TODAS AS EXCEÇÕES DO UPLOAD
             String publicUrl;
@@ -504,16 +518,22 @@ public class ModelMediaServiceImpl implements ModelMediaService {
             return toCompositeDtoSafe(saved, originalName, file.getSize());
 
         } catch (IllegalArgumentException | ResourceNotFoundException eTratado) {
-            // Mensagens amigaveis ja tratadas: relancar como estao (400 Bad Request / 404)
-            // IllegalArgumentException tem HANDLER EXISTENTE DESDE SEMPRE no GlobalExceptionHandler linha 140 = HTTP 400 c/ mensagem!
+            // Se o arquivo subiu e deu erro posterior, limpa o arquivo do bucket
+            if (filename != null) {
+                try {
+                    log.info("[COMPOSITE ROLLBACK] Removendo arquivo órfão '{}' no bucket '{}' após erro tratado...", filename, bucket);
+                    storageService.deleteFile(bucket, filename);
+                } catch (Exception ignored) {}
+            }
             throw eTratado;
         } catch (Exception eQualquerOutra) {
-            // ============================================================
-            // 🛡️ CAIXA FORTE FINAL: Nenhuma excecao nao tratada escapa como 500 generico
-            // Inclui: NullPointerException, ConstraintViolationException,
-            //         TransactionSystemException, DataIntegrityViolationException etc.
-            // Converte TUDO para IllegalArgumentException = tem HANDLER EXISTENTE.
-            // ============================================================
+            // Limpa o arquivo órfão do bucket em caso de falha na persistência
+            if (filename != null) {
+                try {
+                    log.info("[COMPOSITE ROLLBACK] Removendo arquivo órfão '{}' no bucket '{}' após falha relacional...", filename, bucket);
+                    storageService.deleteFile(bucket, filename);
+                } catch (Exception ignored) {}
+            }
             log.error("[COMPOSITE UPLOAD] EXCECAO NAO TRATADA CONVERTIDA PARA MENSAGEM AMIGAVEL (evitando 500 generico). ModelId={}",
                     modelId, eQualquerOutra);
             String motivo = (eQualquerOutra.getMessage() != null && !eQualquerOutra.getMessage().isBlank())

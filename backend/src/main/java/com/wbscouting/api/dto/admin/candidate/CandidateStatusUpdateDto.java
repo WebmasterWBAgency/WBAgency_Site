@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SuppressWarnings("deprecation")
 public class CandidateStatusUpdateDto {
 
     @NotNull(message = "O status da candidatura é obrigatório.")

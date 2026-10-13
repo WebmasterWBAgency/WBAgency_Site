@@ -239,6 +239,7 @@
                 <input 
                   id="phone"
                   type="tel" 
+                  inputmode="tel"
                   formControlName="phone"
                   [placeholder]="'apply_page.phone_placeholder' | translate"
                   (input)="onPhoneInput($event)"
@@ -334,6 +335,7 @@
                     <input 
                       id="guardianCpf"
                       type="text" 
+                      inputmode="numeric"
                       formControlName="guardianCpf"
                       (input)="onCpfInput($event)"
                       [placeholder]="'apply_page.guardian_cpf_placeholder' | translate"
@@ -351,6 +353,7 @@
                     <input 
                       id="guardianPhone"
                       type="tel" 
+                      inputmode="tel"
                       formControlName="guardianPhone"
                       (input)="onGuardianPhoneInput($event)"
                       [placeholder]="'apply_page.guardian_phone_placeholder' | translate"
@@ -392,7 +395,7 @@
             <div class="biometric-grid">
               <div class="form-group">
                 <label class="form-label" for="height">{{ 'apply_page.height_label' | translate }} <span class="required-mark">*</span></label>
-                <input id="height" type="number" formControlName="height" placeholder="178" class="form-control font-mono" />
+                <input id="height" type="number" inputmode="numeric" formControlName="height" placeholder="178" class="form-control font-mono" />
                 @if (applyForm.get('height')?.touched && applyForm.get('height')?.invalid) {
                   <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
                 }
@@ -400,7 +403,7 @@
 
               <div class="form-group">
                 <label class="form-label" for="bust">{{ 'apply_page.bust_label' | translate }} <span class="required-mark">*</span></label>
-                <input id="bust" type="number" formControlName="bust" placeholder="84" class="form-control font-mono" />
+                <input id="bust" type="number" inputmode="numeric" formControlName="bust" placeholder="84" class="form-control font-mono" />
                 @if (applyForm.get('bust')?.touched && applyForm.get('bust')?.invalid) {
                   <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
                 }
@@ -408,7 +411,7 @@
 
               <div class="form-group">
                 <label class="form-label" for="waist">{{ 'apply_page.waist_label' | translate }} <span class="required-mark">*</span></label>
-                <input id="waist" type="number" formControlName="waist" placeholder="60" class="form-control font-mono" />
+                <input id="waist" type="number" inputmode="numeric" formControlName="waist" placeholder="60" class="form-control font-mono" />
                 @if (applyForm.get('waist')?.touched && applyForm.get('waist')?.invalid) {
                   <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
                 }
@@ -416,7 +419,7 @@
 
               <div class="form-group">
                 <label class="form-label" for="hips">{{ 'apply_page.hips_label' | translate }} <span class="required-mark">*</span></label>
-                <input id="hips" type="number" formControlName="hips" placeholder="90" class="form-control font-mono" />
+                <input id="hips" type="number" inputmode="numeric" formControlName="hips" placeholder="90" class="form-control font-mono" />
                 @if (applyForm.get('hips')?.touched && applyForm.get('hips')?.invalid) {
                   <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
                 }
@@ -424,7 +427,7 @@
 
               <div class="form-group">
                 <label class="form-label" for="shoes">{{ 'apply_page.shoes_label' | translate }} <span class="required-mark">*</span></label>
-                <input id="shoes" type="number" formControlName="shoes" placeholder="38" class="form-control font-mono" />
+                <input id="shoes" type="number" inputmode="numeric" formControlName="shoes" placeholder="38" class="form-control font-mono" />
                 @if (applyForm.get('shoes')?.touched && applyForm.get('shoes')?.invalid) {
                   <span class="field-error">{{ 'apply_page.field_required' | translate }}</span>
                 }

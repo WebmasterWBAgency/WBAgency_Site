@@ -506,4 +506,18 @@ input[type="file"].hidden {
   }
 }
 
+/* Mobile-only: Previne auto-zoom ao focar em campos no iOS sem alterar desktop */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+
 
