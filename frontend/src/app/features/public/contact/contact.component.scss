@@ -377,7 +377,7 @@
   padding: 0.75rem 1rem;
   background: #ffffff;
   border: 1px solid var(--border-subtle); // #E8EBE8
-  border-radius: 2px;
+  border-radius: 0;
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
@@ -387,7 +387,7 @@
   .btn-protected-icon {
     width: 38px;
     height: 38px;
-    border-radius: 2px;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -400,6 +400,7 @@
     flex-direction: column;
     gap: 0.15rem;
     flex-grow: 1;
+    min-width: 0;
 
     .btn-action-label {
       font-size: 0.6875rem;
@@ -418,11 +419,17 @@
   }
 
   .btn-click-hint {
+    display: none; // Oculto no mobile para eliminar "Chamar ->", "Ligar ->", "Escrever ->", "Acessar ->"
     font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     color: var(--text-secondary);
     transition: color 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+
+    @include md {
+      display: inline-block;
+    }
   }
 
   &:hover {

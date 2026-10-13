@@ -1,22 +1,42 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { of } from 'rxjs';
 import { AboutComponent } from './about.component';
 import { TranslationService } from '../../../core/services/translation.service';
+import { AboutPageService } from '../../../core/services/about-page.service';
 
 describe('AboutComponent', () => {
   let component: AboutComponent;
   let fixture: ComponentFixture<AboutComponent>;
   let translationService: TranslationService;
+  let aboutPageServiceSpy: jasmine.SpyObj<AboutPageService>;
+
+  const mockAboutPt = {
+    headline: 'WB Agency - Visão Global',
+    quote: 'Autenticidade e relevância no mercado internacional.',
+    sectionTitle: 'Nossa Trajetória',
+    body: 'Desenvolvimento editorial de talentos para as passarelas mundiais.'
+  };
+
+  const mockAboutEn = {
+    headline: 'WB Agency - Global Vision',
+    quote: 'Authenticity and relevance in the international market.',
+    sectionTitle: 'Our Journey',
+    body: 'Editorial talent development for international runways.'
+  };
 
   beforeEach(async () => {
+    aboutPageServiceSpy = jasmine.createSpyObj('AboutPageService', ['getAboutContent']);
+    aboutPageServiceSpy.getAboutContent.and.callFake((lang?: string) => {
+      const isEn = lang?.toLowerCase().startsWith('en');
+      return of(isEn ? mockAboutEn : mockAboutPt);
+    });
+
     await TestBed.configureTestingModule({
       imports: [AboutComponent],
       providers: [
         provideRouter([]),
-        provideHttpClient(),
-        provideHttpClientTesting()
+        { provide: AboutPageService, useValue: aboutPageServiceSpy }
       ]
     }).compileComponents();
 
@@ -27,12 +47,13 @@ describe('AboutComponent', () => {
     component = fixture.componentInstance;
   });
 
-  it('should create and load data synchronously from TranslationService', () => {
+  it('should create and load data dynamically from AboutPageService', () => {
     fixture.detectChanges();
 
     expect(component).toBeTruthy();
-    expect(component.title()).toBe('A Nova Estética do Scouting Global');
-    expect(component.heroQuote()).toContain('Acreditamos na autenticidade');
+    expect(component.title()).toBe(mockAboutPt.headline);
+    expect(component.heroQuote()).toBe(mockAboutPt.quote);
+    expect(component.sectionTitle()).toBe(mockAboutPt.sectionTitle);
     expect(component.isLoading()).toBeFalse();
   });
 
@@ -45,17 +66,17 @@ describe('AboutComponent', () => {
     expect(compiled.textContent).not.toContain('Seu talento merece a visibilidade certa');
   });
 
-  it('should render title, quote, and manifesto from TranslationService and exclude obsolete static texts', () => {
+  it('should render title, quote, and manifesto from dynamic backend service', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.page-title')?.textContent).toContain('A Nova Estética do Scouting Global');
-    expect(compiled.querySelector('.hero-quote-box')?.textContent).toContain('Acreditamos na autenticidade');
-    expect(compiled.querySelector('.manifesto-section h2')?.textContent).toContain('Nossa Filosofia');
-    expect(compiled.querySelector('.manifesto-section')?.textContent).toContain('A WB Agency consolidou-se');
+    expect(compiled.querySelector('.page-title')?.textContent).toContain(mockAboutPt.headline);
+    expect(compiled.querySelector('.hero-quote-box')?.textContent).toContain(mockAboutPt.quote);
+    expect(compiled.querySelector('.manifesto-section h2')?.textContent).toContain(mockAboutPt.sectionTitle);
+    expect(compiled.querySelector('.manifesto-section')?.textContent).toContain(mockAboutPt.body);
     expect(compiled.querySelector('.pillars-section')).toBeNull();
 
-    // Critérios de Aceite: Não deve conter chapéu "MANIFESTO INSTITUCIONAL"
+    // Não deve conter chapéu obsoleto
     expect(compiled.textContent).not.toContain('MANIFESTO INSTITUCIONAL');
   });
 
@@ -80,9 +101,9 @@ describe('AboutComponent', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.page-title')?.textContent).toContain('The New Aesthetic of Global Scouting');
-    expect(compiled.querySelector('.hero-quote-box')?.textContent).toContain('We believe in authenticity');
-    expect(compiled.querySelector('.manifesto-section h2')?.textContent).toContain('Our Philosophy');
+    expect(compiled.querySelector('.page-title')?.textContent).toContain(mockAboutEn.headline);
+    expect(compiled.querySelector('.hero-quote-box')?.textContent).toContain(mockAboutEn.quote);
+    expect(compiled.querySelector('.manifesto-section h2')?.textContent).toContain(mockAboutEn.sectionTitle);
     expect(compiled.querySelector('.breadcrumb-current')?.textContent).toContain('About Us');
   });
 });

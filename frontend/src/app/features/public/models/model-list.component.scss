@@ -117,14 +117,16 @@
 }
 
 // -------------------------------------------------------------
-// Grelha de Modelos (Homogênea, align-items: stretch)
+// Grelha de Modelos (Homogênea, rigorosamente 50%/50% no mobile com minmax(0, 1fr))
 // -------------------------------------------------------------
 .models-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
   margin-bottom: 4rem;
   align-items: stretch; /* Garante que todas as colunas tenham a mesma altura */
+  width: 100%;
+  box-sizing: border-box;
 
   @include sm {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -141,12 +143,15 @@
     gap: 2rem;
   }
 
-  // Garante que o elemento hospedeiro de cada card preencha 100% da linha
+  // Garante que o elemento hospedeiro de cada card preencha 100% da sua coluna sem estufamento
   > app-model-card {
     display: flex;
     flex-direction: column;
     height: 100%;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
 
@@ -158,14 +163,19 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   overflow: hidden;
 
   .skeleton-image-wrap {
     position: relative;
     width: 100%;
+    max-width: 100%;
     aspect-ratio: 3 / 4;
     background: #141722;
     overflow: hidden;

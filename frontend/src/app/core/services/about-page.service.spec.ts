@@ -9,7 +9,7 @@ describe('AboutPageService', () => {
   let httpMock: HttpTestingController;
 
   const mockAboutPage: AboutPage = {
-    title: 'A Nova Estética do Scouting Global',
+    title: 'Título Institucional Sobre Nós',
     subtitle: 'MANIFESTO INSTITUCIONAL',
     description: 'Descrição de teste',
     heroQuote: 'Citação hero de teste',

@@ -128,7 +128,7 @@
             <input 
               type="text" 
               formControlName="title"
-              placeholder="Ex: A Nova Estética do Scouting Global"
+              placeholder="Ex: Título da Página Editorial"
               class="w-full px-3 py-2 text-sm border border-[#D4D9D5] focus:border-[#4B584E] focus:outline-none rounded-none bg-white text-[#222624]"
             />
             <p *ngIf="aboutForm.get('title')?.touched && aboutForm.get('title')?.hasError('required')" class="text-[10px] text-red-600">
@@ -144,7 +144,7 @@
             <input 
               type="text" 
               formControlName="subtitle"
-              placeholder="Ex: MANIFESTO INSTITUCIONAL"
+              placeholder="Ex: Subtítulo Institucional"
               class="w-full px-3 py-2 text-sm border border-[#D4D9D5] focus:border-[#4B584E] focus:outline-none rounded-none bg-white text-[#222624]"
             />
             <p *ngIf="aboutForm.get('subtitle')?.touched && aboutForm.get('subtitle')?.hasError('required')" class="text-[10px] text-red-600">
@@ -160,7 +160,7 @@
             <textarea 
               rows="2"
               formControlName="heroQuote"
-              placeholder="Ex: Acreditamos na autenticidade, na força da personalidade e na beleza singular de cada indivíduo."
+              placeholder="Ex: Citação editorial de destaque"
               class="w-full px-3 py-2 text-sm border border-[#D4D9D5] focus:border-[#4B584E] focus:outline-none rounded-none bg-white text-[#222624]"
             ></textarea>
             <p class="text-[10px] text-[#5F6661]">Exibida em itálico com aspas estilizadas logo abaixo do título principal.</p>

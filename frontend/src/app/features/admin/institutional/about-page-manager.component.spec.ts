@@ -13,7 +13,7 @@ describe('AboutPageManagerComponent', () => {
   let aboutServiceSpy: jasmine.SpyObj<AboutPageService>;
 
   const mockAboutPage: AboutPage = {
-    title: 'A Nova Estética do Scouting Global',
+    title: 'Título Institucional',
     subtitle: 'MANIFESTO INSTITUCIONAL',
     description: 'Descrição de teste',
     heroQuote: 'Citação hero de teste',
@@ -66,7 +66,7 @@ describe('AboutPageManagerComponent', () => {
 
   it('deve criar o componente e carregar dados no formulário', () => {
     expect(component).toBeTruthy();
-    expect(component.aboutForm.get('title')?.value).toBe('A Nova Estética do Scouting Global');
+    expect(component.aboutForm.get('title')?.value).toBe('Título Institucional');
     expect(component.aboutForm.get('subtitle')?.value).toBe('MANIFESTO INSTITUCIONAL');
     expect(component.pillarsArray.length).toBe(2);
     expect(component.lastUpdated).toBe('2026-10-01T12:00:00Z');

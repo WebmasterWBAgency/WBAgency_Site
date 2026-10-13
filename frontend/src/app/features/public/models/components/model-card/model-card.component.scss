@@ -5,6 +5,8 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .model-card {
@@ -13,9 +15,11 @@
   flex-direction: column;
   height: 100%; /* Ocupa toda a altura da linha da grade */
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   overflow: hidden;
   cursor: pointer;
   text-decoration: none;
@@ -50,14 +54,17 @@
   .card-image-wrapper {
     position: relative;
     width: 100%;
+    max-width: 100%;
     aspect-ratio: 3 / 4; /* Proporção fixa editorial */
     overflow: hidden;
     background-color: #12151f;
     margin: 0;
+    box-sizing: border-box;
 
     .model-image,
     img {
       width: 100%;
+      max-width: 100%;
       height: 100%;
       object-fit: cover; /* Garante que a foto preencha todo o espaço sem distorcer */
       object-position: top center; /* Foco no rosto/cabeça do modelo */
@@ -76,7 +83,7 @@
       padding: 0.25rem 0.625rem;
       background: rgba(7, 8, 11, 0.75);
       border: 1px solid var(--gold-primary);
-      border-radius: var(--radius-sm);
+      border-radius: 0;
       color: var(--gold-light);
       font-size: 0.65rem;
       font-weight: 700;
@@ -129,16 +136,23 @@
   // 2. Rodapé do card / Informações com altura e alinhamento homogêneos
   .model-info,
   .card-body {
-    padding: 1rem 0.875rem;
+    padding: 0.75rem 0.625rem;
     background: var(--bg-card);
     display: flex;
     flex-direction: column;
     flex-grow: 1; /* Faz a área de texto preencher o espaço restante igualmente */
     justify-content: space-between;
     gap: 0.25rem;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+
+    @include md {
+      padding: 1rem 0.875rem;
+    }
 
     .model-name {
-      font-size: 1.125rem;
+      font-size: 0.9375rem;
       font-weight: 400;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -149,6 +163,12 @@
       overflow: hidden;
       text-overflow: ellipsis; /* Evita que nomes longos dobrem a linha e alterem a altura */
       line-height: 1.3;
+      min-width: 0;
+      max-width: 100%;
+
+      @include sm {
+        font-size: 1.125rem;
+      }
     }
 
     .model-gender {
@@ -160,6 +180,8 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-width: 0;
+      max-width: 100%;
     }
   }
 }

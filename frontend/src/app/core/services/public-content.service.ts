@@ -148,15 +148,15 @@ export class PublicContentService {
   }
 
   private readonly defaultAboutManifestoPt: AboutManifestoPayload = {
-    headline: 'A Nova Estética do Scouting Global',
-    quote: 'A beleza contemporânea nasce da singularidade e precisão.',
-    body: 'A WB Agency consolidou-se como um núcleo editorial focado no desenvolvimento integral de modelos para os principais mercados da moda internacional. Nossa metodologia rejeita a padronização e prioriza a identidade visual autêntica, conectando talentos a marcas com relevância estética global.'
+    headline: '',
+    quote: '',
+    body: ''
   };
 
   private readonly defaultAboutManifestoEn: AboutManifestoPayload = {
-    headline: 'The New Aesthetic of Global Scouting',
-    quote: 'Contemporary beauty stems from uniqueness and precision.',
-    body: 'WB Agency has established itself as an editorial powerhouse dedicated to the comprehensive development of models for premier global fashion markets. Our scouting methodology moves beyond mass standards to foster authentic personal identity, positioning talents at the intersection of high fashion and international relevance.'
+    headline: '',
+    quote: '',
+    body: ''
   };
 
   // 🆕 Padrões do texto Próximos Passos Apply (Como Funciona) — fallback quando API não retorna

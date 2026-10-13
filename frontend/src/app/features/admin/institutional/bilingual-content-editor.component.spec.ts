@@ -15,15 +15,15 @@ describe('BilingualContentEditorComponent', () => {
     title: 'Manifesto Institucional',
     translations: {
       pt: {
-        headline: 'A Nova Estética do Scouting Global',
+        headline: 'Título Editorial PT',
         quote: 'A beleza contemporânea nasce da singularidade e precisão.',
-        sectionTitle: 'Nossa Filosofia',
+        sectionTitle: 'Seção Editorial PT',
         body: 'Texto completo em português.'
       },
       en: {
-        headline: 'The New Aesthetic of Global Scouting',
+        headline: 'Editorial Title EN',
         quote: 'Contemporary beauty stems from uniqueness and precision.',
-        sectionTitle: 'Our Philosophy',
+        sectionTitle: 'Editorial Section EN',
         body: 'Full text in English.'
       }
     }
@@ -57,8 +57,8 @@ describe('BilingualContentEditorComponent', () => {
 
     expect(component).toBeTruthy();
     expect(component.currentSectionTitle).toBe('Sobre Nós');
-    expect(component.currentContent.pt.headline).toBe('A Nova Estética do Scouting Global');
-    expect(component.currentContent.en.headline).toBe('The New Aesthetic of Global Scouting');
+    expect(component.currentContent.pt.headline).toBe('Título Editorial PT');
+    expect(component.currentContent.en.headline).toBe('Editorial Title EN');
     expect(component.editingBlock).toBeNull();
   });
 
@@ -68,8 +68,8 @@ describe('BilingualContentEditorComponent', () => {
 
     component.startEditBlock('headline');
     expect(component.editingBlock).toBe('headline');
-    expect(component.tempPt.headline).toBe('A Nova Estética do Scouting Global');
-    expect(component.tempEn.headline).toBe('The New Aesthetic of Global Scouting');
+    expect(component.tempPt.headline).toBe('Título Editorial PT');
+    expect(component.tempEn.headline).toBe('Editorial Title EN');
 
     component.cancelEditBlock();
     expect(component.editingBlock).toBeNull();

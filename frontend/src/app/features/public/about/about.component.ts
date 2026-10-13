@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { Title, Meta } from '@angular/platform-browser';
 import { TranslatePipe } from '../../../shared/pipes/translate.pipe';
 import { TranslationService } from '../../../core/services/translation.service';
+import { AboutPageService } from '../../../core/services/about-page.service';
 import { AboutPillar } from '../../../shared/models/about-page.interface';
 
 export interface AboutContent {
@@ -24,6 +25,7 @@ export class AboutComponent implements OnInit {
   private readonly titleService = inject(Title);
   private readonly metaService = inject(Meta);
   private readonly translationService = inject(TranslationService);
+  private readonly aboutPageService = inject(AboutPageService);
 
   // Variável vinculada diretamente aos 4 campos da Seção Editorial
   content: AboutContent | null = null;
@@ -59,28 +61,52 @@ export class AboutComponent implements OnInit {
   }
 
   loadAboutData(lang: string = 'pt'): void {
-    this.isLoading.set(false);
+    this.isLoading.set(true);
     this.hasError.set(false);
 
-    const headline = this.translationService.translate('about_page.headline') || 'A Nova Estética do Scouting Global';
-    const quote = this.translationService.translate('about_page.quote') || 'Acreditamos na autenticidade, na força da personalidade e na beleza singular de cada indivíduo.';
-    const sectionTitle = this.translationService.translate('about_page.section_title') || 'Nossa Filosofia';
-    const body = this.translationService.translate('about_page.body') || 'A WB Agency consolidou-se como um núcleo editorial focado no desenvolvimento integral de modelos para os principais mercados da moda internacional. Nossa metodologia rejeita a padronização e prioriza a identidade visual autêntica, conectando talentos a marcas com relevância estética global.\n\nConectamos talentos às principais marcas com curadoria estratégica, visão de vanguarda e compromisso com o desenvolvimento humano e profissional em escala global.';
+    this.aboutPageService.getAboutContent(lang).subscribe({
+      next: (data) => {
+        if (data) {
+          const headline = data.headline || '';
+          const quote = data.quote || '';
+          const sectionTitle = data.sectionTitle || '';
+          const body = data.body || '';
 
-    this.content = {
-      headline,
-      quote,
-      sectionTitle,
-      body
-    };
+          this.content = {
+            headline,
+            quote,
+            sectionTitle,
+            body
+          };
 
-    this.title.set(headline);
-    this.subtitle.set('');
-    this.description.set(body);
-    this.heroQuote.set(quote);
-    this.sectionTitle.set(sectionTitle);
-    this.manifestoTitle.set(sectionTitle);
-    this.manifestoText.set(body);
+          this.title.set(headline);
+          this.heroQuote.set(quote);
+          this.sectionTitle.set(sectionTitle);
+          this.manifestoTitle.set(sectionTitle);
+          this.manifestoText.set(body);
+          this.description.set(body);
+        } else {
+          this.content = {
+            headline: '',
+            quote: '',
+            sectionTitle: '',
+            body: ''
+          };
+          this.title.set('');
+          this.heroQuote.set('');
+          this.sectionTitle.set('');
+          this.manifestoTitle.set('');
+          this.manifestoText.set('');
+          this.description.set('');
+        }
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        console.warn('[AboutComponent] Erro ao carregar conteúdo institucional:', err);
+        this.hasError.set(true);
+        this.isLoading.set(false);
+      }
+    });
 
     const metaTitle = this.translationService.translate('about_page.meta_title') || 'Sobre Nós | WB Agency - Scouting & Model Management';
     const metaDescription = this.translationService.translate('about_page.meta_description') || 'Conheça a WB Agency, agência de modelos e scouting internacional focada na autenticidade, excelência editorial e gestão de carreiras globais.';
