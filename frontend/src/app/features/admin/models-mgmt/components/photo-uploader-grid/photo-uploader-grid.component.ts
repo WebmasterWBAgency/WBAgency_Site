@@ -5,6 +5,8 @@ import { GalleryPhoto, PhotoCategory } from '../../../../../shared/models/galler
 import { ImageProcessingService } from '../../../../../core/services/image-processing.service';
 import { AdminModelService } from '../../../../../core/services/admin-model.service';
 
+export type PhotoFilterType = 'ALL' | 'BOOK' | 'POLAROID';
+
 @Component({
   selector: 'app-photo-uploader-grid',
   standalone: true,
@@ -32,7 +34,43 @@ export class PhotoUploaderGridComponent {
   @Output() photoRemoved = new EventEmitter<GalleryPhoto>();
 
   isDraggingOverZone = false;
-  selectedCategoryFilter: 'ALL' | 'BOOK' | 'POLAROID' = 'ALL';
+  photoFilter: PhotoFilterType = 'ALL';
+
+  /** Compatibilidade com testes legados e chamadas diretas */
+  get selectedCategoryFilter(): PhotoFilterType {
+    return this.photoFilter;
+  }
+
+  set selectedCategoryFilter(filter: PhotoFilterType) {
+    this.photoFilter = filter;
+  }
+
+  setPhotoFilter(filter: PhotoFilterType): void {
+    this.photoFilter = filter;
+  }
+
+  get allPhotos(): GalleryPhoto[] {
+    return this.photos || [];
+  }
+
+  set allPhotos(photos: GalleryPhoto[]) {
+    this.photos = photos;
+  }
+
+  get filteredPhotos(): GalleryPhoto[] {
+    if (this.photoFilter === 'BOOK') {
+      return this.allPhotos.filter(p => ((p as any).mediaType || (p as any).type || p.category)?.toUpperCase() === 'BOOK');
+    }
+    if (this.photoFilter === 'POLAROID') {
+      return this.allPhotos.filter(p => ((p as any).mediaType || (p as any).type || p.category)?.toUpperCase() === 'POLAROID');
+    }
+    return this.allPhotos;
+  }
+
+  getPhotoGlobalIndex(photo: GalleryPhoto): number {
+    const idx = (this.photos || []).findIndex(p => p.id === photo.id);
+    return idx >= 0 ? idx : 0;
+  }
 
   readonly maxPhotos = 15;
   readonly maxSizeBytes = 15 * 1024 * 1024; // 15MB
@@ -202,14 +240,33 @@ export class PhotoUploaderGridComponent {
   }
 
   onReorder(event: CdkDragDrop<GalleryPhoto[]>): void {
-    let lista = [...this.photos];
-    moveItemInArray(lista, event.previousIndex, event.currentIndex);
-    lista = this._applyOrderAndCover(lista);
-    this.photos = lista;
-    this.photosChange.emit(lista);
+    if (this.photoFilter === 'ALL') {
+      let lista = [...this.photos];
+      moveItemInArray(lista, event.previousIndex, event.currentIndex);
+      lista = this._applyOrderAndCover(lista);
+      this.photos = lista;
+      this.photosChange.emit(lista);
+    } else {
+      const filtered = this.filteredPhotos;
+      const itemMoved = filtered[event.previousIndex];
+      const targetItem = filtered[event.currentIndex];
+      if (!itemMoved || !targetItem) return;
+
+      const prevGlobalIdx = this.photos.findIndex(p => p.id === itemMoved.id);
+      const currGlobalIdx = this.photos.findIndex(p => p.id === targetItem.id);
+
+      if (prevGlobalIdx >= 0 && currGlobalIdx >= 0) {
+        let lista = [...this.photos];
+        moveItemInArray(lista, prevGlobalIdx, currGlobalIdx);
+        lista = this._applyOrderAndCover(lista);
+        this.photos = lista;
+        this.photosChange.emit(lista);
+      }
+    }
   }
 
-  setAsCover(index: number): void {
+  setAsCover(item: GalleryPhoto | number): void {
+    const index = typeof item === 'number' ? item : this.photos.findIndex(p => p.id === item.id);
     if (index < 0 || index >= this.photos.length) return;
     let lista = [...this.photos];
     const [target] = lista.splice(index, 1);
@@ -219,7 +276,8 @@ export class PhotoUploaderGridComponent {
     this.photosChange.emit(lista);
   }
 
-  removePhoto(index: number): void {
+  removePhoto(item: GalleryPhoto | number): void {
+    const index = typeof item === 'number' ? item : this.photos.findIndex(p => p.id === item.id);
     if (index < 0 || index >= this.photos.length) return;
     const fotoExcluida = this.photos[index];
     let lista = this.photos.filter((_, i) => i !== index);

@@ -30,6 +30,8 @@ import { PhotoUploaderGridComponent } from '../components/photo-uploader-grid/ph
 import { ModelCompositeManagerComponent } from '../components/model-composite-manager/model-composite-manager.component';
 import { GalleryPhoto } from '../../../../shared/models/gallery.model';
 
+export type PhotoFilterType = 'ALL' | 'BOOK' | 'POLAROID';
+
 @Component({
   selector: 'app-model-form',
   standalone: true,
@@ -48,6 +50,26 @@ export class ModelFormComponent implements OnInit {
   bookPhotos: any[] = [];
   polaroidPhotos: any[] = [];
   compositeUrl: string | null = null;
+
+  photoFilter: PhotoFilterType = 'ALL';
+
+  setPhotoFilter(filter: PhotoFilterType): void {
+    this.photoFilter = filter;
+  }
+
+  get allPhotos(): any[] {
+    return this.galleryPhotos();
+  }
+
+  get filteredPhotos(): any[] {
+    if (this.photoFilter === 'BOOK') {
+      return this.allPhotos.filter(p => ((p as any).mediaType || (p as any).type || p.category)?.toUpperCase() === 'BOOK');
+    }
+    if (this.photoFilter === 'POLAROID') {
+      return this.allPhotos.filter(p => ((p as any).mediaType || (p as any).type || p.category)?.toUpperCase() === 'POLAROID');
+    }
+    return this.allPhotos;
+  }
 
   @Input() set modelIdInput(val: string | null | undefined) {
     if (val) {

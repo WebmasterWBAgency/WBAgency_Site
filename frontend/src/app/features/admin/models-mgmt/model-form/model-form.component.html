@@ -290,7 +290,7 @@
       ></app-photo-uploader-grid>
 
       <!-- Listagem de Fotos Polaroids Técnicas -->
-      <div *ngIf="polaroidPhotos && polaroidPhotos.length > 0" class="mt-6 pt-5 border-t border-[#E8EBE8]">
+      <div *ngIf="(photoFilter === 'ALL' || photoFilter === 'POLAROID') && polaroidPhotos && polaroidPhotos.length > 0" class="mt-6 pt-5 border-t border-[#E8EBE8]">
         <div class="flex items-center justify-between mb-3">
           <h4 class="text-xs uppercase tracking-[0.15em] font-sans text-[#4B584E] font-semibold flex items-center gap-2">
             <span>📷</span>

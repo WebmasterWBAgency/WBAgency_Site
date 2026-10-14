@@ -205,4 +205,22 @@ describe('PhotoUploaderGridComponent', () => {
     component.selectedCategoryFilter = 'ALL';
     expect(component.selectedCategoryFilter).toBe('ALL');
   });
+
+  it('deve filtrar fotos por categoria através de setPhotoFilter e filteredPhotos', () => {
+    expect(component.allPhotos.length).toBe(3);
+
+    component.setPhotoFilter('BOOK');
+    expect(component.photoFilter).toBe('BOOK');
+    expect(component.filteredPhotos.length).toBe(2);
+    expect(component.filteredPhotos.every(p => p.category === 'BOOK')).toBeTrue();
+
+    component.setPhotoFilter('POLAROID');
+    expect(component.photoFilter).toBe('POLAROID');
+    expect(component.filteredPhotos.length).toBe(1);
+    expect(component.filteredPhotos[0].category).toBe('POLAROID');
+
+    component.setPhotoFilter('ALL');
+    expect(component.photoFilter).toBe('ALL');
+    expect(component.filteredPhotos.length).toBe(3);
+  });
 });
