@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class TwoFactorChallengeRequestDto {
 
+    @com.fasterxml.jackson.annotation.JsonAlias({"tempChallengeToken", "temp_challenge_token"})
     @NotBlank(message = "O token provisório de desafio 2FA é obrigatório.")
     private String tempToken;
 

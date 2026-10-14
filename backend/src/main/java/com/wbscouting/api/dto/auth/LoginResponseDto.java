@@ -27,7 +27,12 @@ public class LoginResponseDto {
     @Builder.Default
     private Boolean requires2fa = false;
 
+    @Builder.Default
+    private Boolean requiresMfa = false;
+
     private String tempToken;
+
+    private String tempChallengeToken;
 
     @Builder.Default
     private Boolean mustChangePassword = false;

@@ -35,6 +35,8 @@ public class Admin implements UserDetails {
     @Column(name = "email", length = 255, nullable = false, unique = true)
     private String email;
 
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "password_hash", length = 255, nullable = false)
     private String passwordHash;
 
@@ -47,6 +49,8 @@ public class Admin implements UserDetails {
     @Builder.Default
     private Boolean isActive = true;
 
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "totp_secret", length = 128)
     private String totpSecret;
 
@@ -54,6 +58,8 @@ public class Admin implements UserDetails {
     @Builder.Default
     private Boolean is2faEnabled = false;
 
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Transient
     @Builder.Default
     private List<String> backupCodes = new ArrayList<>();
@@ -65,6 +71,8 @@ public class Admin implements UserDetails {
     @Column(name = "last_login_at")
     private OffsetDateTime lastLoginAt;
 
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "password_reset_token_hash", length = 255)
     private String passwordResetTokenHash;
 
@@ -120,15 +128,20 @@ public class Admin implements UserDetails {
     public UUID getId() { return this.id; }
     public String getName() { return this.name; }
     public String getEmail() { return this.email; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public String getPasswordHash() { return this.passwordHash; }
     public AdminRole getRole() { return this.role; }
     public Boolean getIsActive() { return this.isActive; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public String getTotpSecret() { return this.totpSecret; }
     public Boolean getIs2faEnabled() { return this.is2faEnabled; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public List<String> getBackupCodes() { return this.backupCodes; }
     public Boolean getMustChangePassword() { return this.mustChangePassword; }
     public OffsetDateTime getLastLoginAt() { return this.lastLoginAt; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public String getPasswordResetTokenHash() { return this.passwordResetTokenHash; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public String getPasswordResetToken() { return this.passwordResetTokenHash; }
     public OffsetDateTime getPasswordResetExpiresAt() { return this.passwordResetExpiresAt; }
     public OffsetDateTime getCreatedAt() { return this.createdAt; }

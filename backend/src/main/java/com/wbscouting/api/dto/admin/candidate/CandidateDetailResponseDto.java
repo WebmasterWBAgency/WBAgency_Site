@@ -302,13 +302,13 @@ public class CandidateDetailResponseDto {
                 : null;
 
         if (storageService != null) {
-            String signedFace = storageService.generateSignedUrl("candidates-uploads", face, 3600);
+            String signedFace = storageService.createSignedUrl("candidates-uploads", face, 900);
             if (signedFace != null) face = signedFace;
 
-            String signedProfile = storageService.generateSignedUrl("candidates-uploads", profile, 3600);
+            String signedProfile = storageService.createSignedUrl("candidates-uploads", profile, 900);
             if (signedProfile != null) profile = signedProfile;
 
-            String signedFullBody = storageService.generateSignedUrl("candidates-uploads", fullBody, 3600);
+            String signedFullBody = storageService.createSignedUrl("candidates-uploads", fullBody, 900);
             if (signedFullBody != null) fullBody = signedFullBody;
         }
 
@@ -324,7 +324,7 @@ public class CandidateDetailResponseDto {
                 if (u != null && !u.isBlank()) {
                     String photoUrl = u.trim();
                     if (storageService != null) {
-                        String signed = storageService.generateSignedUrl("candidates-uploads", photoUrl, 3600);
+                        String signed = storageService.createSignedUrl("candidates-uploads", photoUrl, 900);
                         if (signed != null) photoUrl = signed;
                     }
 

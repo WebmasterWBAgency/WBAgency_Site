@@ -221,35 +221,37 @@ public class GlobalExceptionHandler {
     //    em modelMediaRepository.save/delete/flush quando violacao FK ou
     //    ConstraintViolation NOT NULL). Antes virava 500 generico tambem.
     // ============================================================
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public ProblemDetail handleDataAccessException(org.springframework.dao.DataAccessException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Ocorreu um erro no processamento de dados do servidor. A equipe técnica foi notificada."
+        );
+        problemDetail.setTitle("Erro de Acesso a Dados");
+        problemDetail.setType(URI.create("https://wbscouting.com/errors/data-access"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
     @ExceptionHandler(org.springframework.transaction.TransactionSystemException.class)
     public ProblemDetail handleTransactionSystemException(org.springframework.transaction.TransactionSystemException ex) {
-        String msg = "Falha de transação ao salvar os dados no banco de dados.";
-        if (ex.getRootCause() != null && ex.getRootCause().getMessage() != null && !ex.getRootCause().getMessage().isBlank()) {
-            msg = msg + " Detalhe: " + ex.getRootCause().getMessage();
-        } else if (ex.getMessage() != null) {
-            msg = msg + " Motivo: " + ex.getMessage();
-        }
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg);
-        problemDetail.setTitle("Erro ao Persistir Dados");
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Não foi possível concluir a transação de dados no servidor."
+        );
+        problemDetail.setTitle("Erro de Transação");
         problemDetail.setType(URI.create("https://wbscouting.com/errors/transaction-failed"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
 
-    // ============================================================
-    // 🔥 Extra: Captura DataIntegrityViolationException (NOT NULL, UNIQUE, FK)
-    //    antes de chegar no generico. Ex: coluna created_at NULL violacao.
-    // ============================================================
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolationException(org.springframework.dao.DataIntegrityViolationException ex) {
-        String msg = "Um campo obrigatório está vazio ou existe um conflito de dados no banco.";
-        if (ex.getMostSpecificCause() != null && ex.getMostSpecificCause().getMessage() != null) {
-            msg = msg + " Detalhe: " + ex.getMostSpecificCause().getMessage();
-        } else if (ex.getMessage() != null) {
-            msg = msg + " Motivo: " + ex.getMessage();
-        }
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg);
-        problemDetail.setTitle("Erro de Integridade dos Dados");
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "A operação solicitada viola restrições de integridade dos dados ou conflita com um registro existente."
+        );
+        problemDetail.setTitle("Conflito de Integridade de Dados");
         problemDetail.setType(URI.create("https://wbscouting.com/errors/data-integrity"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
@@ -297,45 +299,15 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    // ============================================================
-    // 🛡️ Handler CATCH-ALL genérico: (qualquer exceção SEM handler específico).
-    // ANTES (antigo bug de 500 generico):
-    //   ProblemDetail.forStatusAndDetail(500, "Ocorreu um erro interno no servidor.");
-    //   = SEMPRE apagava a mensagem REAL do erro.
-    // HOJE (corrigido):
-    //   1) Usa ex.getMessage() SE existir (mensagem real!)
-    //   2) Usa ex.getCause().getMessage() SE existir.
-    //   3) Só usa fallback genérico se AMBOS forem nulos.
-    //   4) Mensagem fica no CAMPO DETAIL (nao debug_message) = FRONT EXIBE!
-    // ============================================================
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGenericException(Exception ex) {
-        String msg = ex.getMessage();
-        boolean msgVazia = (msg == null || msg.isBlank());
-        if (msgVazia && ex.getCause() != null && ex.getCause().getMessage() != null && !ex.getCause().getMessage().isBlank()) {
-            msg = ex.getCause().getMessage();
-            msgVazia = false;
-        }
-        String detailFinal;
-        if (msgVazia) {
-            detailFinal = "Ocorreu um erro interno no servidor.";
-        } else {
-            detailFinal = msg;
-        }
-        // Garantia: se comecar com org.springframework / stack / java... -> user friendly
-        if (detailFinal.startsWith("org.") || detailFinal.startsWith("java.") || detailFinal.length() > 300) {
-            detailFinal = "Ocorreu um erro interno inesperado no servidor. A equipe técnica foi notificada.";
-        }
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, detailFinal);
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Ocorreu um erro interno inesperado no servidor. A equipe técnica foi notificada."
+        );
         problemDetail.setTitle("Erro Interno do Servidor");
         problemDetail.setType(URI.create("https://wbscouting.com/errors/internal"));
         problemDetail.setProperty("timestamp", Instant.now());
-        // Debug message p/ equipe (nao exibido pro user, mas disponivel no JSON)
-        try {
-            String stack = ex.getClass().getSimpleName() + ": " + (ex.getMessage() != null ? ex.getMessage() : "sem mensagem");
-            if (ex.getCause() != null) stack = stack + " | CAUSE: " + ex.getCause().getClass().getSimpleName() + " = " + ex.getCause().getMessage();
-            problemDetail.setProperty("debug_message", stack);
-        } catch (Exception ignore) {}
         return problemDetail;
     }
 }

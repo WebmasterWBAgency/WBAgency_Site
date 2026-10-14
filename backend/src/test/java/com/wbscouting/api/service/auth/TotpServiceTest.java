@@ -57,4 +57,47 @@ class TotpServiceTest {
             assertFalse(totpService.verifyBackupCode("INVALIDO", hash));
         }
     }
+
+    @Test
+    @DisplayName("RFC 6238: Deve validar código atual ou rejeitar código inválido/fora da janela")
+    void shouldVerifyTotpCodeWithinStrictWindow() throws Exception {
+        String secret = totpService.generateSecret();
+
+        // Código nulo ou em branco
+        assertFalse(totpService.verifyCode(secret, null));
+        assertFalse(totpService.verifyCode(secret, ""));
+        assertFalse(totpService.verifyCode(secret, "12345")); // menos de 6 dígitos
+        assertFalse(totpService.verifyCode(secret, "1234567")); // mais de 6 dígitos
+        assertFalse(totpService.verifyCode(secret, "ABCDEF")); // não numérico
+
+        // Gerar código válido usando método interno via reflexão
+        java.lang.reflect.Method decodeBase32 = TotpService.class.getDeclaredMethod("decodeBase32", String.class);
+        decodeBase32.setAccessible(true);
+        byte[] keyBytes = (byte[]) decodeBase32.invoke(totpService, secret);
+
+        java.lang.reflect.Method generateCode = TotpService.class.getDeclaredMethod("generateCodeForStep", byte[].class, long.class);
+        generateCode.setAccessible(true);
+
+        long currentStep = java.time.Instant.now().getEpochSecond() / 30;
+
+        // Código do passo atual
+        String currentCode = (String) generateCode.invoke(totpService, keyBytes, currentStep);
+        assertTrue(totpService.verifyCode(secret, currentCode));
+
+        // Código do passo anterior (-1 passo = -30 segundos)
+        String prevCode = (String) generateCode.invoke(totpService, keyBytes, currentStep - 1);
+        assertTrue(totpService.verifyCode(secret, prevCode));
+
+        // Código do passo seguinte (+1 passo = +30 segundos)
+        String nextCode = (String) generateCode.invoke(totpService, keyBytes, currentStep + 1);
+        assertTrue(totpService.verifyCode(secret, nextCode));
+
+        // Código fora da janela estrita (-2 passos = -60 segundos)
+        String tooOldCode = (String) generateCode.invoke(totpService, keyBytes, currentStep - 2);
+        assertFalse(totpService.verifyCode(secret, tooOldCode));
+
+        // Código fora da janela estrita (+2 passos = +60 segundos)
+        String tooFarAheadCode = (String) generateCode.invoke(totpService, keyBytes, currentStep + 2);
+        assertFalse(totpService.verifyCode(secret, tooFarAheadCode));
+    }
 }

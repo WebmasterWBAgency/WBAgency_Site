@@ -349,6 +349,21 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                         file.getOriginalFilename(), file.getSize() / (1024.0 * 1024.0)
                 ));
             }
+
+            try {
+                byte[] bytes = file.getBytes();
+                String detectedFormat = com.wbscouting.api.security.sanitizer.ImageSecuritySanitizer.detectImageFormat(bytes);
+                if (detectedFormat == null) {
+                    throw new InvalidApplicationException(String.format(
+                            "O arquivo '%s' possui formato não suportado ou cabeçalho adulterado. Aceitos: JPEG, PNG, WEBP.",
+                            file.getOriginalFilename()
+                    ));
+                }
+            } catch (InvalidApplicationException iae) {
+                throw iae;
+            } catch (Exception ex) {
+                throw new InvalidApplicationException("Falha ao inspecionar magic bytes da foto: " + file.getOriginalFilename());
+            }
         }
     }
 

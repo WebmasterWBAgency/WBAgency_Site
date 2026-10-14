@@ -93,7 +93,9 @@ public class AuthServiceImpl implements AuthService {
             String tempToken = jwtService.generate2faChallengeToken(admin);
             return LoginResponseDto.builder()
                     .requires2fa(true)
+                    .requiresMfa(true)
                     .tempToken(tempToken)
+                    .tempChallengeToken(tempToken)
                     .adminEmail(admin.getEmail())
                     .build();
         }

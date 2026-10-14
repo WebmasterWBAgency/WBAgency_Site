@@ -89,12 +89,19 @@ public class SupabaseStorageService implements StorageService {
         // 🟢 Validacao agora usa PATH JÁ NORMALIZADO (confiavel)
         validateUpload(bucket, normalizedPath, file);
 
+        // 🟢 Sanitização defensiva e validação de magic bytes para imagens (TASK-003)
+        MultipartFile fileToUpload = file;
+        if (contentType != null && ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase().trim())) {
+            fileToUpload = com.wbscouting.api.security.sanitizer.ImageSecuritySanitizer.sanitizeAndReencode(file);
+            contentType = fileToUpload.getContentType();
+        }
+
         // 1. Caso a chave do Supabase não esteja configurada ou seja dummy
         if (!supabaseProperties.isKeyConfigured()) {
             if (localFallbackEnabled) {
                 log.warn("[SUPABASE STORAGE LOCAL FALLBACK] Chave do Supabase ('supabase.service-role-key' / 'supabase.key') não configurada ou com valor dummy ('{}'). Realizando salvamento local para bucket='{}', path='{}'.",
                         supabaseProperties.getEffectiveKey(), bucket, normalizedPath);
-                saveFileLocally(bucket, normalizedPath, file);
+                saveFileLocally(bucket, normalizedPath, fileToUpload);
                 return normalizedPath;
             } else {
                 log.error("[SUPABASE STORAGE AUTH ERROR] Tentativa de upload para o bucket '{}' com chave do Supabase ausente ou inválida ('{}').",
@@ -110,7 +117,7 @@ public class SupabaseStorageService implements StorageService {
 
         // 2. Tentativa de upload remoto para o Supabase Storage
         try {
-            byte[] fileBytes = file.getBytes();
+            byte[] fileBytes = fileToUpload.getBytes();
             String endpointPath = "/storage/v1/object/" + bucket + "/" + normalizedPath;
 
             String effectiveKey = supabaseProperties.getEffectiveKey();
@@ -244,6 +251,12 @@ public class SupabaseStorageService implements StorageService {
             return null;
         }
 
+        // 🔒 TASK-004: Nenhuma URL estática do bucket privado candidates-uploads pode ser exposta
+        if ("candidates-uploads".equalsIgnoreCase(bucket)) {
+            log.warn("[STORAGE SECURITY] Bloqueada tentativa de URL pública estática para bucket privado 'candidates-uploads'. Redirecionando para Signed URL HMAC com TTL de 900s.");
+            return createSignedUrl(bucket, normalizedPath, 900);
+        }
+
         // Se o arquivo foi salvo localmente no fallback, retorna a URL do endpoint local
         String baseDir = (supabaseProperties.getStorage() != null && StringUtils.hasText(supabaseProperties.getStorage().getLocalDir()))
                 ? supabaseProperties.getStorage().getLocalDir()
@@ -319,7 +332,8 @@ public class SupabaseStorageService implements StorageService {
             return null;
         }
 
-        int ttl = expiresInSeconds > 0 ? expiresInSeconds : 3600;
+        int defaultTtl = "candidates-uploads".equalsIgnoreCase(bucket) ? 900 : 3600;
+        int ttl = expiresInSeconds > 0 ? expiresInSeconds : defaultTtl;
 
         // Se existir localmente, retorna URL local direta
         String baseDir = (supabaseProperties.getStorage() != null && StringUtils.hasText(supabaseProperties.getStorage().getLocalDir()))
@@ -409,10 +423,9 @@ public class SupabaseStorageService implements StorageService {
 
     @Override
     public String createSignedUrl(String bucket, String path, int expiresInSeconds) {
-        if (expiresInSeconds <= 0) {
-            throw new IllegalArgumentException("Tempo de expiração deve ser maior que zero (segundos).");
-        }
-        return generateSignedUrl(bucket, path, expiresInSeconds);
+        int defaultTtl = "candidates-uploads".equalsIgnoreCase(bucket) ? 900 : 3600;
+        int ttl = expiresInSeconds > 0 ? expiresInSeconds : defaultTtl;
+        return generateSignedUrl(bucket, path, ttl);
     }
 
     private void handleRemoteStorageError(String bucket, String path, HttpStatusCode status, String errorBody) {

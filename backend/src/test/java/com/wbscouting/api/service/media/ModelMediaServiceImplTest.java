@@ -542,4 +542,31 @@ class ModelMediaServiceImplTest {
         assertThat(result.getDisplayOrder()).isEqualTo(7);
         verify(modelMediaRepository).save(polaroidMedia);
     }
+
+    @Test
+    @DisplayName("IDOR: Deve impedir exclusão de mídia de outro modelo (Model A vs Model B)")
+    void deleteMedia_IdorPrevented_ThrowsException() {
+        UUID otherModelId = UUID.randomUUID();
+        when(modelMediaRepository.findByIdAndModelId(mediaId, otherModelId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> modelMediaService.deleteMedia(otherModelId, mediaId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Mídia não encontrada para o modelo especificado");
+
+        verify(storageService, never()).deleteFile(any(), any());
+        verify(modelMediaRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("IDOR: Deve impedir alteração de tipo de mídia de outro modelo")
+    void updateMediaType_IdorPrevented_ThrowsException() {
+        UUID otherModelId = UUID.randomUUID();
+        when(modelMediaRepository.findByIdAndModelId(mediaId, otherModelId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> modelMediaService.updateMediaType(otherModelId, mediaId, MediaType.POLAROID))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Mídia não encontrada para o modelo especificado");
+
+        verify(modelMediaRepository, never()).save(any());
+    }
 }

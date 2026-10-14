@@ -74,8 +74,8 @@ public class JwtService {
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("id", admin.getId() != null ? admin.getId().toString() : null);
         extraClaims.put("type", "2FA_CHALLENGE");
-        // 5 minutos de validade (300.000 ms)
-        return buildToken(extraClaims, admin.getUsername(), 300_000L);
+        // 3 minutos de validade (180.000 ms = TTL de 3 minutos conforme RFC 6238 / TASK-001)
+        return buildToken(extraClaims, admin.getUsername(), 180_000L);
     }
 
     public String extract2faChallengeEmail(String token) {
