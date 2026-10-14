@@ -19,20 +19,13 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   posterUrl: string = 'assets/images/hero-poster.jpg';
   showDisclaimerModal: boolean = true;
 
-  showSplashLogo = signal<boolean>(true);
   isMuted = signal<boolean>(true);
 
   // Limite máximo interno de volume do player (5% do ganho)
   readonly TARGET_VOLUME: number = 0.05;
-  private timerId?: any;
   private fadeInterval?: any;
 
   ngOnInit(): void {
-    // Exibe o splash por exatamente 2 segundos e encerra
-    this.timerId = setTimeout(() => {
-      this.showSplashLogo.set(false);
-    }, 2000);
-
     this.loadHomeData();
   }
 
@@ -56,9 +49,6 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.timerId) {
-      clearTimeout(this.timerId);
-    }
     if (this.fadeInterval) {
       clearInterval(this.fadeInterval);
       this.fadeInterval = null;

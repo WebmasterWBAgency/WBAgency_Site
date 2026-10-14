@@ -253,9 +253,12 @@
     <section class="form-section card-editorial">
       <div class="section-header">
         <span class="section-number">03</span>
-        <div>
-          <h3 class="section-title font-serif">Acervo Visual: Book & Polaroids</h3>
-          <p class="section-desc">Módulo drag-and-drop para ordenação manual de fotografias, classificação entre Book/Polaroids e definição da capa oficial. Para excluir, clique no ✕ vermelho do canto superior direito de cada foto.</p>
+        <div class="flex-1">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="section-title font-serif">Acervo Visual: Book & Polaroids</h3>
+            <span class="text-[10px] tracking-widest uppercase font-sans px-2 py-0.5 border border-[#E8EBE8] bg-[#F4F5F4] text-[#4B584E] font-medium">Fotos até 15 MB</span>
+          </div>
+          <p class="section-desc">Módulo drag-and-drop para ordenação manual de fotografias, classificação entre Book/Polaroids e definição da capa oficial. Suporta fotos até 15 MB (mínimo 4 Megapixels UHD, JPG/PNG/WebP). Para excluir, clique no ✕ vermelho do canto superior direito de cada foto.</p>
 
           <!-- Aviso: quantas fotos SERAO APAGADAS DEFINITIVAMENTE ao salvar -->
           @if (pendingDeleteCount() > 0) {
@@ -278,21 +281,66 @@
       </div>
 
       <app-photo-uploader-grid
+        [modelId]="modelId()"
         [photos]="galleryPhotos()"
         (photosChange)="onPhotosChanged($event)"
         (fileUploaded)="onFilesUploaded($event)"
         (photoRemoved)="onPhotoRemoved($event)"
         (validationError)="showToast($event, 'error')"
       ></app-photo-uploader-grid>
+
+      <!-- Listagem de Fotos Polaroids Técnicas -->
+      <div *ngIf="polaroidPhotos && polaroidPhotos.length > 0" class="mt-6 pt-5 border-t border-[#E8EBE8]">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-xs uppercase tracking-[0.15em] font-sans text-[#4B584E] font-semibold flex items-center gap-2">
+            <span>📷</span>
+            <span>Polaroids Técnicas Vinculadas ({{ polaroidPhotos.length }})</span>
+          </h4>
+          <span class="text-[10px] text-[#5F6661] uppercase tracking-wider font-medium">Acervo Físico / Medidas</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+          <div *ngFor="let photo of polaroidPhotos" class="relative aspect-[3/4] bg-[#FBFBF9] border border-[#E8EBE8] overflow-hidden rounded-none shadow-xs group">
+            <img [src]="photo.fileUrl || photo.url" alt="Polaroid" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            
+            <!-- Badge sobreposto no canto superior da foto -->
+            <div *ngIf="photo.isFromApply || photo.isLowResolution" 
+                 class="absolute top-1 left-1 z-10 px-1.5 py-0.5 bg-[#D97706] text-white text-[9px] uppercase font-semibold tracking-wider shadow-sm flex items-center gap-1 rounded-none">
+              <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Baixa Definição (Apply)</span>
+            </div>
+
+            <!-- Ações rápidas no Hover da Polaroid -->
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-auto">
+              <button 
+                type="button" 
+                (click)="toggleMediaType(photo, 'BOOK')"
+                title="Mover para Book"
+                class="w-full py-1 bg-white text-[#222624] hover:bg-[#4B584E] hover:text-white transition-colors text-[9px] uppercase tracking-wider font-medium cursor-pointer"
+              >
+                Mover p/ Book
+              </button>
+            </div>
+
+            <div class="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-xs py-1 px-1.5 text-[9px] text-white uppercase tracking-wider text-center truncate group-hover:hidden pointer-events-none">
+              {{ photo.title || 'Polaroid' }}
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- SEÇÃO 4: Composite Único (Digital Sedcard) -->
     <section class="form-section card-editorial">
       <div class="section-header">
         <span class="section-number">04</span>
-        <div>
-          <h3 class="section-title font-serif">Composite Único (Digital Sedcard)</h3>
-          <p class="section-desc">Documento oficial consolidado do modelo em alta resolução para download de clientes e agências internacionais.</p>
+        <div class="flex-1">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="section-title font-serif">Composite Único (Digital Sedcard)</h3>
+            <span class="text-[10px] tracking-widest uppercase font-sans px-2 py-0.5 border border-[#E8EBE8] bg-[#F4F5F4] text-[#4B584E] font-medium">Composite até 25 MB</span>
+          </div>
+          <p class="section-desc">Documento oficial consolidado do modelo em alta resolução para download de clientes e agências internacionais (PDF, JPG, PNG ou WEBP até 25 MB).</p>
         </div>
       </div>
 

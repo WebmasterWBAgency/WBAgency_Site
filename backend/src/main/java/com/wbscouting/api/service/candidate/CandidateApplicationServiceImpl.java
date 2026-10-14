@@ -138,7 +138,7 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                 int position = i + 1;
                 ModelMedia media = ModelMedia.builder()
                         .model(model)
-                        .mediaType(MediaType.BOOK)
+                        .mediaType(MediaType.POLAROID)
                         .filePath(upload.storagePath())
                         .fileUrl(upload.publicUrl())
                         .displayOrder(position)

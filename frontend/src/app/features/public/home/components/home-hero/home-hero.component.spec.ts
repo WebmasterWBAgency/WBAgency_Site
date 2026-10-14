@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { HomeHeroComponent } from './home-hero.component';
 import { environment } from '../../../../../../environments/environment';
@@ -33,34 +33,20 @@ describe('HomeHeroComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should display transparent splash logo initially and remove it after exactly 2000ms', fakeAsync(() => {
+  it('should not display splash logo on the hero and leave the video unobstructed', () => {
     fixture.detectChanges();
     flushPublicSettings();
 
-    expect(component.showSplashLogo()).toBeTrue();
-
-    let compiled = fixture.nativeElement as HTMLElement;
+    const compiled = fixture.nativeElement as HTMLElement;
     const splashImg = compiled.querySelector('img[alt="WB Agency"]') as HTMLImageElement;
-    expect(splashImg).toBeTruthy();
-    expect(splashImg.src).toContain('assets/images/logo-wb-agency-light.png');
-    expect(splashImg.classList.contains('bg-transparent')).toBeTrue();
-    expect(splashImg.classList.contains('object-contain')).toBeTrue();
+    expect(splashImg).toBeNull();
 
     // Garante que NÃO existam botões CTA centrais na primeira dobra
     expect(compiled.querySelector('.hero-buttons')).toBeNull();
     expect(compiled.querySelector('button.btn-primary')).toBeNull();
     expect(compiled.textContent).not.toContain('Ver Elenco');
     expect(compiled.textContent).not.toContain('Seja Modelo');
-
-    // Avança o temporizador em 2000ms
-    tick(2000);
-    fixture.detectChanges();
-
-    // Logo desaparece deixando o vídeo livre
-    expect(component.showSplashLogo()).toBeFalse();
-    compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('img[alt="WB Agency"]')).toBeNull();
-  }));
+  });
 
   it('should contain looping background video element and bind dynamic poster and video', () => {
     fixture.detectChanges();

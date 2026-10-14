@@ -167,4 +167,89 @@ public final class ImageSecuritySanitizer {
     private static boolean canWriteFormat(String formatName) {
         return ImageIO.getImageWritersByFormatName(formatName).hasNext();
     }
+
+    /**
+     * Extrai dimensões [largura, altura] de um array de bytes de imagem (suporta JPEG, PNG e WebP).
+     * Retorna null se não conseguir decodificar.
+     */
+    public static int[] extractDimensions(byte[] bytes) {
+        if (bytes == null || bytes.length < 12) {
+            return null;
+        }
+
+        String format = detectImageFormat(bytes);
+        if (format == null) {
+            return null;
+        }
+
+        if ("webp".equalsIgnoreCase(format)) {
+            return extractWebpDimensions(bytes);
+        }
+
+        try {
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (img != null) {
+                return new int[]{img.getWidth(), img.getHeight()};
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Extrai dimensões [largura, altura] de WebP analisando os headers VP8, VP8L ou VP8X.
+     */
+    private static int[] extractWebpDimensions(byte[] bytes) {
+        if (bytes == null || bytes.length < 30) {
+            return null;
+        }
+        try {
+            String chunkHeader = new String(bytes, 12, 4);
+            if ("VP8 ".equals(chunkHeader) && bytes.length >= 27) {
+                int w = ((bytes[23] & 0xFF) | ((bytes[24] & 0xFF) << 8)) & 0x3FFF;
+                int h = ((bytes[25] & 0xFF) | ((bytes[26] & 0xFF) << 8)) & 0x3FFF;
+                if (w > 0 && h > 0) return new int[]{w, h};
+            } else if ("VP8L".equals(chunkHeader) && bytes.length >= 25) {
+                int b0 = bytes[21] & 0xFF;
+                int b1 = bytes[22] & 0xFF;
+                int b2 = bytes[23] & 0xFF;
+                int b3 = bytes[24] & 0xFF;
+                int w = 1 + (((b1 & 0x3F) << 8) | b0);
+                int h = 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6));
+                if (w > 0 && h > 0) return new int[]{w, h};
+            } else if ("VP8X".equals(chunkHeader) && bytes.length >= 30) {
+                int w = 1 + ((bytes[24] & 0xFF) | ((bytes[25] & 0xFF) << 8) | ((bytes[26] & 0xFF) << 16));
+                int h = 1 + ((bytes[27] & 0xFF) | ((bytes[28] & 0xFF) << 8) | ((bytes[29] & 0xFF) << 16));
+                if (w > 0 && h > 0) return new int[]{w, h};
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Valida defensivamente fotos de modelos contra limites de peso (15 MB) e resolução mínima (4 Megapixels).
+     */
+    public static void validateModelPhotoDefensive(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new com.wbscouting.api.exception.BusinessException("O arquivo de imagem é obrigatório e não pode ser vazio.");
+        }
+        if (file.getSize() > 15L * 1024 * 1024) {
+            throw new com.wbscouting.api.exception.BusinessException("O arquivo excede o limite máximo permitido de 15 MB.");
+        }
+        try {
+            byte[] bytes = file.getBytes();
+            int[] dims = extractDimensions(bytes);
+            if (dims != null) {
+                long totalPixels = (long) dims[0] * dims[1];
+                if (totalPixels < 4_000_000L) {
+                    throw new com.wbscouting.api.exception.BusinessException("A foto enviada possui definição inferior a 4 Megapixels.");
+                }
+            }
+        } catch (com.wbscouting.api.exception.BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            log.warn("Falha ao inspecionar dimensões da foto '{}': {}", file.getOriginalFilename(), e.getMessage());
+        }
+    }
 }

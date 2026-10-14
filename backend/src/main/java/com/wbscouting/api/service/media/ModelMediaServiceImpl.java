@@ -37,8 +37,8 @@ public class ModelMediaServiceImpl implements ModelMediaService {
     private final StorageService storageService;
     private final SupabaseProperties supabaseProperties;
 
-    public static final long MAX_PHOTO_FILE_SIZE_BYTES = 8L * 1024 * 1024; // 8 MB
-    public static final long MIN_UHD_PIXELS = 3_800_000L; // Mínimo ~4 Megapixels UHD (2560x1600 px ou superior)
+    public static final long MAX_PHOTO_FILE_SIZE_BYTES = 15L * 1024 * 1024; // 15 MB
+    public static final long MIN_UHD_PIXELS = 4_000_000L; // Mínimo 4 Megapixels UHD (largura x altura >= 4.000.000 px)
 
     @Override
     @Transactional
@@ -52,10 +52,10 @@ public class ModelMediaServiceImpl implements ModelMediaService {
             throw new IllegalArgumentException("Apenas mídias do tipo BOOK podem ser marcadas como capa.");
         }
 
-        // Validação estrita para fotos (BOOK e POLAROID): teto 8 MB e mínimo 4 MP UHD
+        // Validação estrita para fotos (BOOK e POLAROID): teto 15 MB e mínimo 4 MP UHD
         if (file != null && (mediaType == MediaType.BOOK || mediaType == MediaType.POLAROID)) {
             if (file.getSize() > MAX_PHOTO_FILE_SIZE_BYTES) {
-                throw new BusinessException("O arquivo excede o limite máximo permitido de 8 MB.");
+                throw new BusinessException("O arquivo excede o limite máximo permitido de 15 MB.");
             }
             validatePhotoResolution(file, mediaType.name());
         }
@@ -306,6 +306,61 @@ public class ModelMediaServiceImpl implements ModelMediaService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional
+    public MediaUploadResponseDto updateMediaType(UUID modelId, UUID mediaId, MediaType newMediaType) {
+        if (newMediaType == null) {
+            throw new IllegalArgumentException("O tipo de mídia não pode ser nulo.");
+        }
+
+        log.info("Alterando tipo de mídia id='{}' do modelo id='{}' para '{}'", mediaId, modelId, newMediaType);
+
+        ModelMedia media = modelMediaRepository.findByIdAndModelId(mediaId, modelId)
+                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o modelo especificado"));
+
+        MediaType oldMediaType = media.getMediaType();
+        if (oldMediaType == newMediaType) {
+            return toDto(media);
+        }
+
+        boolean wasCover = Boolean.TRUE.equals(media.getIsCover());
+
+        // Se uma foto for movida de BOOK para POLAROID e ela era a capa (is_cover = true):
+        // desmarque a capa e, se houver outras fotos no Book, eleja a primeira do Book como nova capa.
+        if (oldMediaType == MediaType.BOOK && newMediaType == MediaType.POLAROID && wasCover) {
+            media.setIsCover(false);
+            Model model = media.getModel();
+
+            List<ModelMedia> remainingBookPhotos = modelMediaRepository
+                    .findByModelIdAndMediaTypeAndIsActiveTrueOrderByDisplayOrderAsc(modelId, MediaType.BOOK)
+                    .stream()
+                    .filter(m -> !m.getId().equals(mediaId))
+                    .toList();
+
+            if (!remainingBookPhotos.isEmpty()) {
+                ModelMedia nextCover = remainingBookPhotos.get(0);
+                nextCover.setIsCover(true);
+                modelMediaRepository.save(nextCover);
+                model.setPrimaryPhotoUrl(nextCover.getFileUrl());
+                log.info("Mídia id='{}' promovida automaticamente a nova capa do modelo id='{}'", nextCover.getId(), modelId);
+            } else {
+                model.setPrimaryPhotoUrl(null);
+                log.info("Nenhuma foto remanescente no Book para capa do modelo id='{}'", modelId);
+            }
+            modelRepository.save(model);
+        }
+
+        // Recalcula display_order para alocá-la no final da nova categoria
+        Integer nextOrder = modelMediaRepository.findNextDisplayOrder(modelId, newMediaType);
+        media.setDisplayOrder(nextOrder != null ? nextOrder : 1);
+        media.setMediaType(newMediaType);
+
+        ModelMedia savedMedia = modelMediaRepository.save(media);
+        log.info("Tipo de mídia id='{}' atualizado com sucesso para '{}' (displayOrder={})", mediaId, newMediaType, savedMedia.getDisplayOrder());
+
+        return toDto(savedMedia);
+    }
+
     private String sanitizeFilename(String filename) {
         if (filename == null || filename.isBlank()) {
             return "image.jpg";
@@ -348,18 +403,18 @@ public class ModelMediaServiceImpl implements ModelMediaService {
                 throw new IllegalArgumentException("O arquivo do composite não pode estar vazio.");
             }
 
-            // 🔴 CORREÇÃO DE LIMITE: 30 MB (compatível com storage.validateUpload, evitava FileSizeExceededException silenciosa)
-            final long MAX_SIZE_30_MB = 30L * 1024 * 1024;
+            // 🔴 LIMITE COMPOSITE: 25 MB (alinhado com as regras de negócio de sedcards)
+            final long MAX_SIZE_25_MB = 25L * 1024 * 1024;
             long fileSize = file.getSize();
             log.info("[COMPOSITE UPLOAD] INICIO. modelId={}, originalFilename='{}', contentType='{}', size={} bytes ({})",
                     modelId, file.getOriginalFilename(), file.getContentType(), fileSize,
                     fileSize > 0 ? String.format("%.2f MB", fileSize / (1024.0 * 1024.0)) : "desconhecido");
 
-            if (fileSize > MAX_SIZE_30_MB) {
+            if (fileSize > MAX_SIZE_25_MB) {
                 double mbReal = Math.round((fileSize / (1024.0 * 1024.0)) * 10.0) / 10.0;
                 throw new IllegalArgumentException(
                     "Arquivo do composite muito grande: " + mbReal + " MB. " +
-                    "O limite máximo permitido é 30 MB. Compacte o PDF ou envie uma imagem JPG/PNG menor."
+                    "O limite máximo permitido é 25 MB. Compacte o PDF ou envie uma imagem JPG/PNG menor."
                 );
             }
 
@@ -711,19 +766,30 @@ public class ModelMediaServiceImpl implements ModelMediaService {
                 .displayOrder(media.getDisplayOrder())
                 .isCover(media.getIsCover())
                 .isActive(media.getIsActive())
+                .isFromApply(isCandidateUpload)
+                .isLowResolution(isCandidateUpload)
                 .createdAt(media.getCreatedAt())
                 .build();
     }
 
     private void validatePhotoResolution(MultipartFile file, String mediaTypeName) {
-        try (InputStream is = file.getInputStream()) {
-            BufferedImage image = ImageIO.read(is);
-            if (image != null) {
-                long totalPixels = (long) image.getWidth() * image.getHeight();
+        try {
+            byte[] bytes = file.getBytes();
+            int[] dims = com.wbscouting.api.security.ImageSecuritySanitizer.extractDimensions(bytes);
+            if (dims != null) {
+                long totalPixels = (long) dims[0] * dims[1];
                 if (totalPixels < MIN_UHD_PIXELS) {
-                    throw new BusinessException(String.format(
-                            "A imagem enviada para %s possui baixa definição (%dx%d px - %.1f MP). Para garantir visualização nítida em telas de alta definição (UHD), envie fotos com resolução mínima de 4 Megapixels (aproximadamente 2560x1600 px ou superior).",
-                            mediaTypeName, image.getWidth(), image.getHeight(), totalPixels / 1_000_000.0));
+                    throw new BusinessException("A foto enviada possui definição inferior a 4 Megapixels.");
+                }
+            } else {
+                try (InputStream is = new java.io.ByteArrayInputStream(bytes)) {
+                    BufferedImage image = ImageIO.read(is);
+                    if (image != null) {
+                        long totalPixels = (long) image.getWidth() * image.getHeight();
+                        if (totalPixels < MIN_UHD_PIXELS) {
+                            throw new BusinessException("A foto enviada possui definição inferior a 4 Megapixels.");
+                        }
+                    }
                 }
             }
         } catch (BusinessException be) {

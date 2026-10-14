@@ -19,20 +19,6 @@
   <!-- Overlay Leve Editorial -->
   <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#FBFBF9]/80 z-10 pointer-events-none"></div>
 
-  <!-- CONTAINER CENTRAL: APENAS O SPLASH TEMPORIZADO (SEM BOTÕES) -->
-  <div class="relative z-20 flex items-center justify-center w-full h-full pointer-events-none px-6">
-    <div 
-      *ngIf="showSplashLogo()"
-      class="animate-fade-splash flex items-center justify-center"
-    >
-      <!-- Logo com fundo transparente, proporcional à tela (sem esticar ou cortar) -->
-      <img 
-        src="assets/images/logo-wb-agency-light.png" 
-        alt="WB Agency" 
-        class="w-auto h-auto max-h-[22vh] max-w-[70vw] sm:max-h-[26vh] sm:max-w-[60vw] md:max-h-[32vh] md:max-w-[50vw] object-contain drop-shadow-md bg-transparent"
-      />
-    </div>
-  </div>
 
   <!-- Controlo de Áudio Editorial (Mute/Unmute) -->
   <button

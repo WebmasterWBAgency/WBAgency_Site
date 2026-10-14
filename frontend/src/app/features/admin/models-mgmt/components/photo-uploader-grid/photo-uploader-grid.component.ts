@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { GalleryPhoto, PhotoCategory } from '../../../../../shared/models/gallery.model';
 import { ImageProcessingService } from '../../../../../core/services/image-processing.service';
+import { AdminModelService } from '../../../../../core/services/admin-model.service';
 
 @Component({
   selector: 'app-photo-uploader-grid',
@@ -13,11 +14,14 @@ import { ImageProcessingService } from '../../../../../core/services/image-proce
 })
 export class PhotoUploaderGridComponent {
   private readonly imageProcessingService = inject(ImageProcessingService);
+  private readonly adminModelService = inject(AdminModelService);
 
+  @Input() modelId: string | null = null;
   @Input() photos: GalleryPhoto[] = [];
   @Output() photosChange = new EventEmitter<GalleryPhoto[]>();
   @Output() fileUploaded = new EventEmitter<File[]>();
   @Output() validationError = new EventEmitter<string>();
+  @Output() categoryChanged = new EventEmitter<{ photo: GalleryPhoto; newCategory: 'BOOK' | 'POLAROID' }>();
   /**
    * Evento disparado quando o usuario clica em EXCLUIR FOTO (botao vermelho ✕).
    * Passa a FOTO QUE FOI REMOVIDA. O pai (model-form) deve:
@@ -31,15 +35,23 @@ export class PhotoUploaderGridComponent {
   selectedCategoryFilter: 'ALL' | 'BOOK' | 'POLAROID' = 'ALL';
 
   readonly maxPhotos = 15;
-  readonly maxSizeBytes = 8 * 1024 * 1024; // 8MB
+  readonly maxSizeBytes = 15 * 1024 * 1024; // 15MB
   readonly allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
+  get bookPhotos(): GalleryPhoto[] {
+    return (this.photos || []).filter(p => (p.category || (p as any).mediaType || (p as any).type || 'BOOK').toUpperCase() === 'BOOK');
+  }
+
+  get polaroidPhotos(): GalleryPhoto[] {
+    return (this.photos || []).filter(p => (p.category || (p as any).mediaType || (p as any).type || '').toUpperCase() === 'POLAROID');
+  }
+
   get bookPhotosCount(): number {
-    return (this.photos || []).filter(p => (p.category || 'BOOK').toUpperCase() === 'BOOK').length;
+    return this.bookPhotos.length;
   }
 
   get polaroidPhotosCount(): number {
-    return (this.photos || []).filter(p => (p.category || '').toUpperCase() === 'POLAROID').length;
+    return this.polaroidPhotos.length;
   }
 
   onPhotoError(photo: GalleryPhoto): void {
@@ -113,7 +125,7 @@ export class PhotoUploaderGridComponent {
     }
   }
 
-  async processSelectedFiles(fileList: FileList): Promise<void> {
+  async processSelectedFiles(fileList: FileList | File[]): Promise<void> {
     const targetCat = this.currentTargetCategory;
     const catLabel = targetCat === 'POLAROID' ? 'Polaroids Técnicas' : 'Book Editorial';
     const currentCount = targetCat === 'POLAROID' ? this.polaroidPhotosCount : this.bookPhotosCount;
@@ -142,20 +154,28 @@ export class PhotoUploaderGridComponent {
         continue;
       }
       if (file.size > this.maxSizeBytes) {
-        this.validationError.emit(`O arquivo "${file.name}" excede o limite máximo permitido de 8 MB.`);
+        this.validationError.emit(`O arquivo "${file.name}" excede o limite máximo permitido de 15 MB.`);
         continue;
       }
 
-      const result = await this.imageProcessingService.validateAndProcessPhoto(file);
+      const result = await this.imageProcessingService.processAdminImage(file, {
+        maxSizeMb: 15,
+        minPixels: 4_000_000
+      });
       if (!result.valid) {
         this.validationError.emit(result.error || 'Erro na validação da imagem.');
         continue;
       }
 
-      validFiles.push(result.processedFile || file);
+      validFiles.push(result.file || file);
     }
 
     if (validFiles.length > 0) {
+      validFiles.forEach(f => {
+        (f as any).category = targetCat;
+        (f as any).mediaType = targetCat;
+        (f as any).type = targetCat;
+      });
       this.fileUploaded.emit(validFiles);
 
       // ============================================================
@@ -165,8 +185,10 @@ export class PhotoUploaderGridComponent {
         id: 'temp-' + Math.random().toString(36).substring(2, 9),
         url: URL.createObjectURL(file),
         category: targetCat,
+        mediaType: targetCat as any,
+        type: targetCat as any,
         orderIndex: this.photos.length + idx,
-        isCover: this.photos.length === 0 && idx === 0,
+        isCover: this.photos.length === 0 && idx === 0 && targetCat === 'BOOK',
         file,
         uploadProgress: 100,
         isUploading: false
@@ -210,11 +232,16 @@ export class PhotoUploaderGridComponent {
     this.photosChange.emit(lista);
   }
 
-  toggleCategory(photo: GalleryPhoto): void {
+  toggleMediaType(photo: GalleryPhoto, targetType?: 'BOOK' | 'POLAROID'): void {
     const idx = this.photos.findIndex(p => p.id === photo.id);
     if (idx < 0) return;
 
-    const novaCategoria: PhotoCategory = photo.category === 'BOOK' ? 'POLAROID' : 'BOOK';
+    const currentCat = (photo.category || (photo as any).mediaType || (photo as any).type || 'BOOK').toUpperCase();
+    const novaCategoria: PhotoCategory = targetType 
+      ? targetType 
+      : (currentCat === 'BOOK' ? 'POLAROID' : 'BOOK');
+
+    if (currentCat === novaCategoria) return;
     
     // Validação de limite máximo de 15 fotos na categoria destino
     if (novaCategoria === 'POLAROID' && this.polaroidPhotosCount >= this.maxPhotos) {
@@ -226,11 +253,50 @@ export class PhotoUploaderGridComponent {
       return;
     }
 
-    let lista = [...this.photos];
-    lista[idx] = { ...lista[idx], category: novaCategoria };
-    photo.category = novaCategoria;
-    this.photos = lista;
-    this.photosChange.emit(lista);
+    const applyLocalChange = (isCoverValue?: boolean) => {
+      let lista = [...this.photos];
+      const willBeCover = isCoverValue !== undefined ? isCoverValue : (novaCategoria === 'POLAROID' ? false : lista[idx].isCover);
+      lista[idx] = { 
+        ...lista[idx], 
+        category: novaCategoria, 
+        mediaType: novaCategoria as any, 
+        type: novaCategoria as any,
+        isCover: willBeCover
+      };
+      photo.category = novaCategoria;
+      (photo as any).mediaType = novaCategoria;
+      (photo as any).type = novaCategoria;
+      photo.isCover = willBeCover;
+
+      // Se virou Polaroid e era capa, elege a primeira foto do Book
+      if (novaCategoria === 'POLAROID' && !lista.some(p => Boolean(p.isCover) && p.category === 'BOOK')) {
+        const firstBook = lista.find(p => p.category === 'BOOK');
+        if (firstBook) firstBook.isCover = true;
+      }
+
+      this.photos = lista;
+      this.photosChange.emit(lista);
+      this.categoryChanged.emit({ photo: lista[idx], newCategory: novaCategoria });
+    };
+
+    // Se a foto tiver ID real do banco (não é temp-) e modelId estiver presente, persiste via API:
+    if (this.modelId && photo.id && !String(photo.id).startsWith('temp-') && photo.id !== 'fallback-cover') {
+      this.adminModelService.updateMediaType(this.modelId, String(photo.id), novaCategoria).subscribe({
+        next: (res) => {
+          applyLocalChange(res.isCover);
+        },
+        error: (err) => {
+          console.error('[toggleMediaType] Erro ao alternar tipo de foto no backend:', err);
+          this.validationError.emit('Falha ao alternar categoria da foto no servidor.');
+        }
+      });
+    } else {
+      applyLocalChange();
+    }
+  }
+
+  toggleCategory(photo: GalleryPhoto): void {
+    this.toggleMediaType(photo);
   }
 
   updateOrderIndices(): void {

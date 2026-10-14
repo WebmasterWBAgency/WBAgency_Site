@@ -76,6 +76,8 @@ public class CandidateDetailResponseDto {
         private String type;
         private String fileName;
         private Long fileSizeBytes;
+        private Boolean isFromApply;
+        private Boolean isLowResolution;
     }
 
     public static CandidateDetailResponseDto fromModel(Model model) {
@@ -152,12 +154,17 @@ public class CandidateDetailResponseDto {
                     else if (pos == 2 && profile == null) profile = u;
                     else if (pos == 3 && fullBody == null) fullBody = u;
 
+                    boolean fromApply = (u != null && u.contains("candidates-uploads"))
+                            || (m.getFilePath() != null && m.getFilePath().contains("candidates-uploads"));
+
                     photos.add(CandidateMediaDto.builder()
                             .id(m.getId() != null ? m.getId().toString() : "media-" + pos)
                             .url(u)
                             .type(type)
                             .fileName(extractFileName(u, "photo-" + pos + ".jpg"))
                             .fileSizeBytes(1500000L)
+                            .isFromApply(fromApply)
+                            .isLowResolution(fromApply)
                             .build());
                 }
             }
@@ -166,30 +173,39 @@ public class CandidateDetailResponseDto {
         // Fallback: se photos ainda estiver vazio, sintetiza a partir das colunas diretas da candidatura
         if (photos.isEmpty()) {
             if (face != null) {
+                boolean fromApply = face.contains("candidates-uploads");
                 photos.add(CandidateMediaDto.builder()
                         .id("photo-face-" + model.getId())
                         .url(face)
                         .type("POLAROID_ROSTO")
                         .fileName(extractFileName(face, "polaroid-rosto.jpg"))
                         .fileSizeBytes(1500000L)
+                        .isFromApply(fromApply)
+                        .isLowResolution(fromApply)
                         .build());
             }
             if (profile != null) {
+                boolean fromApply = profile.contains("candidates-uploads");
                 photos.add(CandidateMediaDto.builder()
                         .id("photo-profile-" + model.getId())
                         .url(profile)
                         .type("POLAROID_PERFIL")
                         .fileName(extractFileName(profile, "polaroid-perfil.jpg"))
                         .fileSizeBytes(1500000L)
+                        .isFromApply(fromApply)
+                        .isLowResolution(fromApply)
                         .build());
             }
             if (fullBody != null) {
+                boolean fromApply = fullBody.contains("candidates-uploads");
                 photos.add(CandidateMediaDto.builder()
                         .id("photo-fullbody-" + model.getId())
                         .url(fullBody)
                         .type("CORPO_INTEIRO")
                         .fileName(extractFileName(fullBody, "polaroid-corpo-inteiro.jpg"))
                         .fileSizeBytes(1500000L)
+                        .isFromApply(fromApply)
+                        .isLowResolution(fromApply)
                         .build());
             }
         }
@@ -331,6 +347,8 @@ public class CandidateDetailResponseDto {
                             .type(type)
                             .fileName("polaroid-" + pos + ".jpg")
                             .fileSizeBytes(1500000L)
+                            .isFromApply(true)
+                            .isLowResolution(true)
                             .build());
                 }
             }
@@ -340,17 +358,20 @@ public class CandidateDetailResponseDto {
             if (face != null) {
                 photos.add(CandidateMediaDto.builder()
                         .id("p-1").url(face).type("POLAROID_ROSTO")
-                        .fileName(extractFileName(face, "polaroid-rosto.jpg")).fileSizeBytes(1500000L).build());
+                        .fileName(extractFileName(face, "polaroid-rosto.jpg")).fileSizeBytes(1500000L)
+                        .isFromApply(true).isLowResolution(true).build());
             }
             if (profile != null) {
                 photos.add(CandidateMediaDto.builder()
                         .id("p-2").url(profile).type("POLAROID_PERFIL")
-                        .fileName(extractFileName(profile, "polaroid-perfil.jpg")).fileSizeBytes(1500000L).build());
+                        .fileName(extractFileName(profile, "polaroid-perfil.jpg")).fileSizeBytes(1500000L)
+                        .isFromApply(true).isLowResolution(true).build());
             }
             if (fullBody != null) {
                 photos.add(CandidateMediaDto.builder()
                         .id("p-3").url(fullBody).type("CORPO_INTEIRO")
-                        .fileName(extractFileName(fullBody, "polaroid-corpo-inteiro.jpg")).fileSizeBytes(1500000L).build());
+                        .fileName(extractFileName(fullBody, "polaroid-corpo-inteiro.jpg")).fileSizeBytes(1500000L)
+                        .isFromApply(true).isLowResolution(true).build());
             }
         }
 

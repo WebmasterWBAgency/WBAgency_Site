@@ -24,6 +24,8 @@ public interface ModelMediaService {
 
     List<MediaUploadResponseDto> listModelMedia(UUID modelId);
 
+    MediaUploadResponseDto updateMediaType(UUID modelId, UUID mediaId, MediaType newMediaType);
+
     com.wbscouting.api.dto.media.ModelCompositeResponseDto getComposite(UUID modelId);
 
     com.wbscouting.api.dto.media.ModelCompositeResponseDto uploadOrReplaceComposite(UUID modelId, MultipartFile file);

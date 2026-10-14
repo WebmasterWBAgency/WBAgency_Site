@@ -355,19 +355,19 @@ class ModelMediaServiceImplTest {
     }
 
     @Test
-    @DisplayName("uploadMedia - Deve rejeitar foto BOOK com tamanho maior que 8MB")
-    void uploadMedia_BookExceeding8MB_ThrowsBusinessException() {
-        byte[] oversizedBytes = new byte[8 * 1024 * 1024 + 10];
+    @DisplayName("uploadMedia - Deve rejeitar foto BOOK com tamanho maior que 15MB")
+    void uploadMedia_BookExceeding15MB_ThrowsBusinessException() {
+        byte[] oversizedBytes = new byte[15 * 1024 * 1024 + 10];
         MockMultipartFile largeFile = new MockMultipartFile("file", "large.jpg", "image/jpeg", oversizedBytes);
         when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
 
         assertThatThrownBy(() -> modelMediaService.uploadMedia(modelId, MediaType.BOOK, false, largeFile))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("excede o limite máximo permitido de 8 MB");
+                .hasMessageContaining("excede o limite máximo permitido de 15 MB");
     }
 
     @Test
-    @DisplayName("uploadMedia - Deve rejeitar foto POLAROID com baixa resolução (< 3.8 MP)")
+    @DisplayName("uploadMedia - Deve rejeitar foto POLAROID com baixa resolução (< 4.0 MP)")
     void uploadMedia_PolaroidLowResolution_ThrowsBusinessException() throws Exception {
         BufferedImage lowResImg = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -379,8 +379,7 @@ class ModelMediaServiceImplTest {
 
         assertThatThrownBy(() -> modelMediaService.uploadMedia(modelId, MediaType.POLAROID, false, lowResFile))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("possui baixa definição")
-                .hasMessageContaining("resolução mínima de 4 Megapixels");
+                .hasMessage("A foto enviada possui definição inferior a 4 Megapixels.");
     }
 
     @Test
@@ -476,5 +475,71 @@ class ModelMediaServiceImplTest {
 
         // Valida que o arquivo órfão foi compensado e deletado do storage
         verify(storageService, times(1)).deleteFile("models-media", "models-media/book_photo.png");
+    }
+
+    @Test
+    @DisplayName("updateMediaType - Deve alternar de BOOK para POLAROID, desmarcar capa e eleger nova capa no Book")
+    void updateMediaType_FromBookToPolaroid_WhenWasCover_UnsetsCoverAndPromotesNextBook() {
+        ModelMedia coverMedia = ModelMedia.builder()
+                .id(mediaId)
+                .model(model)
+                .mediaType(MediaType.BOOK)
+                .isCover(true)
+                .displayOrder(1)
+                .fileUrl("https://supabase.co/cover.jpg")
+                .isActive(true)
+                .build();
+
+        UUID nextBookId = UUID.randomUUID();
+        ModelMedia nextBook = ModelMedia.builder()
+                .id(nextBookId)
+                .model(model)
+                .mediaType(MediaType.BOOK)
+                .isCover(false)
+                .displayOrder(2)
+                .fileUrl("https://supabase.co/next-book.jpg")
+                .isActive(true)
+                .build();
+
+        when(modelMediaRepository.findByIdAndModelId(mediaId, modelId)).thenReturn(Optional.of(coverMedia));
+        when(modelMediaRepository.findByModelIdAndMediaTypeAndIsActiveTrueOrderByDisplayOrderAsc(modelId, MediaType.BOOK))
+                .thenReturn(List.of(coverMedia, nextBook));
+        when(modelMediaRepository.findNextDisplayOrder(modelId, MediaType.POLAROID)).thenReturn(5);
+        when(modelMediaRepository.save(any(ModelMedia.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MediaUploadResponseDto result = modelMediaService.updateMediaType(modelId, mediaId, MediaType.POLAROID);
+
+        assertThat(result.getMediaType()).isEqualTo(MediaType.POLAROID);
+        assertThat(result.getIsCover()).isFalse();
+        assertThat(result.getDisplayOrder()).isEqualTo(5);
+
+        // Verifica que a próxima foto do book virou capa
+        assertThat(nextBook.getIsCover()).isTrue();
+        assertThat(model.getPrimaryPhotoUrl()).isEqualTo("https://supabase.co/next-book.jpg");
+        verify(modelRepository).save(model);
+    }
+
+    @Test
+    @DisplayName("updateMediaType - Deve alternar de POLAROID para BOOK e alocar displayOrder no final")
+    void updateMediaType_FromPolaroidToBook_Success() {
+        ModelMedia polaroidMedia = ModelMedia.builder()
+                .id(mediaId)
+                .model(model)
+                .mediaType(MediaType.POLAROID)
+                .isCover(false)
+                .displayOrder(1)
+                .fileUrl("https://supabase.co/polaroid.jpg")
+                .isActive(true)
+                .build();
+
+        when(modelMediaRepository.findByIdAndModelId(mediaId, modelId)).thenReturn(Optional.of(polaroidMedia));
+        when(modelMediaRepository.findNextDisplayOrder(modelId, MediaType.BOOK)).thenReturn(7);
+        when(modelMediaRepository.save(any(ModelMedia.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MediaUploadResponseDto result = modelMediaService.updateMediaType(modelId, mediaId, MediaType.BOOK);
+
+        assertThat(result.getMediaType()).isEqualTo(MediaType.BOOK);
+        assertThat(result.getDisplayOrder()).isEqualTo(7);
+        verify(modelMediaRepository).save(polaroidMedia);
     }
 }

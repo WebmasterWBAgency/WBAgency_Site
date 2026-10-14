@@ -34,8 +34,9 @@ describe('PhotoUploaderGridComponent', () => {
   ];
 
   beforeEach(async () => {
-    imageProcessingSpy = jasmine.createSpyObj('ImageProcessingService', ['validateAndProcessPhoto']);
+    imageProcessingSpy = jasmine.createSpyObj('ImageProcessingService', ['validateAndProcessPhoto', 'processAdminImage']);
     imageProcessingSpy.validateAndProcessPhoto.and.resolveTo({ valid: true });
+    imageProcessingSpy.processAdminImage.and.resolveTo({ valid: true });
 
     await TestBed.configureTestingModule({
       imports: [PhotoUploaderGridComponent],
@@ -136,7 +137,7 @@ describe('PhotoUploaderGridComponent', () => {
     const invalidTypeBlob = new Blob(['sample-pdf'], { type: 'application/pdf' });
     const invalidTypeFile = new File([invalidTypeBlob], 'doc.pdf', { type: 'application/pdf' });
 
-    imageProcessingSpy.validateAndProcessPhoto.and.resolveTo({ valid: true, processedFile: validFile });
+    imageProcessingSpy.processAdminImage.and.resolveTo({ valid: true, file: validFile });
 
     const fileList = {
       0: validFile,
@@ -150,10 +151,10 @@ describe('PhotoUploaderGridComponent', () => {
     expect(component.fileUploaded.emit).toHaveBeenCalledWith([validFile]);
   });
 
-  it('deve emitir erro de validação para arquivos com mais de 8 MB', async () => {
+  it('deve emitir erro de validação para arquivos com mais de 15 MB', async () => {
     spyOn(component.validationError, 'emit');
 
-    const largeFile = new File([new ArrayBuffer(9 * 1024 * 1024)], 'large.jpg', {
+    const largeFile = new File([new ArrayBuffer(16 * 1024 * 1024)], 'large.jpg', {
       type: 'image/jpeg'
     });
 
@@ -166,7 +167,7 @@ describe('PhotoUploaderGridComponent', () => {
     await component.processSelectedFiles(fileList);
 
     expect(component.validationError.emit).toHaveBeenCalledWith(
-      'O arquivo "large.jpg" excede o limite máximo permitido de 8 MB.'
+      'O arquivo "large.jpg" excede o limite máximo permitido de 15 MB.'
     );
   });
 
@@ -178,7 +179,7 @@ describe('PhotoUploaderGridComponent', () => {
     });
 
     const errorMsg = 'A imagem selecionada "lowres.jpg" possui baixa definição (800x600 px - 0.5 MP). Para garantir visualização nítida em telas de alta definição (UHD), envie fotos com resolução mínima de 4 Megapixels.';
-    imageProcessingSpy.validateAndProcessPhoto.and.resolveTo({
+    imageProcessingSpy.processAdminImage.and.resolveTo({
       valid: false,
       error: errorMsg
     });

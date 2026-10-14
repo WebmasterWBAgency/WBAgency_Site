@@ -324,9 +324,9 @@ export class ModelFormComponent implements OnInit {
    */
   populatePhotos(mediaList: any[]): void {
     const list = mediaList || [];
-    this.bookPhotos = list.filter((m: any) => m.mediaType === 'BOOK' || m.type === 'BOOK');
-    this.polaroidPhotos = list.filter((m: any) => m.mediaType === 'POLAROID' || m.type === 'POLAROID' || (m.mediaType && m.mediaType.includes('POLAROID')));
-    this.compositeUrl = list.find((m: any) => m.mediaType === 'COMPOSITE' || m.type === 'COMPOSITE')?.fileUrl || null;
+    this.bookPhotos = list.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'BOOK');
+    this.polaroidPhotos = list.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'POLAROID');
+    this.compositeUrl = list.find((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'COMPOSITE')?.fileUrl || null;
 
     // Alimenta também a lista unificada para o photo-uploader-grid
     const galleryItems = this._mapMediaDtoToGalleryPhotos(list);
@@ -381,7 +381,10 @@ export class ModelFormComponent implements OnInit {
   loadModelMedia(modelId: string): void {
     this.adminModelService.getModelMedia(modelId).subscribe({
       next: (mediaList) => {
-        this.populatePhotos(mediaList);
+        const list = mediaList || [];
+        this.bookPhotos = list.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'BOOK');
+        this.polaroidPhotos = list.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'POLAROID');
+        this.populatePhotos(list);
       },
       error: (err) => {
         console.error('Erro ao carregar mídias do modelo:', err);
@@ -413,6 +416,82 @@ export class ModelFormComponent implements OnInit {
         error: () => this.showToast('Falha ao remover fotografia.', 'error')
       });
     }
+  }
+
+  toggleMediaType(item: any, newType: 'BOOK' | 'POLAROID'): void {
+    const currentId = this.modelId();
+    if (!item) return;
+
+    if (!currentId || !item.id || String(item.id).startsWith('temp-') || item.id === 'fallback-cover') {
+      // Alternância em memória (modo novo modelo ou foto recém-adicionada)
+      item.mediaType = newType;
+      item.category = newType;
+      item.type = newType;
+      if (newType === 'POLAROID') {
+        item.isCover = false;
+        this.bookPhotos = this.bookPhotos.filter(p => p.id !== item.id);
+        this.polaroidPhotos = [...this.polaroidPhotos, item];
+      } else {
+        this.polaroidPhotos = this.polaroidPhotos.filter(p => p.id !== item.id);
+        this.bookPhotos = [...this.bookPhotos, item];
+      }
+      this.galleryPhotos.set(
+        this.galleryPhotos().map(p => p.id === item.id ? { ...p, category: newType, mediaType: newType, type: newType, isCover: newType === 'POLAROID' ? false : p.isCover } : p)
+      );
+      this.showToast(`Fotografia movida para ${newType === 'POLAROID' ? 'Polaroids' : 'Book'}.`, 'success');
+      return;
+    }
+
+    this.adminModelService.updateMediaType(currentId, String(item.id), newType).subscribe({
+      next: (updated) => {
+        if (newType === 'POLAROID') {
+          this.bookPhotos = this.bookPhotos.filter(p => p.id !== item.id);
+          item.mediaType = 'POLAROID';
+          item.category = 'POLAROID';
+          item.type = 'POLAROID';
+          item.isCover = false;
+          this.polaroidPhotos = [...this.polaroidPhotos, item];
+        } else {
+          this.polaroidPhotos = this.polaroidPhotos.filter(p => p.id !== item.id);
+          item.mediaType = 'BOOK';
+          item.category = 'BOOK';
+          item.type = 'BOOK';
+          this.bookPhotos = [...this.bookPhotos, item];
+        }
+
+        // Sincroniza lista geral galleryPhotos
+        const updatedGal = this.galleryPhotos().map(p => {
+          if (p.id === item.id) {
+            return {
+              ...p,
+              category: newType,
+              mediaType: newType,
+              type: newType,
+              isCover: updated.isCover ?? (newType === 'POLAROID' ? false : p.isCover),
+              orderIndex: updated.displayOrder ?? p.orderIndex
+            };
+          }
+          return p;
+        });
+        this.galleryPhotos.set(updatedGal);
+
+        // Se a foto movida era capa, atualiza capa preview
+        if (newType === 'POLAROID') {
+          const firstBook = updatedGal.find(p => p.category === 'BOOK');
+          if (firstBook?.url) {
+            this.modelForm.patchValue({ primaryPhotoUrl: firstBook.url });
+          }
+        }
+        this._atualizaFotoCapaPreviewDisparo();
+
+        this.showToast(`✅ Fotografia movida para ${newType === 'POLAROID' ? 'Polaroids Técnicas' : 'Book Editorial'}!`, 'success');
+      },
+      error: (err) => {
+        console.error('Erro ao alternar tipo de foto:', err);
+        const msg = err?.error?.detail || err?.error?.message || 'Erro ao alternar categoria da fotografia.';
+        this.showToast(msg, 'error');
+      }
+    });
   }
 
   readonly galleryPhotos = signal<GalleryPhoto[]>([]);
@@ -472,6 +551,8 @@ export class ModelFormComponent implements OnInit {
 
   onPhotosChanged(updatedPhotos: GalleryPhoto[]): void {
     this.galleryPhotos.set(updatedPhotos || []);
+    this.bookPhotos = (updatedPhotos || []).filter(m => (m.category || m.mediaType || m.type)?.toUpperCase() === 'BOOK');
+    this.polaroidPhotos = (updatedPhotos || []).filter(m => (m.category || m.mediaType || m.type)?.toUpperCase() === 'POLAROID');
     // 🔴 DETECCAO UNIVERSAL: apagar 1, 10, 50 fotos, QUALQUER METODO. Tudo entra no pending.
     this.detectIdsRemovedFromDatabase(updatedPhotos || []);
     if (!updatedPhotos || updatedPhotos.length === 0) {
@@ -583,6 +664,12 @@ export class ModelFormComponent implements OnInit {
           || mediaType === 'POLAROID_SIDE'
           || mediaType === 'POLAROID_BODY';
 
+        const isCandidateUpload = (filePath && filePath.includes('candidates-uploads'))
+          || (rawFileUrl && rawFileUrl.includes('candidates-uploads'))
+          || (safeUrl && safeUrl.includes('candidates-uploads'));
+        const isFromApply = Boolean(item.isFromApply || isCandidateUpload);
+        const isLowResolution = Boolean(item.isLowResolution || isFromApply);
+
         return {
           id: String(item.id || 'media-' + idx),
           url: safeUrl,
@@ -597,7 +684,9 @@ export class ModelFormComponent implements OnInit {
           orderIndex: Number(item.displayOrder ?? item.orderIndex ?? idx),
           isCover: Boolean(item.isCover),
           isActive: Boolean(item.isActive ?? true),
-          isUploaded: true
+          isUploaded: true,
+          isFromApply,
+          isLowResolution
         };
       })
       .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
@@ -649,8 +738,8 @@ export class ModelFormComponent implements OnInit {
         // Se o DTO do modelo já trouxer model.media, popule imediatamente os arrays de fotos locais:
         const mediaList = model.media || [];
         if (mediaList && mediaList.length > 0) {
-          this.bookPhotos = mediaList.filter((m: any) => m.mediaType === 'BOOK' || m.type === 'BOOK');
-          this.polaroidPhotos = mediaList.filter((m: any) => m.mediaType === 'POLAROID' || m.type === 'POLAROID');
+          this.bookPhotos = mediaList.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'BOOK');
+          this.polaroidPhotos = mediaList.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'POLAROID');
           this.populatePhotos(mediaList);
           this.isLoading.set(false);
           const total = this.galleryPhotos().length;
@@ -661,9 +750,10 @@ export class ModelFormComponent implements OnInit {
           // Se o endpoint de detalhes do modelo não trouxer mídias, faça a chamada explícita para o endpoint de mídias:
           this.adminModelService.getModelMedia(id).subscribe({
             next: (fetchedMediaList) => {
-              this.bookPhotos = fetchedMediaList.filter((m: any) => m.mediaType === 'BOOK' || m.type === 'BOOK');
-              this.polaroidPhotos = fetchedMediaList.filter((m: any) => m.mediaType === 'POLAROID' || m.type === 'POLAROID');
-              this.populatePhotos(fetchedMediaList);
+              const list = fetchedMediaList || [];
+              this.bookPhotos = list.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'BOOK');
+              this.polaroidPhotos = list.filter((m: any) => (m.mediaType || m.type)?.toUpperCase() === 'POLAROID');
+              this.populatePhotos(list);
               this.isLoading.set(false);
               const total = this.galleryPhotos().length;
               if (total > 0) {
@@ -690,6 +780,11 @@ export class ModelFormComponent implements OnInit {
   }
 
   onCompositeFileSelected(file: File | null): void {
+    if (file && file.size > 25 * 1024 * 1024) {
+      this.showToast(`O arquivo "${file.name}" excede o limite máximo permitido de 25 MB para o composite.`, 'error');
+      this.selectedCompositeFile = null;
+      return;
+    }
     this.selectedCompositeFile = file;
     if (file) {
       this.showToast(`Composite "${file.name}" selecionado com sucesso. Será salvo com o modelo.`, 'success');
@@ -701,7 +796,7 @@ export class ModelFormComponent implements OnInit {
     const current = this.modelId();
     if (!current) {
       this.selectedFiles = [...this.selectedFiles, ...files];
-      this.showToast(`${files.length} foto(s) selecionada(s). Serão salvas ao cadastrar o modelo.`, 'success');
+      this.showToast(`${files.length} foto(s) selecionada(s) (até 15 MB). Serão salvas ao cadastrar o modelo.`, 'success');
       return;
     }
 
@@ -721,9 +816,13 @@ export class ModelFormComponent implements OnInit {
         this.galleryPhotos.set([...previews]);
       }
 
+      const fileCategory: 'BOOK' | 'POLAROID' = (
+        (tempPhoto?.category || (file as any).category || (file as any).mediaType || (file as any).type || 'BOOK') + ''
+      ).toUpperCase() === 'POLAROID' ? 'POLAROID' : 'BOOK';
+
       // 2) Upload SEQUENCIAL (evita flood HTTP no bucket Supabase)
       return accPromessa.then(() => new Promise<void>((resolve) => {
-        this.adminModelService.uploadModelMedia(current, file, 'BOOK', false).subscribe({
+        this.adminModelService.uploadModelMedia(current, file, fileCategory, false).subscribe({
           next: (ev) => {
             if (ev.type === HttpEventType.UploadProgress && ev.total && tempPhoto) {
               const p = Math.round((100 * ev.loaded) / ev.total);
@@ -737,24 +836,33 @@ export class ModelFormComponent implements OnInit {
               const saved = ev.body;
               // Remove previa temp- (imutavel) e insere FOTO REAL do banco
               let galeriaNova = [...this.galleryPhotos()].filter(p => !(p?.id && String(p.id).startsWith('temp-')));
+              const isSavedPolaroid = String(saved.mediaType || (saved as any).type || fileCategory).toUpperCase() === 'POLAROID';
               const fotoReal: GalleryPhoto = {
                 id: saved.id,
                 url: saved.fileUrl + (saved.fileUrl.includes('?v=') ? '' : ('?v=' + Math.floor(Date.now() / 3_600_000))),
                 filePath: saved.filePath,
-                category: saved.mediaType as any,
+                category: isSavedPolaroid ? 'POLAROID' : 'BOOK',
+                mediaType: isSavedPolaroid ? 'POLAROID' : 'BOOK',
+                type: isSavedPolaroid ? 'POLAROID' : 'BOOK',
                 orderIndex: galeriaNova.length,
-                isCover: saved.isCover || galeriaNova.length === 0,
+                isCover: saved.isCover || (galeriaNova.length === 0 && !isSavedPolaroid),
                 isActive: true,
                 isUploaded: true,
                 isUploading: false,
                 uploadProgress: 100
               };
               galeriaNova = [...galeriaNova, fotoReal];
-              if (galeriaNova.length === 1) galeriaNova[0].isCover = true;
-              else if (!galeriaNova.some(p => Boolean(p.isCover))) galeriaNova[0].isCover = true;
+              if (galeriaNova.length === 1 && !isSavedPolaroid) galeriaNova[0].isCover = true;
+              else if (!galeriaNova.some(p => Boolean(p.isCover))) {
+                const firstBook = galeriaNova.find(p => p.category === 'BOOK');
+                if (firstBook) firstBook.isCover = true;
+              }
               galeriaNova = galeriaNova.map((p, i) => ({ ...p, orderIndex: i }));
 
               this.galleryPhotos.set(galeriaNova);
+              this.bookPhotos = galeriaNova.filter(m => (m.category || m.mediaType || m.type)?.toUpperCase() === 'BOOK');
+              this.polaroidPhotos = galeriaNova.filter(m => (m.category || m.mediaType || m.type)?.toUpperCase() === 'POLAROID');
+
               const cover = galeriaNova.find(p => Boolean(p.isCover)) || galeriaNova[0];
               if (cover?.url) this.modelForm.patchValue({ primaryPhotoUrl: cover.url });
 
@@ -873,10 +981,20 @@ export class ModelFormComponent implements OnInit {
     // 🚀 NOVO MODELO: Criação textual encadeada com upload das fotos selecionadas e composite via switchMap
     if (!currentId) {
       const filesToSend = this.selectedFiles.length > 0
-        ? this.selectedFiles
+        ? this.selectedFiles.map(f => ({
+            file: f,
+            category: (((f as any).category || (f as any).mediaType || (f as any).type || 'BOOK') + '').toUpperCase() === 'POLAROID' ? ('POLAROID' as const) : ('BOOK' as const),
+            mediaType: (((f as any).category || (f as any).mediaType || (f as any).type || 'BOOK') + '').toUpperCase() === 'POLAROID' ? ('POLAROID' as const) : ('BOOK' as const),
+            type: (((f as any).category || (f as any).mediaType || (f as any).type || 'BOOK') + '').toUpperCase() === 'POLAROID' ? ('POLAROID' as const) : ('BOOK' as const)
+          }))
         : this.galleryPhotos()
-            .map(p => (p as any).file)
-            .filter((f): f is File => f instanceof File);
+            .map(p => (p as any).file ? {
+              file: (p as any).file as File,
+              category: String(p.category || p.mediaType || p.type || 'BOOK').toUpperCase() === 'POLAROID' ? ('POLAROID' as const) : ('BOOK' as const),
+              mediaType: String(p.category || p.mediaType || p.type || 'BOOK').toUpperCase() === 'POLAROID' ? ('POLAROID' as const) : ('BOOK' as const),
+              type: String(p.category || p.mediaType || p.type || 'BOOK').toUpperCase() === 'POLAROID' ? ('POLAROID' as const) : ('BOOK' as const)
+            } : null)
+            .filter((item): item is { file: File; category: 'BOOK' | 'POLAROID'; mediaType: 'BOOK' | 'POLAROID'; type: 'BOOK' | 'POLAROID' } => item !== null && item.file instanceof File);
 
       this.adminModelService.createModel(payload).pipe(
         switchMap(createdModel => {

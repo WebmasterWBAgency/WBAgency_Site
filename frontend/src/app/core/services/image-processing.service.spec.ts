@@ -36,4 +36,52 @@ describe('ImageProcessingService', () => {
     expect(result.valid).toBeFalse();
     expect(result.error).toContain('Formato de imagem não suportado');
   });
+
+  describe('processAdminImage', () => {
+    it('deve rejeitar fotos acima de 15 MB', async () => {
+      const oversizedFile = new File([new ArrayBuffer(16 * 1024 * 1024)], 'editorial-oversized.jpg', {
+        type: 'image/jpeg'
+      });
+
+      const result = await service.processAdminImage(oversizedFile);
+
+      expect(result.valid).toBeFalse();
+      expect(result.error).toContain('ultrapassa o limite máximo permitido de 15 MB');
+    });
+
+    it('deve aceitar arquivo com tamanho <= 15 MB e validar formato', async () => {
+      const invalidDoc = new File([new ArrayBuffer(100)], 'document.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+
+      const result = await service.processAdminImage(invalidDoc);
+
+      expect(result.valid).toBeFalse();
+      expect(result.error).toContain('Formato de imagem não suportado');
+    });
+  });
+
+  describe('processAdminComposite', () => {
+    it('deve rejeitar composite com mais de 25 MB', async () => {
+      const oversizedComposite = new File([new ArrayBuffer(26 * 1024 * 1024)], 'sedcard-oversized.pdf', {
+        type: 'application/pdf'
+      });
+
+      const result = await service.processAdminComposite(oversizedComposite);
+
+      expect(result.valid).toBeFalse();
+      expect(result.error).toContain('ultrapassa o limite máximo permitido de 25 MB');
+    });
+
+    it('deve validar PDF válido mantendo o binário original', async () => {
+      const pdfBlob = new Blob(['%PDF-1.7 sample content'], { type: 'application/pdf' });
+      const validPdf = new File([pdfBlob], 'sedcard.pdf', { type: 'application/pdf' });
+
+      const result = await service.processAdminComposite(validPdf);
+
+      expect(result.valid).toBeTrue();
+      expect(result.file).toBe(validPdf);
+    });
+  });
 });
+

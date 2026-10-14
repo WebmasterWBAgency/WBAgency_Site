@@ -11,29 +11,6 @@
   background-color: var(--wb-background, #FBFBF9);
 }
 
-@keyframes splashFade {
-  0% {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  20% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  80% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.02);
-  }
-}
-
-.animate-fade-splash {
-  animation: splashFade 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: opacity, transform;
-}
 
 /* Controlo de Áudio Editorial (Mute/Unmute) */
 .audio-toggle-btn {

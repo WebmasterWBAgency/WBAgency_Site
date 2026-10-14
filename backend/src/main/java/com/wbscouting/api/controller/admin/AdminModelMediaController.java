@@ -2,6 +2,7 @@ package com.wbscouting.api.controller.admin;
 
 import com.wbscouting.api.dto.media.MediaReorderRequestDto;
 import com.wbscouting.api.dto.media.MediaUploadResponseDto;
+import com.wbscouting.api.dto.media.UpdateMediaTypeRequestDto;
 import com.wbscouting.api.enums.MediaType;
 import com.wbscouting.api.service.media.ModelMediaService;
 import jakarta.validation.Valid;
@@ -27,10 +28,12 @@ public class AdminModelMediaController {
     public ResponseEntity<MediaUploadResponseDto> uploadMedia(
             @PathVariable UUID modelId,
             @RequestParam("file") MultipartFile file,
-            @RequestParam("mediaType") MediaType mediaType,
+            @RequestParam(value = "type", required = false) MediaType type,
+            @RequestParam(value = "mediaType", required = false) MediaType mediaType,
             @RequestParam(value = "isCover", required = false, defaultValue = "false") boolean isCover) {
 
-        MediaUploadResponseDto response = modelMediaService.uploadMedia(modelId, mediaType, isCover, file);
+        MediaType resolvedType = type != null ? type : (mediaType != null ? mediaType : MediaType.BOOK);
+        MediaUploadResponseDto response = modelMediaService.uploadMedia(modelId, resolvedType, isCover, file);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -50,6 +53,16 @@ public class AdminModelMediaController {
 
         modelMediaService.setCoverMedia(modelId, mediaId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping(value = "/{mediaId}/type", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<MediaUploadResponseDto> updateMediaType(
+            @PathVariable UUID modelId,
+            @PathVariable UUID mediaId,
+            @Valid @RequestBody UpdateMediaTypeRequestDto requestDto) {
+
+        MediaUploadResponseDto response = modelMediaService.updateMediaType(modelId, mediaId, requestDto.getMediaType());
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{mediaId}")

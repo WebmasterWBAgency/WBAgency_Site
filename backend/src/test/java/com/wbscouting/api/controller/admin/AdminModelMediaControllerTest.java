@@ -99,6 +99,33 @@ class AdminModelMediaControllerTest {
     }
 
     @Test
+    @DisplayName("POST /admin/models/{modelId}/media aceitando type=POLAROID deve retornar 201 Created")
+    void uploadMedia_WithTypeParam_ReturnsCreated() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "polaroid.jpg", "image/jpeg", "content".getBytes());
+
+        MediaUploadResponseDto polaroidDto = MediaUploadResponseDto.builder()
+                .id(UUID.randomUUID())
+                .modelId(modelId)
+                .mediaType(MediaType.POLAROID)
+                .fileUrl("https://supabase.co/models-media/polaroid.jpg")
+                .filePath("models-media/polaroid.jpg")
+                .displayOrder(1)
+                .isCover(false)
+                .createdAt(OffsetDateTime.now())
+                .build();
+
+        when(modelMediaService.uploadMedia(eq(modelId), eq(MediaType.POLAROID), eq(false), any()))
+                .thenReturn(polaroidDto);
+
+        mockMvc.perform(multipart("/admin/models/{modelId}/media", modelId)
+                        .file(file)
+                        .param("type", "POLAROID"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.mediaType").value("POLAROID"))
+                .andExpect(jsonPath("$.isCover").value(false));
+    }
+
+    @Test
     @DisplayName("PUT /admin/models/{modelId}/media/reorder deve retornar 204 No Content")
     void reorderMedia_ReturnsNoContent() throws Exception {
         MediaReorderRequestDto request = MediaReorderRequestDto.builder()
@@ -177,5 +204,31 @@ class AdminModelMediaControllerTest {
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("PATCH /admin/models/{modelId}/media/{mediaId}/type deve atualizar o tipo e retornar 200 OK")
+    void updateMediaType_ReturnsOk() throws Exception {
+        MediaUploadResponseDto updatedDto = MediaUploadResponseDto.builder()
+                .id(mediaId)
+                .modelId(modelId)
+                .mediaType(MediaType.POLAROID)
+                .fileUrl("https://supabase.co/models-media/test.jpg")
+                .filePath("models-media/test.jpg")
+                .displayOrder(5)
+                .isCover(false)
+                .createdAt(OffsetDateTime.now())
+                .build();
+
+        when(modelMediaService.updateMediaType(eq(modelId), eq(mediaId), eq(MediaType.POLAROID)))
+                .thenReturn(updatedDto);
+
+        mockMvc.perform(patch("/admin/models/{modelId}/media/{mediaId}/type", modelId, mediaId)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"mediaType\":\"POLAROID\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(mediaId.toString()))
+                .andExpect(jsonPath("$.mediaType").value("POLAROID"))
+                .andExpect(jsonPath("$.isCover").value(false));
     }
 }

@@ -26,6 +26,10 @@ export interface GalleryPhoto {
   file?: File;
   /** Progresso do upload 0 a 100 */
   uploadProgress?: number;
+  /** Foto originada do formulário /apply ou de triagem */
+  isFromApply?: boolean;
+  /** Foto com resolução inferior a 4 Megapixels */
+  isLowResolution?: boolean;
 }
 
 export interface ModelComposite {

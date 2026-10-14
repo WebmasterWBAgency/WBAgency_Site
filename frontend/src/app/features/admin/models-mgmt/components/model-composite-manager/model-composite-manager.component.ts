@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, OnInit, inject, signal } from '
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpEventType } from '@angular/common/http';
 import { environment } from '../../../../../../environments/environment';
+import { ImageProcessingService } from '../../../../../core/services/image-processing.service';
 
 export interface ModelComposite {
   id: string;
@@ -55,6 +56,7 @@ export class ModelCompositeManagerComponent implements OnInit {
   stagedFile: File | null = null;
 
   private readonly http = inject(HttpClient);
+  private readonly imageProcessingService = inject(ImageProcessingService);
   composite: ModelComposite | null = null;
   /** URL FINAL segura para renderizar a previa (fileUrl corrigida via helper + bust-cache) */
   compositeSafeFileUrl: string | null = null;
@@ -65,7 +67,7 @@ export class ModelCompositeManagerComponent implements OnInit {
   errorMessage: string | null = null;
 
   private readonly allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-  private readonly maxSizeBytes = 30 * 1024 * 1024; // 🟢 30 MB (alinhado com storage.validateUpload. Composite PDF InDesign = 10-25 MB normal)
+  private readonly maxSizeBytes = 25 * 1024 * 1024; // 25 MB
   private readonly SUPABASE_PUBLIC_STORAGE_BASE = 'https://stmytwsdlonpnirqiufq.supabase.co/storage/v1/object/public/models-media';
 
   /** @returns placeholder data URL (sem rede) se a previa da imagem composite quebrar. */
@@ -167,7 +169,7 @@ export class ModelCompositeManagerComponent implements OnInit {
     this.isDragging = false;
   }
 
-  uploadComposite(file: File): void {
+  async uploadComposite(file: File): Promise<void> {
     this.errorMessage = null;
     this.compositeBrokenPreview.set(false);
 
@@ -180,32 +182,47 @@ export class ModelCompositeManagerComponent implements OnInit {
 
     if (file.size > this.maxSizeBytes) {
       const realMb = (file.size / (1024 * 1024)).toFixed(1);
-      this.errorMessage = `❌ Arquivo muito grande: ${realMb} MB. Limite máximo permitido é 30 MB. Compacte o PDF ou envie uma imagem menor.`;
+      this.errorMessage = `❌ Arquivo muito grande: ${realMb} MB. Limite máximo permitido é 25 MB. Compacte o PDF ou envie uma imagem menor.`;
       return;
     }
 
+    // Processamento / validação client-side via ImageProcessingService (resolução gráfica e compressão suave de imagens pesadas)
+    const processResult = await this.imageProcessingService.processAdminComposite(file, {
+      maxSizeMb: 25,
+      minPixels: 4_320_000,
+      minWidth: 1800,
+      minHeight: 2400
+    });
+
+    if (!processResult.valid) {
+      this.errorMessage = `❌ ${processResult.error || 'Falha na validação do composite.'}`;
+      return;
+    }
+
+    const targetFile = processResult.file || file;
+
     // Se NÃO possui modelId ainda (Modo Cadastro / Novo Modelo):
     if (!this._modelId) {
-      this.stagedFile = file;
-      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-      const objectUrl = URL.createObjectURL(file);
+      this.stagedFile = targetFile;
+      const isPdf = targetFile.type === 'application/pdf' || targetFile.name.toLowerCase().endsWith('.pdf');
+      const objectUrl = URL.createObjectURL(targetFile);
       this.composite = {
         id: 'staged-composite',
         fileUrl: objectUrl,
-        fileName: file.name,
+        fileName: targetFile.name,
         fileType: isPdf ? 'PDF' : 'IMAGE',
-        fileSizeBytes: file.size,
+        fileSizeBytes: targetFile.size,
         updatedAt: new Date().toISOString()
       };
       this.compositeSafeFileUrl = objectUrl;
       this.compositeBrokenPreview.set(false);
       this.errorMessage = null;
-      this.compositeFileSelected.emit(file);
+      this.compositeFileSelected.emit(targetFile);
       return;
     }
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', targetFile);
 
     this.isUploading = true;
     this.uploadProgress = 0;
@@ -247,8 +264,8 @@ export class ModelCompositeManagerComponent implements OnInit {
         } else if (status === 404) {
           msg = '⚠️ Modelo não encontrado no banco de dados. Recarregue a página (F5) e tente novamente.';
         } else if (status === 413 || detalheLower.includes('muito grande') || detalheLower.includes('limite') || detalheLower.includes('mb') || detalheLower.includes('excede')) {
-          const realMb = (file.size / (1024 * 1024)).toFixed(1);
-          msg = `❌ Arquivo muito grande: ${realMb} MB. Limite 30 MB. Compacte o PDF (ex: SmallPDF) e reenvie. Detalhe: ${detail}.`;
+          const realMb = (targetFile.size / (1024 * 1024)).toFixed(1);
+          msg = `❌ Arquivo muito grande: ${realMb} MB. Limite 25 MB. Compacte o PDF (ex: SmallPDF) e reenvie. Detalhe: ${detail}.`;
         } else if (status === 400 || detalheLower.includes('formato') || detalheLower.includes('inválido') || detalheLower.includes('invalido') || detalheLower.includes('permitidos')) {
           msg = `❌ Formato inválido. ${detail}. Aceitos: PDF, JPG, PNG, WEBP.`;
         } else if (status === 409) {

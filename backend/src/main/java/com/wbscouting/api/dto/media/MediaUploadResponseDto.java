@@ -22,5 +22,7 @@ public class MediaUploadResponseDto {
     private Integer displayOrder;
     private Boolean isCover;
     private Boolean isActive;
+    private Boolean isFromApply;
+    private Boolean isLowResolution;
     private OffsetDateTime createdAt;
 }

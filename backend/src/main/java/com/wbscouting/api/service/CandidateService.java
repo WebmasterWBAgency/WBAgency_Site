@@ -65,7 +65,7 @@ public class CandidateService {
                 var p = request.getPhotos().get(i);
                 ModelMedia media = ModelMedia.builder()
                         .model(saved)
-                        .mediaType(MediaType.BOOK)
+                        .mediaType(MediaType.POLAROID)
                         .fileUrl(p.getFileUrl() != null ? p.getFileUrl() : p.getFilePath())
                         .filePath(p.getFilePath() != null ? p.getFilePath() : "photo.jpg")
                         .displayOrder(i + 1)

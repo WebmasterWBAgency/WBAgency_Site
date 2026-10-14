@@ -428,6 +428,8 @@ public class ModelServiceImpl implements ModelService {
                                 .displayOrder(m.getDisplayOrder())
                                 .isCover(m.getIsCover())
                                 .isActive(m.getIsActive())
+                                .isFromApply(isCandidateUpload)
+                                .isLowResolution(isCandidateUpload)
                                 .createdAt(m.getCreatedAt())
                                 .build();
                     })

@@ -63,47 +63,51 @@ describe('ModelCompositeManagerComponent', () => {
     expect(component.formatBytes(4512300)).toBe('4.3 MB');
   });
 
-  it('deve rejeitar arquivo com mais de 30MB', () => {
+  it('deve rejeitar arquivo com mais de 25MB', async () => {
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/models/${mockModelId}/composite`).flush(null);
 
-    const oversizedBlob = new Blob(['a'.repeat(100)], { type: 'application/pdf' });
+    const oversizedBlob = new Blob(['%PDF-1.7 dummy'], { type: 'application/pdf' });
     const file = new File([oversizedBlob], 'large.pdf', { type: 'application/pdf' });
-    Object.defineProperty(file, 'size', { value: 31 * 1024 * 1024 });
+    Object.defineProperty(file, 'size', { value: 26 * 1024 * 1024 });
 
-    component.uploadComposite(file);
+    await component.uploadComposite(file);
 
     expect(component.errorMessage).toContain('muito grande');
+    expect(component.errorMessage).toContain('25 MB');
     expect(component.isUploading).toBeFalse();
   });
 
-  it('deve rejeitar arquivo com formato inválido', () => {
+  it('deve rejeitar arquivo com formato inválido', async () => {
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/models/${mockModelId}/composite`).flush(null);
 
     const textBlob = new Blob(['hello'], { type: 'text/plain' });
     const file = new File([textBlob], 'document.txt', { type: 'text/plain' });
 
-    component.uploadComposite(file);
+    await component.uploadComposite(file);
 
     expect(component.errorMessage).toContain('inválido');
     expect(component.isUploading).toBeFalse();
   });
 
-  it('deve realizar upload e substituir atomicamente o composite', () => {
+  it('deve realizar upload e substituir atomicamente o composite', async () => {
     fixture.detectChanges();
     httpMock.expectOne(`${environment.apiUrl}/admin/models/${mockModelId}/composite`).flush(null);
 
-    const validBlob = new Blob(['dummy pdf'], { type: 'application/pdf' });
+    const validBlob = new Blob(['%PDF-1.7 dummy pdf'], { type: 'application/pdf' });
     const file = new File([validBlob], 'composite.pdf', { type: 'application/pdf' });
 
-    component.uploadComposite(file);
+    const uploadPromise = component.uploadComposite(file);
 
+    await fixture.whenStable();
     expect(component.isUploading).toBeTrue();
 
     const putReq = httpMock.expectOne(`${environment.apiUrl}/admin/models/${mockModelId}/composite`);
     expect(putReq.request.method).toBe('PUT');
     putReq.flush(mockComposite);
+
+    await uploadPromise;
 
     expect(component.composite).toEqual(mockComposite);
     expect(component.isUploading).toBeFalse();
@@ -123,16 +127,16 @@ describe('ModelCompositeManagerComponent', () => {
     expect(component.composite).toBeNull();
   });
 
-  it('deve estagiar composite e emitir compositeFileSelected quando modelId for nulo', () => {
+  it('deve estagiar composite e emitir compositeFileSelected quando modelId for nulo', async () => {
     component.modelId = null;
     fixture.detectChanges();
 
     spyOn(component.compositeFileSelected, 'emit');
 
-    const validBlob = new Blob(['dummy pdf'], { type: 'application/pdf' });
+    const validBlob = new Blob(['%PDF-1.7 dummy pdf'], { type: 'application/pdf' });
     const file = new File([validBlob], 'composite-novo.pdf', { type: 'application/pdf' });
 
-    component.uploadComposite(file);
+    await component.uploadComposite(file);
 
     expect(component.composite).toBeTruthy();
     expect(component.composite?.fileName).toBe('composite-novo.pdf');

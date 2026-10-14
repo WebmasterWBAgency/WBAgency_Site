@@ -15,9 +15,12 @@ export interface MediaUploadedResult {
   fileUrl: string;
   filePath: string;
   mediaType: 'BOOK' | 'POLAROID';
+  type?: 'BOOK' | 'POLAROID';
   displayOrder: number;
   isCover: boolean;
   isActive: boolean;
+  isFromApply?: boolean;
+  isLowResolution?: boolean;
 }
 
 @Injectable({
@@ -266,6 +269,12 @@ export class AdminModelService {
               || mediaType === 'POLAROID_SIDE'
               || mediaType === 'POLAROID_BODY';
 
+            const isCandidateUpload = (filePath && filePath.includes('candidates-uploads'))
+              || (rawFileUrl && rawFileUrl.includes('candidates-uploads'))
+              || (safeUrl && safeUrl.includes('candidates-uploads'));
+            const isFromApply = Boolean(item.isFromApply || isCandidateUpload);
+            const isLowResolution = Boolean(item.isLowResolution || isFromApply);
+
             return {
               id: String(item.id),
               url: finalUrl,
@@ -280,7 +289,9 @@ export class AdminModelService {
               orderIndex: Number(item.displayOrder ?? idx),
               isCover: Boolean(item.isCover),
               isActive: Boolean(item.isActive ?? true),
-              isUploaded: true
+              isUploaded: true,
+              isFromApply,
+              isLowResolution
             };
           })
           .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
@@ -335,7 +346,8 @@ export class AdminModelService {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('mediaType', mediaType);
-    if (isCover) formData.append('isCover', 'true');
+    formData.append('type', mediaType);
+    if (isCover && mediaType === 'BOOK') formData.append('isCover', 'true');
 
     return this.http.post<MediaUploadedResult>(
       `${this.apiUrl}/${modelId}/media`,
@@ -374,17 +386,44 @@ export class AdminModelService {
   }
 
   /**
-   * Upload de múltiplas fotos em lote ordenado para novo modelo ou galeria.
-   * A primeira foto do lote é configurada como capa (isCover = true).
+   * Altera a categoria/tipo de uma mídia existente (BOOK <-> POLAROID).
    */
-  uploadBatch(modelId: string, files: File[]): Observable<MediaUploadedResult[]> {
+  updateMediaType(modelId: string, mediaId: string, mediaType: 'BOOK' | 'POLAROID'): Observable<MediaUploadedResult> {
+    return this.http.patch<MediaUploadedResult>(`${this.apiUrl}/${modelId}/media/${mediaId}/type`, { mediaType, type: mediaType }).pipe(
+      tap(_ => console.info(`[admin-model] Tipo de mídia atualizado: model=${modelId}, media=${mediaId}, type=${mediaType}`)),
+      catchError((err) => {
+        console.error(`Erro ao atualizar tipo de mídia model=${modelId} media=${mediaId}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * Upload de múltiplas fotos em lote ordenado para novo modelo ou galeria.
+   * Suporta arquivos com categoria explícita ('BOOK' | 'POLAROID').
+   */
+  uploadBatch(
+    modelId: string,
+    files: (File | { file: File; mediaType?: 'BOOK' | 'POLAROID'; type?: 'BOOK' | 'POLAROID'; category?: string })[]
+  ): Observable<MediaUploadedResult[]> {
     if (!files || files.length === 0) return of([]);
+    let hasCover = false;
     return from(files).pipe(
-      concatMap((file, index) => {
+      concatMap((item) => {
+        const file = (item instanceof File) ? item : item.file;
+        let resolvedType: 'BOOK' | 'POLAROID' = 'BOOK';
+        if (!(item instanceof File)) {
+          const rawType = String(item.mediaType || item.type || item.category || 'BOOK').toUpperCase();
+          resolvedType = rawType === 'POLAROID' ? 'POLAROID' : 'BOOK';
+        }
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('mediaType', 'BOOK');
-        if (index === 0) formData.append('isCover', 'true');
+        formData.append('mediaType', resolvedType);
+        formData.append('type', resolvedType);
+        if (!hasCover && resolvedType === 'BOOK') {
+          formData.append('isCover', 'true');
+          hasCover = true;
+        }
         return this.http.post<MediaUploadedResult>(`${this.apiUrl}/${modelId}/media`, formData);
       }),
       toArray()
