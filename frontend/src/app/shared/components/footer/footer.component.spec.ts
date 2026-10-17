@@ -10,6 +10,7 @@ describe('FooterComponent', () => {
   let component: FooterComponent;
   let fixture: ComponentFixture<FooterComponent>;
   let translationService: TranslationService;
+  let httpTesting: HttpTestingController;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -22,11 +23,20 @@ describe('FooterComponent', () => {
     }).compileComponents();
 
     translationService = TestBed.inject(TranslationService);
+    httpTesting = TestBed.inject(HttpTestingController);
     translationService.setLanguage('pt');
 
     fixture = TestBed.createComponent(FooterComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+
+    // Lida com a requisição de contato disparada no ngOnInit
+    const contactReqs = httpTesting.match(`${environment.apiUrl}/public/institutional/contact`);
+    contactReqs.forEach(req => req.flush({}));
+  });
+
+  afterEach(() => {
+    httpTesting.verify();
   });
 
   it('should create footer with current year and brand logo', () => {
@@ -166,31 +176,41 @@ describe('FooterComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Social Media');
   });
 
-  it('should open institutional modal for TERMS and load content synchronously from TranslationService', () => {
+  it('should open institutional modal for TERMS and load content dynamically from API', () => {
     component.openInstitutionalModal('TERMS');
     expect(component.isModalOpen()).toBeTrue();
     expect(component.modalTitle()).toBe('Termos de Uso');
+    expect(component.isLoadingContent()).toBeTrue();
+
+    const req = httpTesting.expectOne(`${environment.apiUrl}/public/content/TERMS?lang=pt`);
+    req.flush({ content: 'TERMOS E CONDIÇÕES DE USO REAIS DO SUPABASE' });
+
     expect(component.isLoadingContent()).toBeFalse();
-    expect(component.modalContent()).toContain('TERMOS E CONDIÇÕES DE USO');
+    expect(component.modalContent()).toBe('TERMOS E CONDIÇÕES DE USO REAIS DO SUPABASE');
 
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('TERMOS E CONDIÇÕES DE USO');
+    expect(compiled.textContent).toContain('TERMOS E CONDIÇÕES DE USO REAIS DO SUPABASE');
 
     component.closeModal();
     expect(component.isModalOpen()).toBeFalse();
   });
 
-  it('should open institutional modal for PRIVACY in EN and load content synchronously from TranslationService', () => {
+  it('should open institutional modal for PRIVACY in EN and load content dynamically from API', () => {
     translationService.setLanguage('en');
     component.openInstitutionalModal('PRIVACY');
     expect(component.isModalOpen()).toBeTrue();
     expect(component.modalTitle()).toBe('Privacy & GDPR');
+    expect(component.isLoadingContent()).toBeTrue();
+
+    const req = httpTesting.expectOne(`${environment.apiUrl}/public/content/PRIVACY?lang=en`);
+    req.flush({ content: 'PRIVACY POLICY REAL FROM SUPABASE' });
+
     expect(component.isLoadingContent()).toBeFalse();
-    expect(component.modalContent()).toContain('PRIVACY POLICY');
+    expect(component.modalContent()).toBe('PRIVACY POLICY REAL FROM SUPABASE');
 
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('PRIVACY POLICY');
+    expect(compiled.textContent).toContain('PRIVACY POLICY REAL FROM SUPABASE');
   });
 });

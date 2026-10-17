@@ -2,15 +2,11 @@
   <div class="container">
     <!-- 1. Cabeçalho Editorial da Página -->
     <header class="page-header">
-      <div class="header-breadcrumbs">
+      <nav class="header-breadcrumbs" aria-label="Breadcrumb">
         <a routerLink="/" class="breadcrumb-link">{{ 'nav.home' | translate }}</a>
         <span class="breadcrumb-separator">/</span>
-        <span class="breadcrumb-current">{{ headerTitleKey() | translate }}</span>
-      </div>
-
-      <h1 class="page-title font-serif">
-        {{ headerTitleKey() | translate }}
-      </h1>
+        <h1 class="breadcrumb-current">{{ headerTitleKey() | translate }}</h1>
+      </nav>
 
       <!-- Subnavegação de Categorias do Casting (Filtros: Todos, Feminino, Masculino, Stars) -->
       <nav class="category-tabs" aria-label="Categorias de casting">

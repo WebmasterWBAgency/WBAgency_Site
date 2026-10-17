@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ThemeService } from '../../../core/services/theme.service';
 import { TranslationService } from '../../../core/services/translation.service';
+import { ApiStatusService } from '../../../core/services/api-status.service';
 import { TranslatePipe } from '../../pipes/translate.pipe';
 import { LanguageSelectorComponent } from '../language-selector/language-selector.component';
 
@@ -16,6 +17,7 @@ import { LanguageSelectorComponent } from '../language-selector/language-selecto
 export class HeaderComponent {
   readonly themeService = inject(ThemeService);
   readonly translationService = inject(TranslationService);
+  public readonly apiStatusService = inject(ApiStatusService);
 
   readonly isScrolled = signal<boolean>(false);
 

@@ -1,4 +1,14 @@
 <header class="site-header" [class.scrolled]="isScrolled()">
+  @if (apiStatusService.isServerDown()) {
+    <div class="api-down-banner py-2 px-4" role="alert" aria-live="assertive">
+      <div class="container flex items-center justify-center gap-2 text-center">
+        <span class="inline-block w-2 h-2 bg-[#4B584E] rounded-none shrink-0"></span>
+        <span class="text-xs uppercase tracking-widest font-mono text-[#222624]">
+          {{ apiStatusService.errorMessage() }}
+        </span>
+      </div>
+    </div>
+  }
   <div class="container header-inner">
     <!-- Brand Logo (Zona Esquerda) -->
     <div class="header-brand">

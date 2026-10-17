@@ -84,4 +84,9 @@ target/
 dist/
 .angular/
 
-.bat
+# Certificates and Keys
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx

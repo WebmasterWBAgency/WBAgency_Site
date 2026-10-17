@@ -136,7 +136,7 @@ export class FooterComponent implements OnInit {
 
   openInstitutionalModal(sectionKey: 'TERMS' | 'PRIVACY'): void {
     const isEn = this.isCurrentLangEn();
-    const contentKey = sectionKey === 'TERMS' ? 'footer.terms_content' : 'footer.privacy_content';
+    const lang = isEn ? 'en' : 'pt';
 
     // 1. Define o título do Modal
     this.modalTitle.set(
@@ -145,16 +145,39 @@ export class FooterComponent implements OnInit {
         : (isEn ? 'Privacy & GDPR' : 'Privacidade & LGPD')
     );
 
-    // 2. Carrega o conteúdo textual diretamente das traduções i18n locais
-    const content = this.translate.instant(contentKey);
-    if (sectionKey === 'TERMS') {
-      this.termsContent.set(content);
-    } else {
-      this.privacyContent.set(content);
-    }
-    this.modalContent.set(content);
-    this.isLoadingContent.set(false);
+    this.isLoadingContent.set(true);
     this.isModalOpen.set(true);
+    this.modalContent.set('');
+
+    // 2. Busca dinâmica diretamente da tabela public.site_contents via API
+    this.http.get<any>(`${environment.apiUrl}/public/content/${sectionKey}?lang=${lang}`).subscribe({
+      next: (res) => {
+        this.isLoadingContent.set(false);
+        const extracted = res?.content || res?.payload?.content || '';
+        const textContent = typeof extracted === 'string' ? extracted : (typeof res === 'string' ? res : '');
+
+        if (textContent && textContent.trim()) {
+          this.modalContent.set(textContent);
+          if (sectionKey === 'TERMS') {
+            this.termsContent.set(textContent);
+          } else {
+            this.privacyContent.set(textContent);
+          }
+        } else {
+          this.modalContent.set(isEn ? 'Content not yet registered.' : 'Conteúdo ainda não cadastrado.');
+        }
+      },
+      error: (err) => {
+        this.isLoadingContent.set(false);
+        console.warn(`[Footer] Falha ao carregar conteúdo de ${sectionKey}:`, err);
+        // PROIBIDO mascarar com mock estático! Informa indisponibilidade real.
+        this.modalContent.set(
+          isEn 
+            ? 'Unable to load content at this moment. The server may be temporarily unavailable.' 
+            : 'Não foi possível carregar o conteúdo neste momento. O servidor pode estar temporariamente indisponível.'
+        );
+      }
+    });
   }
 
   closeModal(): void {

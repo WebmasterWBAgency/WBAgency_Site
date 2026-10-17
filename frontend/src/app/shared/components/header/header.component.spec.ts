@@ -55,4 +55,15 @@ describe('HeaderComponent', () => {
     component.closeMenu();
     expect(component.themeService.isMobileMenuOpen()).toBeFalse();
   });
+
+  it('should display global server down banner when apiStatusService isServerDown is true', () => {
+    expect(fixture.nativeElement.querySelector('.api-down-banner')).toBeNull();
+
+    component.apiStatusService.setServerDown(true, 'Servidor temporariamente indisponível.');
+    fixture.detectChanges();
+
+    const banner = fixture.nativeElement.querySelector('.api-down-banner');
+    expect(banner).toBeTruthy();
+    expect(banner.textContent).toContain('Servidor temporariamente indisponível.');
+  });
 });

@@ -23,12 +23,19 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SiteContentServiceImpl implements SiteContentService {
 
     private final SiteContentRepository siteContentRepository;
     private final StorageService storageService;
     private final SupabaseProperties supabaseProperties;
+
+    public SiteContentServiceImpl(SiteContentRepository siteContentRepository,
+                                  StorageService storageService,
+                                  SupabaseProperties supabaseProperties) {
+        this.siteContentRepository = siteContentRepository;
+        this.storageService = storageService;
+        this.supabaseProperties = supabaseProperties;
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -60,9 +67,14 @@ public class SiteContentServiceImpl implements SiteContentService {
         SiteContent content = contentOpt.get();
         Map<String, Object> resolvedPayload = resolvePayloadByLanguage(content, resolvedLang);
 
-        Object contentObj = (resolvedPayload != null && !resolvedPayload.isEmpty())
-                ? resolvedPayload
-                : Collections.emptyMap();
+        Object contentObj;
+        if (resolvedPayload != null && resolvedPayload.containsKey("content")) {
+            contentObj = resolvedPayload.get("content");
+        } else if (resolvedPayload != null && !resolvedPayload.isEmpty()) {
+            contentObj = resolvedPayload;
+        } else {
+            contentObj = Collections.emptyMap();
+        }
 
         return SiteContentPublicDto.builder()
                 .sectionKey(content.getSectionKey())

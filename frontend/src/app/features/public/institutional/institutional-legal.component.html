@@ -25,7 +25,13 @@
   <main class="max-w-4xl mx-auto px-6 sm:px-8 py-12 sm:py-16">
     <article class="prose max-w-none">
       <div class="content-box bg-[#FFFFFF] border border-[#E8EBE8] p-6 sm:p-10 text-sm leading-relaxed text-[#222624] font-sans whitespace-pre-line rounded-none">
-        {{ pageContent() }}
+        @if (isLoading()) {
+          <div class="py-12 text-center text-[#5F6661] uppercase tracking-widest font-mono text-xs">
+            {{ translationService.currentLang() === 'en' ? 'Loading institutional content...' : 'Carregando informações institucionais...' }}
+          </div>
+        } @else {
+          {{ pageContent() }}
+        }
       </div>
     </article>
   </main>

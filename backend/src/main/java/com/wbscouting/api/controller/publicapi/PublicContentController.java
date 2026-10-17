@@ -13,10 +13,13 @@ import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping({"/api/v1/public/content", "/public/content", "/api/v1/public/institutional", "/public/institutional"})
-@RequiredArgsConstructor
 public class PublicContentController {
 
     private final SiteContentService siteContentService;
+
+    public PublicContentController(SiteContentService siteContentService) {
+        this.siteContentService = siteContentService;
+    }
 
     @GetMapping("/{sectionKey}")
     public ResponseEntity<SiteContentPublicDto> getPublicContent(

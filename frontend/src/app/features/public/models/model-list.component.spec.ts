@@ -91,6 +91,8 @@ describe('ModelListComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const cards = compiled.querySelectorAll('app-model-card');
     expect(cards.length).toBe(2);
+    expect(compiled.querySelector('.breadcrumb-current')).toBeTruthy();
+    expect(compiled.querySelector('.page-title')).toBeNull();
   });
 
   it('should switch header to stars when isStar is present in route data', () => {

@@ -263,10 +263,8 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
 
     expect([200, 201]).toContain(applyResp.status());
     const applyJson = await applyResp.json();
-    const candidateId = applyJson.data?.id || applyJson.id;
     const protocol = applyJson.data?.protocol || applyJson.protocol;
     expect(protocol).toBeTruthy();
-    expect(candidateId).toBeTruthy();
 
     // Etapa 2: Triagem Administrativa - Login e listagem
     const loginResp = await request.post(`http://localhost:8080/api/v1/auth/login`, {
@@ -279,25 +277,26 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
     const loginJson = await loginResp.json();
     const token = loginJson.accessToken;
 
-    const listResp = await request.get(`http://localhost:8080/api/v1/admin/candidates?status=APPLICANT_PENDING`, {
+    const listResp = await request.get(`http://localhost:8080/api/v1/admin/applications?status=PENDING`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     expect(listResp.ok()).toBeTruthy();
     const listJson = await listResp.json();
-    const found = listJson.content?.find((c: any) => c.id === candidateId || c.email === apiCandidateEmail);
+    const found = listJson.content?.find((c: any) => (protocol && c.protocol === protocol) || c.email === apiCandidateEmail || c.fullName === apiCandidateName);
     expect(found).toBeTruthy();
+    const candidateId = found.id;
 
     // Etapa 3: Decisão do Scout via status update canônico
-    const statusResp = await request.patch(`http://localhost:8080/api/v1/admin/candidates/${candidateId}/status`, {
+    const statusResp = await request.patch(`http://localhost:8080/api/v1/admin/applications/${candidateId}/status`, {
       headers: { Authorization: `Bearer ${token}` },
       data: {
-        status: 'CAST_PUBLIC',
+        status: 'APPROVED',
         notes: 'Aprovada no fluxo canônico E2E'
       }
     });
     expect(statusResp.ok()).toBeTruthy();
     const updatedCandidate = await statusResp.json();
-    expect(['CAST_PUBLIC', 'APPROVED']).toContain(updatedCandidate.status);
+    expect(['APPROVED', 'PROMOTED', 'CAST_PUBLIC']).toContain(updatedCandidate.status);
   });
 
 });
