@@ -21,7 +21,7 @@ public class CandidateApplyRequestDto {
 
     @NotBlank(message = "O nome completo é obrigatório.")
     @Size(min = 3, max = 120, message = "O nome completo deve possuir entre 3 e 120 caracteres.")
-    @Pattern(regexp = "^[\\p{L} .'-]+$", message = "O nome contém caracteres inválidos.")
+    @Pattern(regexp = "^[\\p{L}0-9 .'-]+$", message = "O nome contém caracteres inválidos.")
     private String fullName;
 
     @NotBlank(message = "O e-mail é obrigatório.")

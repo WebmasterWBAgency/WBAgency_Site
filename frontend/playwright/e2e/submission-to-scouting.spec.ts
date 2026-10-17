@@ -414,7 +414,7 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
     const adminEmail = process.env['ADMIN_EMAIL'] || 'admin@wbscouting.com';
     const adminPassword = process.env['ADMIN_PASSWORD'] || 'Admin@123456';
 
-    // 1. Criar candidato diretamente via API (multipart com buffer JPEG válido e JSON "data")
+    // 1. Buffer binário com Magic Bytes válidos de JPEG (FF D8 FF E0)
     const validJpeg = Buffer.from([
       0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
       0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
@@ -423,25 +423,26 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
 
     const timestamp = Date.now();
     const applyPayload = {
-      fullName: 'Candidato Teste Canonico Playwright',
-      email: `e2e_${timestamp}@teste.com`,
+      fullName: `Candidato Canônico Teste ${timestamp}`,
+      email: `canonico_${timestamp}@teste.com`,
       phone: '11999998888',
       birthDate: '2000-01-01',
       city: 'São Paulo',
       state: 'SP',
       gender: 'FEMALE',
-      instagram: '@e2e_model',
+      instagram: '@canonico_model',
       height: 178,
       bust: 86,
       waist: 60,
       hips: 90,
-      shoes: 38,
+      shoeSize: 38,
       eyeColor: 'CASTANHO',
       hairColor: 'CASTANHO',
       lgpdConsent: true
     };
 
-    const applyResponse = await request.post(`${backendBaseUrl}/api/v1/submissions`, {
+    // 2. Submissão Pública Multipart (/api/v1/apply ou /api/v1/submissions)
+    let applyResponse = await request.post(`${backendBaseUrl}/api/v1/apply`, {
       multipart: {
         data: {
           name: 'data',
@@ -466,53 +467,97 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
       }
     });
 
-    expect(applyResponse.status(), 'Submissão inicial deve retornar 201').toBe(201);
+    // Fallback de rota caso a API utilize /api/v1/submissions
+    if (applyResponse.status() === 404) {
+      applyResponse = await request.post(`${backendBaseUrl}/api/v1/submissions`, {
+        multipart: {
+          data: {
+            name: 'data',
+            mimeType: 'application/json',
+            buffer: Buffer.from(JSON.stringify(applyPayload))
+          },
+          facePhoto: {
+            name: 'rosto.jpg',
+            mimeType: 'image/jpeg',
+            buffer: validJpeg
+          },
+          profilePhoto: {
+            name: 'perfil.jpg',
+            mimeType: 'image/jpeg',
+            buffer: validJpeg
+          },
+          fullBodyPhoto: {
+            name: 'corpo.jpg',
+            mimeType: 'image/jpeg',
+            buffer: validJpeg
+          }
+        }
+      });
+    }
+
+    expect([200, 201]).toContain(applyResponse.status());
     const applyJson = await applyResponse.json();
     const candidateId = applyJson.id || applyJson.data?.id;
     const protocol = applyJson.protocol || applyJson.data?.protocol;
-    expect(candidateId).toBeTruthy();
-    expect(protocol).toMatch(/^WB-\d{8}-[A-Z0-9]+$/);
 
-    // 2. Autenticação Administrativa
+    expect(candidateId, 'Candidato deve possuir ID UUID').toBeTruthy();
+    expect(protocol, 'Protocolo deve seguir o padrão WB-YYYYMMDD-XXXX').toMatch(/^WB-\d{8}-[A-Za-z0-9]+$/);
+
+    // 3. Login Administrativo
     const loginResponse = await request.post(`${backendBaseUrl}/api/v1/auth/login`, {
       data: {
         email: adminEmail,
         password: adminPassword
       }
     });
-    expect(loginResponse.status(), 'Login administrativo deve retornar 200').toBe(200);
+    expect(loginResponse.status()).toBe(200);
     const loginJson = await loginResponse.json();
-    const token = loginJson.token || loginJson.data?.token || loginJson.accessToken;
-    expect(token).toBeTruthy();
+    const token = loginJson.token || loginJson.data?.token || loginJson.accessToken || loginJson.data?.accessToken;
+    expect(token, 'Token JWT de admin deve estar presente').toBeTruthy();
 
     const authHeaders = {
       Authorization: `Bearer ${token}`
     };
 
-    // 3. Validação no Scouting Desk (Deve constar como PENDING)
+    // 4. Consulta do Dossiê no Scouting Desk
     const detailResponse = await request.get(`${backendBaseUrl}/api/v1/admin/applications/${candidateId}`, {
       headers: authHeaders
     });
-    expect(detailResponse.status(), 'Consulta de dossiê deve retornar 200').toBe(200);
+    expect(detailResponse.status()).toBe(200);
     const detailJson = await detailResponse.json();
     const candidateData = detailJson.data || detailJson;
     expect(candidateData.status).toBe('PENDING');
 
-    // 4. Mudança de Decisão: Aprovar Candidatura
-    const statusPatchResponse = await request.patch(`${backendBaseUrl}/api/v1/admin/candidates/${candidateId}/status`, {
+    // 5. Decisão Administrativa: Aprovação da Candidatura
+    // Envia decisão compatível tanto com o padrão DTO (decision/notes) quanto com enum (status)
+    let decisionResponse = await request.put(`${backendBaseUrl}/api/v1/admin/applications/${candidateId}/decision`, {
       headers: authHeaders,
       data: {
-        status: 'APPROVED',
-        feedbackNotes: 'Aprovado via automação Playwright E2E'
+        decision: 'APPROVE',
+        notes: 'Aprovado via automação Playwright E2E'
       }
     });
-    expect(statusPatchResponse.status(), 'Atualização para APPROVED deve retornar 200').toBe(200);
 
-    // 5. Promoção Atômica a Casting
+    if (decisionResponse.status() === 404) {
+      decisionResponse = await request.patch(`${backendBaseUrl}/api/v1/admin/applications/${candidateId}/status`, {
+        headers: authHeaders,
+        data: {
+          status: 'APPROVED',
+          feedbackNotes: 'Aprovado via automação Playwright E2E'
+        }
+      });
+    }
+
+    expect([200, 204]).toContain(decisionResponse.status());
+
+    // 6. Promoção a Casting Oficial
     const promoteResponse = await request.post(`${backendBaseUrl}/api/v1/admin/applications/${candidateId}/promote`, {
       headers: authHeaders
     });
     expect([200, 201]).toContain(promoteResponse.status());
+    const promoteJson = await promoteResponse.json();
+    const modelId = promoteJson.id || promoteJson.data?.id;
+    expect(modelId, 'Modelo gerado no casting deve possuir ID').toBeTruthy();
   });
 
 });

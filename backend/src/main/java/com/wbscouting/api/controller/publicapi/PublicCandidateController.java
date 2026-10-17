@@ -22,7 +22,7 @@ import java.util.Set;
 
 @Slf4j
 @RestController
-@RequestMapping({"/public/candidates", "/api/v1/public/candidates", "/submissions", "/api/v1/submissions"})
+@RequestMapping({"/public/candidates", "/api/v1/public/candidates", "/submissions", "/api/v1/submissions", "/apply", "/api/v1/apply"})
 public class PublicCandidateController {
 
     private final CandidateApplicationService candidateApplicationService;

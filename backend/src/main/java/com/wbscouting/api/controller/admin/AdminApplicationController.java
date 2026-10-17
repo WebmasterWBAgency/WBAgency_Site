@@ -83,7 +83,7 @@ public class AdminApplicationController {
     }
 
     @Transactional
-    @PatchMapping({"/{id}/status", "/{id}/decision"})
+    @RequestMapping(value = {"/{id}/status", "/{id}/decision"}, method = {RequestMethod.PATCH, RequestMethod.PUT})
     @AuditAction(action = "DECISION", resource = "SCOUTING_CANDIDATE", description = "Triagem de candidatura de modelo")
     public ResponseEntity<CandidateDetailResponseDto> updateDecision(
             @PathVariable UUID id,

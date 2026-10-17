@@ -36,6 +36,30 @@ public class CandidateDecisionRequestDto {
 
     public SubmissionStatus getStatus() { return status; }
     public void setStatus(SubmissionStatus status) { this.status = status; }
+
+    @com.fasterxml.jackson.annotation.JsonSetter("status")
+    public void setStatusFromString(Object val) {
+        this.status = parseStatus(val);
+    }
+
+    @com.fasterxml.jackson.annotation.JsonSetter("decision")
+    public void setDecision(Object val) {
+        this.status = parseStatus(val);
+    }
+
+    private SubmissionStatus parseStatus(Object val) {
+        if (val == null) return null;
+        if (val instanceof SubmissionStatus s) return s;
+        String str = val.toString().trim().toUpperCase();
+        if ("APPROVE".equals(str) || "APPROVED".equals(str)) return SubmissionStatus.APPROVED;
+        if ("REJECT".equals(str) || "REJECTED".equals(str) || "DECLINE".equals(str) || "DECLINED".equals(str)) return SubmissionStatus.DECLINED;
+        try {
+            return SubmissionStatus.valueOf(str);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     public String getInternalNotes() { return internalNotes; }
     public void setInternalNotes(String internalNotes) { this.internalNotes = internalNotes; }
 }
