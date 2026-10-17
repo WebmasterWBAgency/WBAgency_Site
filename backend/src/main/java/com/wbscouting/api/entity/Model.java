@@ -327,11 +327,43 @@ public class Model {
     public List<ModelMedia> getPhotos() {
         return this.media != null ? this.media : List.of();
     }
-    public void setPhotos(List<ModelMedia> photos) { this.setMediaList(photos); }
+    public Integer getBustCm() { return this.bustChestCm != null ? this.bustChestCm.intValue() : null; }
+    public void setBustCm(Integer bustCm) { this.bustChestCm = bustCm != null ? BigDecimal.valueOf(bustCm) : null; }
+
+    public Integer getWaistCmInt() { return this.waistCm != null ? this.waistCm.intValue() : null; }
+    public void setWaistCmInt(Integer waistCm) { this.waistCm = waistCm != null ? BigDecimal.valueOf(waistCm) : null; }
+
+    public Integer getHipsCmInt() { return this.hipsCm != null ? this.hipsCm.intValue() : null; }
+    public void setHipsCmInt(Integer hipsCm) { this.hipsCm = hipsCm != null ? BigDecimal.valueOf(hipsCm) : null; }
 
     public static class ModelBuilder {
         public ModelBuilder mediaList(List<ModelMedia> mediaList) {
             return this.media(mediaList);
+        }
+
+        public ModelBuilder bustCm(Integer bustCm) {
+            this.bustChestCm = bustCm != null ? BigDecimal.valueOf(bustCm) : null;
+            return this;
+        }
+
+        public ModelBuilder waistCm(Integer waistCm) {
+            this.waistCm = waistCm != null ? BigDecimal.valueOf(waistCm) : null;
+            return this;
+        }
+
+        public ModelBuilder waistCm(BigDecimal waistCm) {
+            this.waistCm = waistCm;
+            return this;
+        }
+
+        public ModelBuilder hipsCm(Integer hipsCm) {
+            this.hipsCm = hipsCm != null ? BigDecimal.valueOf(hipsCm) : null;
+            return this;
+        }
+
+        public ModelBuilder hipsCm(BigDecimal hipsCm) {
+            this.hipsCm = hipsCm;
+            return this;
         }
     }
 }

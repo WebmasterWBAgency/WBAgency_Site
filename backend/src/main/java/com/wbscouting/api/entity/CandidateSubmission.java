@@ -53,17 +53,17 @@ public class CandidateSubmission implements Persistable<UUID> {
     @Column(name = "state", length = 50, nullable = false)
     private String state;
 
-    @Column(name = "height", precision = 4, scale = 2, nullable = false)
-    private BigDecimal height;
+    @Column(name = "height", nullable = false)
+    private Integer heightCm;
 
-    @Column(name = "bust", precision = 5, scale = 2)
-    private BigDecimal bust;
+    @Column(name = "bust")
+    private Integer bustCm;
 
-    @Column(name = "waist", precision = 5, scale = 2)
-    private BigDecimal waist;
+    @Column(name = "waist")
+    private Integer waistCm;
 
-    @Column(name = "hips", precision = 5, scale = 2)
-    private BigDecimal hips;
+    @Column(name = "hips")
+    private Integer hipsCm;
 
     @Column(name = "shoe_size")
     private Integer shoeSize;
@@ -175,5 +175,76 @@ public class CandidateSubmission implements Persistable<UUID> {
         }
         this.photos.add(photo);
         photo.setSubmission(this);
+    }
+
+    // ============================================================
+    // Aliases canônicos de conveniência para biometria em cm
+    // ============================================================
+    public Integer getHeight() { return this.heightCm; }
+    public void setHeight(Integer height) { this.heightCm = height; }
+    public Integer getBust() { return this.bustCm; }
+    public void setBust(Integer bust) { this.bustCm = bust; }
+    public Integer getWaist() { return this.waistCm; }
+    public void setWaist(Integer waist) { this.waistCm = waist; }
+    public Integer getHips() { return this.hipsCm; }
+    public void setHips(Integer hips) { this.hipsCm = hips; }
+
+    public com.wbscouting.api.enums.CandidateStatus getCandidateStatus() {
+        if (this.status == null || this.status.isBlank()) {
+            return com.wbscouting.api.enums.CandidateStatus.PENDING;
+        }
+        try {
+            return com.wbscouting.api.enums.CandidateStatus.valueOf(this.status.trim().toUpperCase());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static class CandidateSubmissionBuilder {
+        public CandidateSubmissionBuilder height(BigDecimal h) {
+            if (h != null) {
+                if (h.doubleValue() < 3.0) {
+                    this.heightCm = (int) Math.round(h.doubleValue() * 100);
+                } else {
+                    this.heightCm = (int) Math.round(h.doubleValue());
+                }
+            }
+            return this;
+        }
+
+        public CandidateSubmissionBuilder height(Integer h) {
+            this.heightCm = h;
+            return this;
+        }
+
+        public CandidateSubmissionBuilder bust(BigDecimal b) {
+            this.bustCm = b != null ? (int) Math.round(b.doubleValue()) : null;
+            return this;
+        }
+
+        public CandidateSubmissionBuilder bust(Integer b) {
+            this.bustCm = b;
+            return this;
+        }
+
+        public CandidateSubmissionBuilder waist(BigDecimal w) {
+            this.waistCm = w != null ? (int) Math.round(w.doubleValue()) : null;
+            return this;
+        }
+
+        public CandidateSubmissionBuilder waist(Integer w) {
+            this.waistCm = w;
+            return this;
+        }
+
+        public CandidateSubmissionBuilder hips(BigDecimal h) {
+            this.hipsCm = h != null ? (int) Math.round(h.doubleValue()) : null;
+            return this;
+        }
+
+        public CandidateSubmissionBuilder hips(Integer h) {
+            this.hipsCm = h;
+            return this;
+        }
     }
 }

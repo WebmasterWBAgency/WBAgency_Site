@@ -461,26 +461,26 @@ export class CandidateService {
 
   /**
    * Exclui candidatura (soft delete quando permanent=false ou expurgo permanente com mídias quando permanent=true).
-   * DELETE /api/v1/admin/candidates/{id}?permanent=true|false
+   * DELETE /api/v1/admin/applications/{id}?permanent=true|false
    */
   deleteCandidate(id: string, permanent: boolean = false): Observable<void> {
     const params = new HttpParams().set('permanent', String(permanent));
-    return this.http.delete<void>(`${this.baseUrl}/admin/candidates/${id}`, { params }).pipe(
+    return this.http.delete<void>(`${this.baseUrl}/admin/applications/${id}`, { params }).pipe(
       catchError(() => {
-        return this.http.delete<void>(`${this.baseUrl}/admin/applications/${id}`, { params });
+        return this.http.delete<void>(`${this.baseUrl}/admin/candidates/${id}`, { params });
       })
     );
   }
 
   /**
    * Limpa registros do arquivo morto e exclui mídias do storage permanentemente.
-   * POST /api/v1/admin/candidates/archive/cleanup
+   * POST /api/v1/admin/applications/archive/cleanup
    */
   cleanupArchive(all: boolean = true): Observable<{ purgedCount: number; message: string; nextScheduledPurge?: string }> {
     const params = new HttpParams().set('all', String(all));
-    return this.http.post<any>(`${this.baseUrl}/admin/candidates/archive/cleanup`, {}, { params }).pipe(
+    return this.http.post<any>(`${this.baseUrl}/admin/applications/archive/cleanup`, {}, { params }).pipe(
       catchError(() => {
-        return this.http.post<any>(`${this.baseUrl}/admin/applications/archive/cleanup`, {}, { params });
+        return this.http.post<any>(`${this.baseUrl}/admin/candidates/archive/cleanup`, {}, { params });
       })
     );
   }

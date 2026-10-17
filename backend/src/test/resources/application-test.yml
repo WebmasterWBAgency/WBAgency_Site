@@ -28,6 +28,9 @@ supabase:
   key: dummy-key
   service-role-key: dummy-key
   anon-key: dummy-key
+  storage:
+    local-fallback: true
+    local-dir: uploads-local
 
 app:
   security:

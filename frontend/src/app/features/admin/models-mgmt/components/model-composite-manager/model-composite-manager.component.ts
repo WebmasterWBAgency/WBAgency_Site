@@ -180,9 +180,10 @@ export class ModelCompositeManagerComponent implements OnInit {
       return;
     }
 
-    if (file.size > this.maxSizeBytes) {
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (isPdf && file.size > this.maxSizeBytes) {
       const realMb = (file.size / (1024 * 1024)).toFixed(1);
-      this.errorMessage = `❌ Arquivo muito grande: ${realMb} MB. Limite máximo permitido é 25 MB. Compacte o PDF ou envie uma imagem menor.`;
+      this.errorMessage = `❌ Arquivo PDF muito grande: ${realMb} MB. Limite máximo permitido é 25 MB. Compacte o PDF antes de enviar.`;
       return;
     }
 

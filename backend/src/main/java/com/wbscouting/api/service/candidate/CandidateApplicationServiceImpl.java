@@ -50,7 +50,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RequiredArgsConstructor
 public class CandidateApplicationServiceImpl implements CandidateApplicationService {
 
-    public static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
+    public static final long MAX_FILE_SIZE_BYTES = 8L * 1024 * 1024; // 8 MB
     public static final int MIN_PHOTOS = 3;
     public static final int MAX_PHOTOS = 8;
 
@@ -186,9 +186,16 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                     });
                 }
             } catch (RuntimeException dbEx) {
-                log.error("[ROLLBACK COMPENSATÓRIO] Falha na persistência relacional do banco de dados (JPA/PostgreSQL) para candidato ID={}. Executando remoção imediata de {} fotos do storage...",
-                        modelId, uploadedPaths.size(), dbEx);
-                compensateUploadedFiles(bucket, uploadedPaths);
+                log.error("Falha ao persistir candidatura no banco de dados. Iniciando expurgo compensatório de arquivos no Storage: {}", dbEx.getMessage());
+                List<String> pathsToCompensate = new ArrayList<>(uploadedPaths);
+                uploadedPaths.clear();
+                for (String storagePath : pathsToCompensate) {
+                    try {
+                        storageService.deleteFile("candidates-uploads", storagePath);
+                    } catch (Exception deleteEx) {
+                        log.warn("Falha ao remover arquivo órfão {}: {}", storagePath, deleteEx.getMessage());
+                    }
+                }
                 throw dbEx;
             }
 
@@ -200,12 +207,9 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
             log.info("Candidatura concluída com sucesso para ID={} Protocolo={}", modelId, protocol);
 
             return CandidateApplyResponseDto.builder()
-                    .candidateId(modelId)
                     .id(modelId)
                     .protocol(protocol)
                     .status("PENDING")
-                    .message("Candidatura recebida com sucesso.")
-                    .submittedAt(Instant.now())
                     .build();
 
         } catch (Exception ex) {
@@ -264,10 +268,10 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                 .gender(dto.getGender() != null ? dto.getGender().name() : "FEMALE")
                 .city(dto.getCity().trim())
                 .state(dto.getState().trim())
-                .height(normalizeHeightToMeters(dto.getHeightCm()))
-                .bust(dto.getBustChestCm())
-                .waist(dto.getWaistCm())
-                .hips(dto.getHipsCm())
+                .heightCm(dto.getHeightCm() != null ? dto.getHeightCm() : 170)
+                .bustCm(dto.getBustChestCm() != null ? dto.getBustChestCm().intValue() : null)
+                .waistCm(dto.getWaistCm() != null ? dto.getWaistCm().intValue() : null)
+                .hipsCm(dto.getHipsCm() != null ? dto.getHipsCm().intValue() : null)
                 .shoeSize(parseShoeSize(dto.getShoeSize()))
                 .eyeColor(dto.getEyesColor())
                 .hairColor(dto.getHairColor())
@@ -279,7 +283,6 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                 .profilePhotoUrl(profileUrl != null ? profileUrl : "")
                 .fullBodyPhotoUrl(fullBodyUrl != null ? fullBodyUrl : "")
                 .status("PENDING")
-                .convertedToModelId(modelId)
                 .lgpdConsent(dto.getLgpdConsent() != null ? dto.getLgpdConsent() : true)
                 .lgpdConsentAt(OffsetDateTime.now())
                 .build();
@@ -345,7 +348,7 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
 
             if (file.getSize() > MAX_FILE_SIZE_BYTES) {
                 throw new InvalidApplicationException(String.format(
-                        "A foto '%s' excede o limite máximo permitido de 5 MB. Tamanho enviado: %.2f MB",
+                        "A foto '%s' excede o limite máximo permitido de 8 MB. Tamanho enviado: %.2f MB",
                         file.getOriginalFilename(), file.getSize() / (1024.0 * 1024.0)
                 ));
             }

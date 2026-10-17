@@ -33,11 +33,20 @@ public class CandidateSubmissionDto {
     private String gender;
     private String city;
     private String state;
-    private BigDecimal height;
+    private Integer heightCm;
     private BigDecimal weight;
-    private BigDecimal bust;
-    private BigDecimal waist;
-    private BigDecimal hips;
+    private Integer bustCm;
+    private Integer waistCm;
+    private Integer hipsCm;
+
+    public Integer getHeight() { return heightCm; }
+    public void setHeight(Integer height) { this.heightCm = height; }
+    public Integer getBust() { return bustCm; }
+    public void setBust(Integer bust) { this.bustCm = bust; }
+    public Integer getWaist() { return waistCm; }
+    public void setWaist(Integer waist) { this.waistCm = waist; }
+    public Integer getHips() { return hipsCm; }
+    public void setHips(Integer hips) { this.hipsCm = hips; }
     private String shoeSize;
     private String eyeColor;
     private String hairColor;

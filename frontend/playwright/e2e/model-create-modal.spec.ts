@@ -157,9 +157,9 @@ test.describe('Modal Cadastrar Modelo - Rolagem e Fixação do Rodapé', () => {
     await expect(modal).not.toBeVisible({ timeout: 10000 });
 
     // 6. Valida renderização imediata do modelo e da foto de capa no grid
-    const modelRow = page.locator('.admin-table tbody tr', { hasText: 'Camila Playwright' });
-    await expect(modelRow).toBeVisible();
-    const coverImg = modelRow.locator('.model-thumb img');
+    const modelCard = page.locator('.grid > div, table tbody tr').filter({ hasText: 'Camila Playwright' }).first();
+    await expect(modelCard).toBeVisible();
+    const coverImg = modelCard.locator('img').first();
     await expect(coverImg).toBeVisible();
     await expect(coverImg).toHaveAttribute('src', new RegExp(coverUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   });

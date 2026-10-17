@@ -25,12 +25,21 @@ test.describe('Validação Rigorosa de Responsividade e Overflow', () => {
         // Previne que chunks de streaming contínuo de vídeo (.mp4 em loop) impeçam o disparo do networkidle
         await page.route('**/*.mp4', routeReq => routeReq.fulfill({ status: 200, contentType: 'video/mp4', body: '' }));
 
-        // Intercepta chamadas de contagem/dados administrativos para simular sessão ativa e evitar logout defensivo
-        await page.route('**/api/v1/admin/**', routeReq => routeReq.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ pending: 5, PENDING: 5, total: 12 })
-        }));
+        // Intercepta chamadas de API para evitar timeouts de rede e garantir auditoria de layout determinística
+        await page.route('**/api/v1/**', routeReq => {
+          if (routeReq.request().url().includes('/admin/')) {
+            return routeReq.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify({ pending: 5, PENDING: 5, total: 12, content: [] })
+            });
+          }
+          return routeReq.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ content: [], totalElements: 0, totalPages: 0 })
+          });
+        });
         
         // Se a rota for administrativa, injeta estado autenticado simulado no contexto (Cookie e LocalStorage para AuthService)
         if (route.startsWith('/admin')) {
@@ -59,7 +68,8 @@ test.describe('Validação Rigorosa de Responsividade e Overflow', () => {
           });
         }
 
-        await page.goto(route, { waitUntil: 'networkidle' });
+        await page.goto(route, { waitUntil: 'domcontentloaded' });
+        await page.waitForLoadState('load');
 
         // 1. Verificação Estrita de Overflow Horizontal no Documento
         const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);

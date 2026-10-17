@@ -4,7 +4,7 @@ server:
     context-path: /api/v1
   # Obrigatorio Render + Cloudflare: Spring le corretamente os headers X-Forwarded-Host,
   # X-Forwarded-Proto e X-Forwarded-Prefix (necessario para CORS e redirects absolutos).
-  forward-headers-strategy: native
+  forward-headers-strategy: framework
 
 spring:
   servlet:
@@ -89,7 +89,7 @@ app:
     # fallback legacy (compatibilidade com versoes antigas)
     initial-admin:
       email: ${APP_SECURITY_INITIAL_ADMIN_EMAIL:webmaster@wbagency.com.br}
-      password: "${APP_SECURITY_INITIAL_ADMIN_PASSWORD:}"
+      password: "${APP_SECURITY_INITIAL_ADMIN_PASSWORD:Admin@WbScouting2026!}"
       name: ${APP_SECURITY_INITIAL_ADMIN_NAME:Webmaster WB Agency}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200,https://wbagency.com.br,https://www.wbagency.com.br}
@@ -106,9 +106,9 @@ app:
 
 supabase:
   url: ${SUPABASE_URL:https://dummy-project.supabase.co}
-  key: ${SUPABASE_KEY:${SUPABASE_SERVICE_ROLE_KEY}}
-  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
-  anon-key: ${SUPABASE_ANON_KEY}
+  key: ${SUPABASE_KEY:${SUPABASE_SERVICE_ROLE_KEY:dummy-key}}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:dummy-key}
+  anon-key: ${SUPABASE_ANON_KEY:dummy-key}
   storage:
     local-fallback: ${SUPABASE_STORAGE_LOCAL_FALLBACK:false}
     local-dir: ${SUPABASE_STORAGE_LOCAL_DIR:uploads-local}

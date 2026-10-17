@@ -567,18 +567,6 @@ export class BecomeModelComponent implements OnInit {
         return;
       }
 
-      const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB
-      if (file.size > MAX_FILE_SIZE) {
-        const isEn = this.translationService.currentLang() === 'en';
-        const errorMsg = isEn
-          ? `The photo "${file.name}" exceeds the maximum allowed limit of 8 MB.`
-          : `A foto "${file.name}" excede o limite máximo permitido de 8 MB.`;
-        this.submitError = errorMsg;
-        alert(errorMsg);
-        input.value = '';
-        return;
-      }
-
       const result = await this.imageProcessingService.validateAndProcessPhoto(file);
       if (!result.valid) {
         this.submitError = result.error || 'Erro na validação da imagem.';

@@ -146,12 +146,8 @@ class CandidateSubmissionLifecycleE2ETest {
                 .build();
 
         submissionResponseDto = CandidateApplyResponseDto.builder()
-                .id(candidateId)
-                .candidateId(candidateId)
                 .protocol(protocol)
-                .message("Candidatura submetida com sucesso.")
                 .status("PENDING")
-                .submittedAt(Instant.now())
                 .build();
     }
 

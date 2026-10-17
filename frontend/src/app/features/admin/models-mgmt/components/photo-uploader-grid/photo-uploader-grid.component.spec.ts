@@ -151,24 +151,34 @@ describe('PhotoUploaderGridComponent', () => {
     expect(component.fileUploaded.emit).toHaveBeenCalledWith([validFile]);
   });
 
-  it('deve emitir erro de validação para arquivos com mais de 8 MB', async () => {
-    spyOn(component.validationError, 'emit');
+  it('deve aceitar arquivos pesados (ex: 17 MB) e processar adaptativamente para o teto de 15 MB', async () => {
+    spyOn(component.fileUploaded, 'emit');
 
-    const largeFile = new File([new ArrayBuffer(9 * 1024 * 1024)], 'large.jpg', {
+    const heavyFile = new File([new ArrayBuffer(17 * 1024 * 1024)], 'camera-raw.jpg', {
       type: 'image/jpeg'
+    });
+    const compressedFile = new File([new ArrayBuffer(6 * 1024 * 1024)], 'camera-raw.webp', {
+      type: 'image/webp'
+    });
+
+    imageProcessingSpy.processAdminImage.and.resolveTo({
+      valid: true,
+      file: compressedFile
     });
 
     const fileList = {
-      0: largeFile,
+      0: heavyFile,
       length: 1,
-      item: () => largeFile
+      item: () => heavyFile
     } as unknown as FileList;
 
     await component.processSelectedFiles(fileList);
 
-    expect(component.validationError.emit).toHaveBeenCalledWith(
-      'O arquivo "large.jpg" excede o tamanho máximo de 8 MB.'
-    );
+    expect(imageProcessingSpy.processAdminImage).toHaveBeenCalledWith(heavyFile, {
+      maxSizeMb: 15,
+      minPixels: 3_900_000
+    });
+    expect(component.fileUploaded.emit).toHaveBeenCalledWith([compressedFile]);
   });
 
   it('deve emitir erro de validação para fotos com resolução abaixo de 4 Megapixels UHD', async () => {

@@ -12,4 +12,6 @@ import java.util.List;
 public interface CandidateSubmissionService {
 
     CandidateApplyResponseDto submit(CandidateApplyRequestDto requestDto, List<MultipartFile> photos);
+
+    CandidateApplyResponseDto submitCandidate(CandidateApplyRequestDto requestDto, List<MultipartFile> photos);
 }

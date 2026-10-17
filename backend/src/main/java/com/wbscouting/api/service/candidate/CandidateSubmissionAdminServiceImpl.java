@@ -7,6 +7,7 @@ import com.wbscouting.api.entity.CandidatePhoto;
 import com.wbscouting.api.entity.CandidateSubmission;
 import com.wbscouting.api.entity.Model;
 import com.wbscouting.api.entity.ModelMedia;
+import com.wbscouting.api.enums.CandidateStatus;
 import com.wbscouting.api.enums.GenderType;
 import com.wbscouting.api.enums.MediaType;
 import com.wbscouting.api.enums.SubmissionStatus;
@@ -43,12 +44,8 @@ public class CandidateSubmissionAdminServiceImpl implements CandidateSubmissionA
     private final CandidatePhotoRepository candidatePhotoRepository;
     private final ModelRepository modelRepository;
     private final ModelMediaRepository modelMediaRepository;
-
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private StorageService storageService;
-
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private AuditLogService auditLogService;
+    private final StorageService storageService;
+    private final AuditLogService auditLogService;
 
     @Override
     @Transactional(readOnly = true)
@@ -337,40 +334,48 @@ public class CandidateSubmissionAdminServiceImpl implements CandidateSubmissionA
             throw new DuplicatePromotionException("Candidatura já foi promovida anteriormente ao modelo com ID: " + submission.getConvertedToModelId());
         }
 
-        String stageName = deriveStageName(submission.getFullName());
-        GenderType gender = deriveGender(submission.getGender());
-        Integer heightInt = submission.getHeight() != null ? submission.getHeight().intValue() : null;
+        Model model = modelRepository.findById(id)
+                .or(() -> submission.getProtocol() != null ? modelRepository.findByProtocol(submission.getProtocol()) : Optional.empty())
+                .orElse(null);
 
-        Model model = Model.builder()
-                .stageName(stageName)
-                .fullName(submission.getFullName())
-                .email(submission.getEmail())
-                .phone(submission.getPhone())
-                .gender(gender)
-                .birthDate(submission.getBirthDate())
-                .age(submission.getAge())
-                .heightCm(heightInt)
-                .bustChestCm(submission.getBust())
-                .waistCm(submission.getWaist())
-                .hipsCm(submission.getHips())
-                .shoeSize(submission.getShoeSize() != null ? submission.getShoeSize().toString() : null)
-                .eyesColor(submission.getEyeColor())
-                .hairColor(submission.getHairColor())
-                .city(submission.getCity())
-                .state(submission.getState())
-                .instagramUrl(submission.getInstagramHandle())
-                .legalGuardianName(submission.getGuardianName())
-                .legalGuardianContact(submission.getGuardianPhone())
-                .protocol(submission.getProtocol())
-                .status(TalentLifecycleStatus.ACTIVE)
-                .isActive(Boolean.TRUE.equals(activateImmediately))
-                .isStar(false)
-                .isFeaturedHome(false)
-                .facePhotoUrl(submission.getFacePhotoUrl())
-                .profilePhotoUrl(submission.getProfilePhotoUrl())
-                .fullBodyPhotoUrl(submission.getFullBodyPhotoUrl())
-                .lgpdAccepted(submission.getLgpdConsent() != null ? submission.getLgpdConsent() : true)
-                .build();
+        if (model == null) {
+            String stageName = deriveStageName(submission.getFullName());
+            GenderType gender = deriveGender(submission.getGender());
+            model = Model.builder()
+                    .stageName(stageName)
+                    .fullName(submission.getFullName())
+                    .email(submission.getEmail())
+                    .phone(submission.getPhone())
+                    .gender(gender)
+                    .birthDate(submission.getBirthDate())
+                    .age(submission.getAge())
+                    .heightCm(submission.getHeightCm())
+                    .bustCm(submission.getBustCm())
+                    .waistCm(submission.getWaistCm())
+                    .hipsCm(submission.getHipsCm())
+                    .shoeSize(submission.getShoeSize() != null ? submission.getShoeSize().toString() : null)
+                    .eyesColor(submission.getEyeColor())
+                    .hairColor(submission.getHairColor())
+                    .city(submission.getCity())
+                    .state(submission.getState())
+                    .instagramUrl(submission.getInstagramHandle())
+                    .legalGuardianName(submission.getGuardianName())
+                    .legalGuardianContact(submission.getGuardianPhone())
+                    .protocol(submission.getProtocol())
+                    .status(TalentLifecycleStatus.ACTIVE)
+                    .isActive(Boolean.TRUE.equals(activateImmediately))
+                    .isStar(false)
+                    .isFeaturedHome(false)
+                    .facePhotoUrl(submission.getFacePhotoUrl())
+                    .profilePhotoUrl(submission.getProfilePhotoUrl())
+                    .fullBodyPhotoUrl(submission.getFullBodyPhotoUrl())
+                    .lgpdAccepted(submission.getLgpdConsent() != null ? submission.getLgpdConsent() : true)
+                    .build();
+        } else {
+            model.setStatus(TalentLifecycleStatus.ACTIVE);
+            model.setIsActive(Boolean.TRUE.equals(activateImmediately));
+            model.setUpdatedAt(OffsetDateTime.now());
+        }
 
         Model savedModel = modelRepository.save(model);
 
@@ -459,6 +464,12 @@ public class CandidateSubmissionAdminServiceImpl implements CandidateSubmissionA
 
     @Override
     @Transactional
+    public void deleteApplication(UUID id) {
+        deleteApplication(id, true);
+    }
+
+    @Override
+    @Transactional
     public void deleteApplication(UUID id, boolean permanent) {
         log.info("Processando exclusão da candidatura ID: {}, permanent: {}", id, permanent);
         CandidateSubmission submission = candidateSubmissionRepository.findById(id).orElse(null);
@@ -468,10 +479,11 @@ public class CandidateSubmissionAdminServiceImpl implements CandidateSubmissionA
 
         String currentStatus = submission.getStatus() != null ? submission.getStatus().trim().toUpperCase() : "PENDING";
 
-        // Trava de segurança mandatória:
-        // Se o status for PENDING ou APPROVED, lance BusinessException com HTTP 400
-        if ("PENDING".equals(currentStatus) || "APPROVED".equals(currentStatus)) {
-            throw new BusinessException("Apenas candidaturas recusadas/declinadas podem ser excluídas permanentemente.");
+        // Trava de segurança mandatória (MEDIO-004):
+        // Candidaturas com status PENDENTE ou APROVADO não podem ser excluídas fisicamente.
+        if (submission.getCandidateStatus() == CandidateStatus.PENDING || submission.getCandidateStatus() == CandidateStatus.APPROVED
+                || "PENDING".equals(currentStatus) || "APPROVED".equals(currentStatus)) {
+            throw new IllegalStateException("Candidaturas com status PENDENTE ou APROVADO não podem ser excluídas fisicamente. Altere o status para REJEITADO antes de realizar a exclusão.");
         }
 
         if (!permanent) {
@@ -481,9 +493,9 @@ public class CandidateSubmissionAdminServiceImpl implements CandidateSubmissionA
             candidateSubmissionRepository.save(submission);
             log.info("Candidatura ID: {} arquivada com sucesso.", id);
         } else {
-            // Hard Delete: autorizado SOMENTE para status REJECTED ou DECLINED
+            // Hard Delete: autorizado SOMENTE para status REJECTED ou DECLINED (ou ARCHIVED)
             if (!"REJECTED".equals(currentStatus) && !"DECLINED".equals(currentStatus) && !"ARCHIVED".equals(currentStatus)) {
-                throw new BusinessException("Apenas candidaturas recusadas/declinadas podem ser excluídas permanentemente.");
+                throw new IllegalStateException("Candidaturas com status PENDENTE ou APROVADO não podem ser excluídas fisicamente. Altere o status para REJEITADO antes de realizar a exclusão.");
             }
 
             // 1. Obtenha todas as fotos filhas em CandidatePhoto associadas ao submissionId
@@ -512,7 +524,7 @@ public class CandidateSubmissionAdminServiceImpl implements CandidateSubmissionA
             }
             candidateSubmissionRepository.delete(submission);
 
-            // 4. Registre a operação no AuditLogService com a ação PURGE_CANDIDATE_DATA sem exibir dados sensíveis (PII)
+            // 4. Registre a operação no AuditLogService documentando a remoção definitiva autorizada em admin_audit_logs
             if (auditLogService != null) {
                 auditLogService.recordLogAsync(
                         null,
@@ -520,14 +532,14 @@ public class CandidateSubmissionAdminServiceImpl implements CandidateSubmissionA
                         "PURGE_CANDIDATE_DATA",
                         "CANDIDATE_SUBMISSION",
                         id.toString(),
-                        "Expurgo físico definitivo de candidatura recusada/declinada e fotos associadas sob conformidade LGPD.",
-                        Map.of("protocol", submission.getProtocol() != null ? submission.getProtocol() : id.toString()),
+                        "Remoção definitiva autorizada e expurgo físico de candidatura e fotos associadas sob conformidade LGPD.",
+                        Map.of("protocol", submission.getProtocol() != null ? submission.getProtocol() : id.toString(), "action", "PERMANENT_REMOVAL_AUTHORIZED"),
                         null,
                         null
                 );
             }
 
-            log.info("Expurgo atômico concluído com sucesso para candidatura recusada ID: {}", id);
+            log.info("Expurgo atômico concluído com sucesso para candidatura ID: {}", id);
         }
     }
 

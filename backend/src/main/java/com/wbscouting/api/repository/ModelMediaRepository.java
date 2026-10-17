@@ -27,6 +27,9 @@ public interface ModelMediaRepository extends JpaRepository<ModelMedia, UUID> {
     @Query("DELETE FROM ModelMedia m WHERE m.id = :mediaId AND m.model.id = :modelId")
     void deleteByIdAndModelId(@Param("mediaId") UUID mediaId, @Param("modelId") UUID modelId);
 
+    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN TRUE ELSE FALSE END FROM ModelMedia m WHERE m.id = :mediaId AND m.model.id = :modelId")
+    boolean existsByIdAndModelId(@Param("mediaId") UUID mediaId, @Param("modelId") UUID modelId);
+
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) + 1 FROM ModelMedia m WHERE m.model.id = :modelId AND m.mediaType = :mediaType")
     Integer findNextDisplayOrder(@Param("modelId") UUID modelId, @Param("mediaType") MediaType mediaType);
 

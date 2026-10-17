@@ -74,6 +74,9 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${INITIAL_ADMIN_PASSWORD:#{null}}")
     private String initialAdminPasswordEnv;
 
+    @Value("${app.security.e2e-admin.enabled:false}")
+    private boolean e2eAdminEnabled;
+
     // Constructor injection (Lombok @RequiredArgsConstructor nao de certeza no Wrapper)
     @Autowired
     public DataInitializer(
@@ -160,6 +163,22 @@ public class DataInitializer implements CommandLineRunner {
                 } catch (Exception ex) {
                     log.error("[ADMIN INIT][INFO-ADMIN] Falha ao garantir admin info '{}': {}", infoEmail, ex.getMessage(), ex);
                 }
+            }
+        }
+
+        // Garante administrador E2E padrão para automação Playwright e testes canônicos quando habilitado
+        if (e2eAdminEnabled) {
+            try {
+                garantirAdminPorEmail(
+                        "E2E-ADMIN",
+                        "admin@wbscouting.com",
+                        "Admin E2E Playwright",
+                        "Admin@123456",
+                        AdminRole.SUPER_ADMIN,
+                        false
+                );
+            } catch (Exception ex) {
+                log.error("[ADMIN INIT][E2E-ADMIN] Falha ao garantir admin e2e 'admin@wbscouting.com': {}", ex.getMessage());
             }
         }
 

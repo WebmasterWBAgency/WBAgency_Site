@@ -163,6 +163,24 @@ class ImageSecuritySanitizerTest {
     }
 
     @Test
+    @DisplayName("Deve rejeitar quando extensão declarada divergir dos magic bytes reais (disfarce)")
+    void shouldRejectDisguisedExtensionMismatch() {
+        byte[] pngHeader = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0};
+        MockMultipartFile disguisedJpg = new MockMultipartFile("file", "fake.jpg", "image/jpeg", pngHeader);
+
+        assertThatThrownBy(() -> ImageSecuritySanitizer.sanitizeAndReencode(disguisedJpg))
+                .isInstanceOf(InvalidFileException.class)
+                .hasMessageContaining("Assinatura de arquivo inválida ou formato disfarçado");
+
+        byte[] jpegHeader = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0, 0, 0};
+        MockMultipartFile disguisedPng = new MockMultipartFile("file", "fake.png", "image/png", jpegHeader);
+
+        assertThatThrownBy(() -> ImageSecuritySanitizer.sanitizeAndReencode(disguisedPng))
+                .isInstanceOf(InvalidFileException.class)
+                .hasMessageContaining("Assinatura de arquivo inválida ou formato disfarçado");
+    }
+
+    @Test
     @DisplayName("Deve rejeitar arquivo nulo ou vazio")
     void shouldRejectNullOrEmptyFile() {
         assertThatThrownBy(() -> ImageSecuritySanitizer.sanitizeAndReencode(null))

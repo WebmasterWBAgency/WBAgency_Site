@@ -118,9 +118,8 @@ class CandidateApplicationServiceImplTest {
         CandidateApplyResponseDto response = candidateApplicationService.apply(validAdultDto, validPhotos);
 
         assertThat(response).isNotNull();
-        assertThat(response.getCandidateId()).isEqualTo(generatedId);
-        assertThat(response.getMessage()).isEqualTo("Candidatura recebida com sucesso.");
-        assertThat(response.getSubmittedAt()).isNotNull();
+        assertThat(response.getProtocol()).isNotBlank();
+        assertThat(response.getStatus()).isEqualTo("PENDING");
 
         verify(modelRepository, times(1)).saveAndFlush(any(Model.class));
         verify(modelMediaRepository, times(1)).saveAll(anyList());
@@ -156,7 +155,8 @@ class CandidateApplicationServiceImplTest {
         CandidateApplyResponseDto response = candidateApplicationService.apply(minorDto, validPhotos);
 
         assertThat(response).isNotNull();
-        assertThat(response.getCandidateId()).isEqualTo(generatedId);
+        assertThat(response.getProtocol()).isNotBlank();
+        assertThat(response.getStatus()).isEqualTo("PENDING");
         verify(modelRepository, times(1)).saveAndFlush(any(Model.class));
     }
 

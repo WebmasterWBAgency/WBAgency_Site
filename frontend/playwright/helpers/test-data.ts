@@ -1,3 +1,5 @@
+import * as zlib from 'zlib';
+
 export function generateValidCPF(): string {
   const rnd = (n: number) => Math.round(Math.random() * n);
   const mod = (dividend: number, divider: number) => Math.round(dividend - (Math.floor(dividend / divider) * divider));
@@ -43,4 +45,56 @@ export function createValidImageBuffer(type: 'jpg' | 'png'): Buffer {
     0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
     0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
   ]);
+}
+
+function crc32(buf: Buffer): number {
+  let table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) {
+      c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+    }
+    table[i] = c;
+  }
+  let crc = 0 ^ (-1);
+  for (let i = 0; i < buf.length; i++) {
+    crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xFF];
+  }
+  return (crc ^ (-1)) >>> 0;
+}
+
+function createChunk(type: string, data: Buffer): Buffer {
+  const len = data.length;
+  const chunk = Buffer.alloc(4 + 4 + len + 4);
+  chunk.writeUInt32BE(len, 0);
+  chunk.write(type, 4, 4, 'ascii');
+  data.copy(chunk, 8);
+  const crcVal = crc32(chunk.subarray(4, 8 + len));
+  chunk.writeUInt32BE(crcVal, 8 + len);
+  return chunk;
+}
+
+/**
+ * Gera um PNG em memória válido de 2000x2000 (4.0 Megapixels)
+ * Satisfaz perfeitamente os requisitos de validação UHD do ImageProcessingService
+ */
+export function createValidUhdImageBuffer(width = 2000, height = 2000): Buffer {
+  const sig = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;  // bit depth 8
+  ihdr[9] = 0;  // grayscale
+  ihdr[10] = 0; // deflate
+  ihdr[11] = 0; // adaptive filter
+  ihdr[12] = 0; // no interlace
+  const ihdrChunk = createChunk('IHDR', ihdr);
+
+  const rowLen = 1 + width;
+  const raw = Buffer.alloc(height * rowLen, 180);
+  for (let r = 0; r < height; r++) raw[r * rowLen] = 0;
+  const compressed = zlib.deflateSync(raw, { level: 9 });
+  const idatChunk = createChunk('IDAT', compressed);
+  const iendChunk = createChunk('IEND', Buffer.alloc(0));
+  return Buffer.concat([sig, ihdrChunk, idatChunk, iendChunk]);
 }

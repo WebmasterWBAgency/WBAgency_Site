@@ -284,9 +284,9 @@ public class CandidateDetailResponseDto {
 
         BiometricsDto biometrics = BiometricsDto.builder()
                 .height(heightVal)
-                .bust(submission.getBust())
-                .waist(submission.getWaist())
-                .hips(submission.getHips())
+                .bust(submission.getBust() != null ? BigDecimal.valueOf(submission.getBust()) : null)
+                .waist(submission.getWaist() != null ? BigDecimal.valueOf(submission.getWaist()) : null)
+                .hips(submission.getHips() != null ? BigDecimal.valueOf(submission.getHips()) : null)
                 .shoes(submission.getShoeSize())
                 .eyes(submission.getEyeColor())
                 .hair(submission.getHairColor())

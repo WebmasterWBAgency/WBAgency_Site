@@ -93,14 +93,9 @@ class PublicCandidateControllerTest {
     @Test
     @DisplayName("POST /public/candidates/apply - Deve retornar 201 Created quando requisição for válida")
     void shouldApplySuccessfully() throws Exception {
-        UUID candidateId = UUID.randomUUID();
         CandidateApplyResponseDto responseDto = CandidateApplyResponseDto.builder()
-                .id(candidateId)
-                .candidateId(candidateId)
                 .protocol("WB-20261007-ABCDEF")
-                .message("Candidatura enviada com sucesso!")
                 .status("PENDING")
-                .submittedAt(Instant.now())
                 .build();
 
         when(candidateApplicationService.apply(any(), any())).thenReturn(responseDto);

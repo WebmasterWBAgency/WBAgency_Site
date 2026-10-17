@@ -41,7 +41,7 @@ public class EmailConfig {
             @Value("${spring.mail.properties.mail.smtp.starttls.required:true}") boolean starttlsRequired,
             @Value("${spring.mail.properties.mail.smtp.connectiontimeout:5000}") int connTimeout,
             @Value("${spring.mail.properties.mail.smtp.timeout:10000}") int readTimeout,
-            @Value("${spring.mail.properties.mail.smtp.writetimeout:10000}") int writeTimeout
+            @Value("${spring.mail.properties.mail.smtp.writetimeout:5000}") int writeTimeout
     ) {
         boolean temCredenciais = StringUtils.hasText(host)
                 && StringUtils.hasText(username)

@@ -137,4 +137,17 @@ public class AdminApplicationController {
             @RequestParam(required = false, defaultValue = "true") boolean all) {
         return cleanupArchive(all);
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<org.springframework.http.ProblemDetail> handleIllegalStateException(IllegalStateException ex) {
+        log.warn("[ADMIN_APPLICATION] Conflito de estado de candidatura: {}", ex.getMessage());
+        org.springframework.http.ProblemDetail problemDetail = org.springframework.http.ProblemDetail.forStatusAndDetail(
+                org.springframework.http.HttpStatus.CONFLICT,
+                ex.getMessage()
+        );
+        problemDetail.setTitle("Conflito de Estado de Negócio");
+        problemDetail.setType(java.net.URI.create("https://wbscouting.com/errors/conflict-state"));
+        problemDetail.setProperty("timestamp", java.time.Instant.now());
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).body(problemDetail);
+    }
 }

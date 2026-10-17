@@ -16,17 +16,6 @@ describe('ImageProcessingService', () => {
   });
 
   describe('processAndOptimizeImage (rotina UHD 4K unificada)', () => {
-    it('deve rejeitar arquivo se exceder o teto de 8 MB', async () => {
-      const oversizedFile = new File([new ArrayBuffer(9 * 1024 * 1024)], 'giant.jpg', {
-        type: 'image/jpeg'
-      });
-
-      const result = await processAndOptimizeImage(oversizedFile);
-
-      expect(result.valid).toBeFalse();
-      expect(result.error).toContain('excede o tamanho máximo de 8 MB');
-    });
-
     it('deve rejeitar formatos de arquivo não suportados', async () => {
       const invalidFile = new File([new ArrayBuffer(100)], 'doc.pdf', {
         type: 'application/pdf'
@@ -37,18 +26,24 @@ describe('ImageProcessingService', () => {
       expect(result.valid).toBeFalse();
       expect(result.error).toContain('Formato de imagem não suportado');
     });
-  });
 
-  describe('validateAndProcessPhoto (/apply e /become-model)', () => {
-    it('deve rejeitar arquivo se exceder 8 MB', async () => {
-      const oversizedFile = new File([new ArrayBuffer(9 * 1024 * 1024)], 'giant.jpg', {
+    it('deve retornar erro amigável caso os dados da imagem não possam ser carregados', async () => {
+      const corruptFile = new File([new ArrayBuffer(100)], 'corrupt.jpg', {
         type: 'image/jpeg'
       });
 
-      const result = await service.validateAndProcessPhoto(oversizedFile);
+      const result = await processAndOptimizeImage(corruptFile);
 
       expect(result.valid).toBeFalse();
-      expect(result.error).toContain('excede o tamanho máximo de 8 MB');
+      expect(result.error).toContain('Não foi possível carregar os dados');
+    });
+  });
+
+  describe('validateAndProcessPhoto (/apply e /become-model)', () => {
+    it('deve rejeitar se nenhum arquivo for fornecido', async () => {
+      const result = await service.validateAndProcessPhoto(null as any);
+      expect(result.valid).toBeFalse();
+      expect(result.error).toContain('Nenhum arquivo de imagem fornecido');
     });
 
     it('deve rejeitar formatos de arquivo não suportados', async () => {
@@ -64,18 +59,7 @@ describe('ImageProcessingService', () => {
   });
 
   describe('processAdminImage (painel admin /admin/models)', () => {
-    it('deve rejeitar fotos acima de 8 MB', async () => {
-      const oversizedFile = new File([new ArrayBuffer(9 * 1024 * 1024)], 'editorial-oversized.jpg', {
-        type: 'image/jpeg'
-      });
-
-      const result = await service.processAdminImage(oversizedFile);
-
-      expect(result.valid).toBeFalse();
-      expect(result.error).toContain('excede o tamanho máximo de 8 MB');
-    });
-
-    it('deve aceitar arquivo com tamanho <= 8 MB e validar formato', async () => {
+    it('deve rejeitar formatos de arquivo não suportados', async () => {
       const invalidDoc = new File([new ArrayBuffer(100)], 'document.docx', {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       });

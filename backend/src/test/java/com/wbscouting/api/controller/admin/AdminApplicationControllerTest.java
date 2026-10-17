@@ -169,13 +169,13 @@ class AdminApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/admin/applications/{id} quando pendente ou aprovada deve retornar 400 Bad Request")
-    void deleteApplication_WhenPendingOrApproved_ReturnsBadRequest() throws Exception {
-        doThrow(new BusinessException("Apenas candidaturas recusadas/declinadas podem ser excluídas permanentemente."))
+    @DisplayName("DELETE /api/v1/admin/applications/{id} quando pendente ou aprovada deve retornar 409 Conflict")
+    void deleteApplication_WhenPendingOrApproved_ReturnsConflict() throws Exception {
+        doThrow(new IllegalStateException("Candidaturas com status PENDENTE ou APROVADO não podem ser excluídas fisicamente. Altere o status para REJEITADO antes de realizar a exclusão."))
                 .when(candidateSubmissionAdminService).deleteApplication(eq(submissionId), eq(false));
 
         mockMvc.perform(delete("/api/v1/admin/applications/{id}", submissionId))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict());
 
         verify(candidateSubmissionAdminService).deleteApplication(eq(submissionId), eq(false));
     }

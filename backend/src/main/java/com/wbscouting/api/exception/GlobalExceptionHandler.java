@@ -209,8 +209,8 @@ public class GlobalExceptionHandler {
     // ============================================================
     @ExceptionHandler(IllegalStateException.class)
     public ProblemDetail handleIllegalStateException(IllegalStateException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problemDetail.setTitle("Não foi possível concluir a operação");
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problemDetail.setTitle("Conflito de Estado de Negócio");
         problemDetail.setType(URI.create("https://wbscouting.com/errors/illegal-state"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
