@@ -73,7 +73,7 @@ export class PhotoUploaderGridComponent {
   }
 
   readonly maxPhotos = 15;
-  readonly maxSizeBytes = 15 * 1024 * 1024; // 15MB
+  readonly maxSizeBytes = 8 * 1024 * 1024; // 8MB
   readonly allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
   get bookPhotos(): GalleryPhoto[] {
@@ -192,12 +192,12 @@ export class PhotoUploaderGridComponent {
         continue;
       }
       if (file.size > this.maxSizeBytes) {
-        this.validationError.emit(`O arquivo "${file.name}" excede o limite máximo permitido de 15 MB.`);
+        this.validationError.emit(`O arquivo "${file.name}" excede o tamanho máximo de 8 MB.`);
         continue;
       }
 
       const result = await this.imageProcessingService.processAdminImage(file, {
-        maxSizeMb: 15,
+        maxSizeMb: 8,
         minPixels: 4_000_000
       });
       if (!result.valid) {

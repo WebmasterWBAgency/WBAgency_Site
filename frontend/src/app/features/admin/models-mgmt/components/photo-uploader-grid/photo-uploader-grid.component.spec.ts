@@ -151,10 +151,10 @@ describe('PhotoUploaderGridComponent', () => {
     expect(component.fileUploaded.emit).toHaveBeenCalledWith([validFile]);
   });
 
-  it('deve emitir erro de validação para arquivos com mais de 15 MB', async () => {
+  it('deve emitir erro de validação para arquivos com mais de 8 MB', async () => {
     spyOn(component.validationError, 'emit');
 
-    const largeFile = new File([new ArrayBuffer(16 * 1024 * 1024)], 'large.jpg', {
+    const largeFile = new File([new ArrayBuffer(9 * 1024 * 1024)], 'large.jpg', {
       type: 'image/jpeg'
     });
 
@@ -167,7 +167,7 @@ describe('PhotoUploaderGridComponent', () => {
     await component.processSelectedFiles(fileList);
 
     expect(component.validationError.emit).toHaveBeenCalledWith(
-      'O arquivo "large.jpg" excede o limite máximo permitido de 15 MB.'
+      'O arquivo "large.jpg" excede o tamanho máximo de 8 MB.'
     );
   });
 

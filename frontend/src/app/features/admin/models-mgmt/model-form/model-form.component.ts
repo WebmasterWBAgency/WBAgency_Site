@@ -818,7 +818,7 @@ export class ModelFormComponent implements OnInit {
     const current = this.modelId();
     if (!current) {
       this.selectedFiles = [...this.selectedFiles, ...files];
-      this.showToast(`${files.length} foto(s) selecionada(s) (até 15 MB). Serão salvas ao cadastrar o modelo.`, 'success');
+      this.showToast(`${files.length} foto(s) selecionada(s) (até 8 MB). Serão salvas ao cadastrar o modelo.`, 'success');
       return;
     }
 
