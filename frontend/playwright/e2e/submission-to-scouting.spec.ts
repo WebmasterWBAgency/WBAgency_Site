@@ -410,7 +410,43 @@ test.describe('Ciclo de Vida E2E: Submissão Pública → Scouting Desk → Prom
   });
 
   test('4. Ciclo Canônico Direto: APIRequestContext /apply → Admin Scouting → Decisão de Status', async ({ request }) => {
-    const backendBaseUrl = process.env['BACKEND_URL'] || 'http://localhost:8080';
+    // Resolve para BACKEND_URL, ou Fly.io de produção, ou localhost como fallback
+    let backendBaseUrl = process.env['BACKEND_URL'] 
+      || process.env['E2E_BACKEND_URL'] 
+      || 'https://backend-honeyed-blossom-771.fly.dev';
+
+    // Valida conectividade da URL alvo; se inativa ou com timeout, chaveia automaticamente entre Nuvem (Fly.io) e Local (127.0.0.1:8080)
+    let isReachable = false;
+    try {
+      const probe = await request.get(`${backendBaseUrl}/api/v1/actuator/health`, { timeout: 2500 });
+      if (probe.status() < 500) {
+        isReachable = true;
+      }
+    } catch {
+      isReachable = false;
+    }
+
+    if (!isReachable) {
+      const candidates = [
+        'http://127.0.0.1:8080',
+        'http://localhost:8080',
+        'https://backend-honeyed-blossom-771.fly.dev'
+      ];
+      for (const candidate of candidates) {
+        if (candidate === backendBaseUrl) continue;
+        try {
+          const fallbackProbe = await request.get(`${candidate}/api/v1/actuator/health`, { timeout: 2500 });
+          if (fallbackProbe.status() < 500) {
+            backendBaseUrl = candidate;
+            isReachable = true;
+            break;
+          }
+        } catch {
+          // Continua tentando próximo candidato
+        }
+      }
+    }
+
     const adminEmail = process.env['ADMIN_EMAIL'] || 'admin@wbscouting.com';
     const adminPassword = process.env['ADMIN_PASSWORD'] || 'Admin@123456';
 
