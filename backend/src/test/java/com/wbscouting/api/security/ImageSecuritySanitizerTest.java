@@ -190,4 +190,41 @@ class ImageSecuritySanitizerTest {
         assertThatThrownBy(() -> ImageSecuritySanitizer.sanitizeAndReencode(emptyFile))
                 .isInstanceOf(InvalidFileException.class);
     }
+
+    @Test
+    @DisplayName("Deve rejeitar com InvalidFileException quando ImageIO.read retornar buffer nulo ou inválido")
+    void shouldRejectImageWhenBufferCannotBeDecoded() {
+        // Arquivo com magic bytes JPEG válidos (FF D8 FF), mas com stream corrompido/truncado
+        byte[] corruptedJpeg = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        MockMultipartFile file = new MockMultipartFile("file", "corrupt.jpg", "image/jpeg", corruptedJpeg);
+
+        assertThatThrownBy(() -> ImageSecuritySanitizer.sanitizeAndReencode(file))
+                .isInstanceOf(InvalidFileException.class)
+                .hasMessageContaining("Buffer de imagem inválido ou corrompido");
+    }
+
+    @Test
+    @DisplayName("Deve garantir que SanitizedMultipartFile encapsula os bytes limpos e suporta transferTo")
+    void shouldEncapsulateSanitizedBytesInSanitizedMultipartFile() throws IOException {
+        BufferedImage img = new BufferedImage(30, 30, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(img, "jpg", baos);
+
+        MockMultipartFile file = new MockMultipartFile("upload", "orig.jpg", "image/jpeg", baos.toByteArray());
+        MultipartFile sanitized = ImageSecuritySanitizer.sanitizeAndReencode(file);
+
+        assertThat(sanitized).isInstanceOf(SanitizedMultipartFile.class);
+        assertThat(sanitized.getName()).isEqualTo("upload");
+        assertThat(sanitized.getOriginalFilename()).isEqualTo("orig.jpg");
+        assertThat(sanitized.getContentType()).isEqualTo("image/jpeg");
+        assertThat(sanitized.getBytes()).isNotEmpty();
+
+        java.nio.file.Path tempFile = java.nio.file.Files.createTempFile("test-sanitized", ".jpg");
+        try {
+            sanitized.transferTo(tempFile);
+            assertThat(java.nio.file.Files.size(tempFile)).isEqualTo(sanitized.getSize());
+        } finally {
+            java.nio.file.Files.deleteIfExists(tempFile);
+        }
+    }
 }

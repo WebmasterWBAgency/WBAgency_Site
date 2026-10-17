@@ -20,15 +20,15 @@ public interface ModelMediaRepository extends JpaRepository<ModelMedia, UUID> {
 
     List<ModelMedia> findAllByModelIdAndIsCoverTrue(UUID modelId);
 
-    @Query("SELECT m FROM ModelMedia m WHERE m.id = :mediaId AND m.model.id = :modelId")
-    Optional<ModelMedia> findByIdAndModelId(@Param("mediaId") UUID mediaId, @Param("modelId") UUID modelId);
+    @Query("SELECT m FROM ModelMedia m WHERE m.id = :id AND m.model.id = :modelId")
+    Optional<ModelMedia> findByIdAndModelId(@Param("id") UUID id, @Param("modelId") UUID modelId);
 
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("DELETE FROM ModelMedia m WHERE m.id = :mediaId AND m.model.id = :modelId")
-    void deleteByIdAndModelId(@Param("mediaId") UUID mediaId, @Param("modelId") UUID modelId);
+    @Query("DELETE FROM ModelMedia m WHERE m.id = :id AND m.model.id = :modelId")
+    void deleteByIdAndModelId(@Param("id") UUID id, @Param("modelId") UUID modelId);
 
-    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN TRUE ELSE FALSE END FROM ModelMedia m WHERE m.id = :mediaId AND m.model.id = :modelId")
-    boolean existsByIdAndModelId(@Param("mediaId") UUID mediaId, @Param("modelId") UUID modelId);
+    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN TRUE ELSE FALSE END FROM ModelMedia m WHERE m.id = :id AND m.model.id = :modelId")
+    boolean existsByIdAndModelId(@Param("id") UUID id, @Param("modelId") UUID modelId);
 
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) + 1 FROM ModelMedia m WHERE m.model.id = :modelId AND m.mediaType = :mediaType")
     Integer findNextDisplayOrder(@Param("modelId") UUID modelId, @Param("mediaType") MediaType mediaType);

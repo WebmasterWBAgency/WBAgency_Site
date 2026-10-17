@@ -23,7 +23,7 @@ spring:
     # Pooler Supabase IPv4 (aws-0-sa-east-1.pooler.supabase.com:6543) com Transaction Mode
     url: "${DB_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0}}"
     username: "${DB_USER:${SPRING_DATASOURCE_USERNAME:postgres.stmytwsdlonpnirqiufq}}"
-    password: "${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD}}"
+    password: "${DB_PASSWORD}"
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: WbScoutingHikariPool

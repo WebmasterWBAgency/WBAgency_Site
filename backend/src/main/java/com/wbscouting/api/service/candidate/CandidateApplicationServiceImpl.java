@@ -186,16 +186,8 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
                     });
                 }
             } catch (RuntimeException dbEx) {
-                log.error("Falha ao persistir candidatura no banco de dados. Iniciando expurgo compensatório de arquivos no Storage: {}", dbEx.getMessage());
-                List<String> pathsToCompensate = new ArrayList<>(uploadedPaths);
-                uploadedPaths.clear();
-                for (String storagePath : pathsToCompensate) {
-                    try {
-                        storageService.deleteFile("candidates-uploads", storagePath);
-                    } catch (Exception deleteEx) {
-                        log.warn("Falha ao remover arquivo órfão {}: {}", storagePath, deleteEx.getMessage());
-                    }
-                }
+                log.error("Falha ao persistir candidatura no banco de dados. Executando deleção compensatória de arquivos no Storage: {}", dbEx.getMessage());
+                compensateUploadedFiles(bucket, uploadedPaths);
                 throw dbEx;
             }
 
@@ -207,9 +199,8 @@ public class CandidateApplicationServiceImpl implements CandidateApplicationServ
             log.info("Candidatura concluída com sucesso para ID={} Protocolo={}", modelId, protocol);
 
             return CandidateApplyResponseDto.builder()
-                    .id(modelId)
                     .protocol(protocol)
-                    .status("PENDING")
+                    .message("Candidatura submetida com sucesso.")
                     .build();
 
         } catch (Exception ex) {

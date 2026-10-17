@@ -1,6 +1,7 @@
 package com.wbscouting.api.controller.publicapi;
 
 import com.wbscouting.api.config.SupabaseProperties;
+import com.wbscouting.api.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +34,9 @@ class LocalStorageControllerTest {
         supabaseProperties.getStorage().setLocalDir(testUploadDir.toString());
 
         LocalStorageController controller = new LocalStorageController(supabaseProperties);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     @AfterEach
@@ -66,6 +69,18 @@ class LocalStorageControllerTest {
     @DisplayName("Deve bloquear tentativa de directory traversal")
     void shouldBlockDirectoryTraversal() throws Exception {
         mockMvc.perform(get("/api/v1/storage/local/candidates-uploads/../../etc/passwd"))
-                .andExpect(status().is4xxClientError());
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar tentativa de Path Traversal contendo '../' lançando SecurityException")
+    void shouldRejectPathTraversalWithDotDotSlash() {
+        LocalStorageController directController = new LocalStorageController(supabaseProperties);
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
+        request.setRequestURI("/api/v1/storage/local/candidates-uploads/../secret.txt");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> directController.getLocalFile("candidates-uploads", request))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("tentativa de Path Traversal contendo '../'");
     }
 }

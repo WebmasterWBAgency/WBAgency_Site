@@ -70,4 +70,9 @@ public class SanitizedMultipartFile implements MultipartFile {
             fos.write(content);
         }
     }
+
+    @Override
+    public void transferTo(@NonNull java.nio.file.Path dest) throws IOException, IllegalStateException {
+        java.nio.file.Files.write(dest, content);
+    }
 }

@@ -144,6 +144,25 @@ class EnvironmentConfigurationInitializationTest {
                 .isEqualTo("secret: ${JWT_SECRET}")
                 .as("O segredo JWT no application.yml deve usar '${JWT_SECRET}' estrito sem fallback após ':-'");
 
+        // Validação das chaves do Supabase (devem ser estritas, sem fallback dummy-key)
+        String supabaseServiceRoleLine = lines.stream()
+                .filter(l -> l.contains("service-role-key:") && l.contains("SUPABASE_SERVICE_ROLE_KEY"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Linha de service-role-key com SUPABASE_SERVICE_ROLE_KEY não encontrada em application.yml"));
+
+        assertThat(supabaseServiceRoleLine.trim())
+                .isEqualTo("service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}")
+                .as("A service-role-key do Supabase no application.yml deve usar '${SUPABASE_SERVICE_ROLE_KEY}' estrito sem fallback após ':-'");
+
+        String supabaseAnonLine = lines.stream()
+                .filter(l -> l.contains("anon-key:") && l.contains("SUPABASE_ANON_KEY"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Linha de anon-key com SUPABASE_ANON_KEY não encontrada em application.yml"));
+
+        assertThat(supabaseAnonLine.trim())
+                .isEqualTo("anon-key: ${SUPABASE_ANON_KEY}")
+                .as("A anon-key do Supabase no application.yml deve usar '${SUPABASE_ANON_KEY}' estrito sem fallback após ':-'");
+
         // Validação de ausência absoluta de resíduos legados no application.yml
         for (String line : lines) {
             assertThat(line)
@@ -152,6 +171,57 @@ class EnvironmentConfigurationInitializationTest {
                     .doesNotContain(":404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970")
                     .as("O application.yml não deve conter resíduos de senhas ou chaves legadas hardcoded");
         }
+    }
+
+    @Test
+    @DisplayName("Deve validar que application-prod.yml não contém fallbacks inseguros para propriedades críticas")
+    void shouldVerifyApplicationProdYmlContainsNoInsecureFallbacks() throws Exception {
+        ClassPathResource resource = new ClassPathResource("application-prod.yml");
+        assertThat(resource.exists()).isTrue();
+
+        List<String> lines = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lines.add(line);
+            }
+        }
+
+        String dbPasswordLine = lines.stream()
+                .filter(l -> l.contains("password:") && l.contains("DB_PASSWORD"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Linha de password do datasource com DB_PASSWORD não encontrada em application-prod.yml"));
+
+        assertThat(dbPasswordLine.trim())
+                .isIn("password: \"${DB_PASSWORD}\"", "password: ${DB_PASSWORD}")
+                .as("A senha do banco de dados no application-prod.yml deve usar '${DB_PASSWORD}' sem fallback após ':-'");
+
+        String jwtSecretLine = lines.stream()
+                .filter(l -> l.contains("secret:") && l.contains("JWT_SECRET"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Linha de secret JWT com JWT_SECRET não encontrada em application-prod.yml"));
+
+        assertThat(jwtSecretLine.trim())
+                .isIn("secret: \"${JWT_SECRET}\"", "secret: ${JWT_SECRET}")
+                .as("O segredo JWT no application-prod.yml deve usar '${JWT_SECRET}' estrito sem fallback após ':-'");
+
+        String supabaseServiceRoleLine = lines.stream()
+                .filter(l -> l.contains("service-role-key:") && l.contains("SUPABASE_SERVICE_ROLE_KEY"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Linha de service-role-key com SUPABASE_SERVICE_ROLE_KEY não encontrada em application-prod.yml"));
+
+        assertThat(supabaseServiceRoleLine.trim())
+                .isIn("service-role-key: \"${SUPABASE_SERVICE_ROLE_KEY}\"", "service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}")
+                .as("A service-role-key do Supabase no application-prod.yml deve usar '${SUPABASE_SERVICE_ROLE_KEY}' estrito sem fallback após ':-'");
+
+        String supabaseAnonLine = lines.stream()
+                .filter(l -> l.contains("anon-key:") && l.contains("SUPABASE_ANON_KEY"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Linha de anon-key com SUPABASE_ANON_KEY não encontrada em application-prod.yml"));
+
+        assertThat(supabaseAnonLine.trim())
+                .isIn("anon-key: \"${SUPABASE_ANON_KEY}\"", "anon-key: ${SUPABASE_ANON_KEY}")
+                .as("A anon-key do Supabase no application-prod.yml deve usar '${SUPABASE_ANON_KEY}' estrito sem fallback após ':-'");
     }
 
     @Test

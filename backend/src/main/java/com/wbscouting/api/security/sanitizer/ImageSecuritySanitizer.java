@@ -76,89 +76,71 @@ public class ImageSecuritySanitizer {
             throw new InvalidFileException("Assinatura de arquivo inválida ou formato disfarçado");
         }
 
-        // 2. Sanitização Ativa: Reescrita gráfica via buffer de imagem para descartar EXIF/GPS
+        // 2. Decodificação da imagem em memória via BufferedImage (ImageIO.read)
+        BufferedImage originalImage;
         try {
-            BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(originalBytes));
-            if (originalImage != null) {
-                int width = originalImage.getWidth();
-                int height = originalImage.getHeight();
-
-                if (width <= 0 || height <= 0 || width > 10000 || height > 10000) {
-                    throw new InvalidFileException("Dimensões da imagem fora dos limites de segurança aceitáveis.");
-                }
-
-                int imageType = "png".equalsIgnoreCase(format) || originalImage.getColorModel().hasAlpha()
-                        ? BufferedImage.TYPE_INT_ARGB
-                        : BufferedImage.TYPE_INT_RGB;
-
-                BufferedImage cleanImage = new BufferedImage(width, height, imageType);
-                Graphics2D g2d = cleanImage.createGraphics();
-                try {
-                    g2d.drawImage(originalImage, 0, 0, null);
-                } finally {
-                    g2d.dispose();
-                }
-
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                String writeFormat;
-                if ("png".equalsIgnoreCase(format)) {
-                    writeFormat = "png";
-                } else if ("webp".equalsIgnoreCase(format) && canWriteFormat("webp")) {
-                    writeFormat = "webp";
-                } else {
-                    writeFormat = "jpg";
-                }
-
-                boolean success = ImageIO.write(cleanImage, writeFormat, outputStream);
-
-                if (success && outputStream.size() > 0) {
-                    byte[] sanitizedBytes = outputStream.toByteArray();
-                    log.debug("Imagem '{}' higienizada e regravada com sucesso (metadados EXIF/GPS expurgados). De {} para {} bytes.",
-                            file.getOriginalFilename(), originalBytes.length, sanitizedBytes.length);
-
-                    return new SanitizedMultipartFile(
-                            file.getName(),
-                            file.getOriginalFilename(),
-                            resolveContentType(writeFormat),
-                            sanitizedBytes
-                    );
-                }
-            } else if (!"webp".equalsIgnoreCase(format)) {
-                log.warn("Imagem '{}' com magic bytes válidos porém sem raster completo ImageIO (stub/teste). Preservando bytes...", file.getOriginalFilename());
-                return new SanitizedMultipartFile(
-                        file.getName(),
-                        file.getOriginalFilename(),
-                        resolveContentType(format),
-                        originalBytes
-                );
-            }
-        } catch (InvalidFileException ife) {
-            throw ife;
+            originalImage = ImageIO.read(new ByteArrayInputStream(originalBytes));
         } catch (Exception e) {
-            if (!"webp".equalsIgnoreCase(format)) {
-                log.warn("Falha na decodificação e reencodificação da imagem '{}': {}. Preservando bytes sanitizados...", file.getOriginalFilename(), e.getMessage());
-                return new SanitizedMultipartFile(
-                        file.getName(),
-                        file.getOriginalFilename(),
-                        resolveContentType(format),
-                        originalBytes
-                );
-            }
-            log.debug("Decodificação completa ImageIO indisponível para WebP: {}", e.getMessage());
+            log.warn("Erro ao decodificar imagem em memória: {}", e.getMessage());
+            throw new InvalidFileException("Buffer de imagem inválido ou corrompido. Falha ao decodificar em memória: " + e.getMessage(), e);
         }
 
-        // Para WebP quando decodificação direta ImageIO não estiver disponível no JRE base,
-        // valida estritamente a integridade do stream e dimensões do chunk VP8/VP8L/VP8X
-        int[] webpDims = extractWebpDimensions(originalBytes);
-        if (webpDims == null || webpDims[0] <= 0 || webpDims[1] <= 0) {
-            throw new InvalidFileException("Arquivo WebP com cabeçalho ou dados de stream corrompidos.");
+        // 3. Validação estrita: se o buffer lido for nulo ou inválido, rejeite a operação
+        if (originalImage == null) {
+            log.warn("Tentativa de upload com buffer de imagem nulo/corrompido apesar de magic bytes válidos. Arquivo: '{}'", file.getOriginalFilename());
+            throw new InvalidFileException("Buffer de imagem inválido ou corrompido. Não foi possível decodificar os pixels da imagem.");
         }
+
+        int width = originalImage.getWidth();
+        int height = originalImage.getHeight();
+
+        if (width <= 0 || height <= 0 || width > 10000 || height > 10000) {
+            throw new InvalidFileException("Dimensões da imagem fora dos limites de segurança aceitáveis.");
+        }
+
+        // 4. Reencodificação ativa: regravação em tela limpa descartando metadados EXIF/GPS
+        int imageType = "png".equalsIgnoreCase(format) || originalImage.getColorModel().hasAlpha()
+                ? BufferedImage.TYPE_INT_ARGB
+                : BufferedImage.TYPE_INT_RGB;
+
+        BufferedImage cleanImage = new BufferedImage(width, height, imageType);
+        Graphics2D g2d = cleanImage.createGraphics();
+        try {
+            g2d.drawImage(originalImage, 0, 0, null);
+        } finally {
+            g2d.dispose();
+        }
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        String writeFormat;
+        if ("png".equalsIgnoreCase(format)) {
+            writeFormat = "png";
+        } else if ("webp".equalsIgnoreCase(format) && canWriteFormat("webp")) {
+            writeFormat = "webp";
+        } else {
+            writeFormat = "jpg";
+        }
+
+        boolean success;
+        try {
+            success = ImageIO.write(cleanImage, writeFormat, outputStream);
+        } catch (Exception e) {
+            throw new InvalidFileException("Erro ao reencodificar a imagem higienizada: " + e.getMessage(), e);
+        }
+
+        if (!success || outputStream.size() == 0) {
+            throw new InvalidFileException("Falha ao gerar o stream binário da imagem higienizada.");
+        }
+
+        byte[] sanitizedBytes = outputStream.toByteArray();
+        log.debug("Imagem '{}' higienizada e regravada com sucesso (metadados EXIF/GPS expurgados). De {} para {} bytes.",
+                file.getOriginalFilename(), originalBytes.length, sanitizedBytes.length);
 
         return new SanitizedMultipartFile(
                 file.getName(),
                 file.getOriginalFilename(),
-                resolveContentType(format),
-                originalBytes
+                resolveContentType(writeFormat),
+                sanitizedBytes
         );
     }
 

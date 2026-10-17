@@ -53,7 +53,7 @@ class CandidateSubmissionServiceImplTest {
         UUID candidateId = UUID.randomUUID();
         CandidateApplyResponseDto expectedResponse = CandidateApplyResponseDto.builder()
                 .protocol("WB-20261012-ABC123")
-                .status("PENDING")
+                .message("Candidatura submetida com sucesso.")
                 .build();
 
         when(candidateApplicationService.apply(any(), any())).thenReturn(expectedResponse);
@@ -62,7 +62,7 @@ class CandidateSubmissionServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getProtocol()).isEqualTo("WB-20261012-ABC123");
-        assertThat(response.getStatus()).isEqualTo("PENDING");
+        assertThat(response.getMessage()).isEqualTo("Candidatura submetida com sucesso.");
 
         verify(candidateApplicationService, times(1)).apply(eq(requestDto), eq(photos));
     }

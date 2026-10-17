@@ -84,9 +84,8 @@ public class PublicCandidateController {
         CandidateApplyResponseDto response = candidateApplicationService.apply(dto, photos);
 
         CandidateApplyResponseDto sanitizedResponse = CandidateApplyResponseDto.builder()
-                .id(response.getId())
                 .protocol(response.getProtocol())
-                .status("PENDING")
+                .message("Candidatura submetida com sucesso.")
                 .build();
 
         return ResponseEntity

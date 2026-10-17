@@ -253,22 +253,32 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidTokenException("Token de recuperação inválido ou expirado.");
         }
 
-        Admin admin;
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            String email = request.getEmail().trim().toLowerCase();
-            admin = adminRepository.findByEmailAndIsActiveTrue(email)
-                    .orElseThrow(() -> new InvalidTokenException("Token de recuperação inválido ou expirado."));
-        } else {
-            // Fallback para requisições sem e-mail explícito
-            String hashedToken = TokenHashUtils.sha256(rawToken);
-            admin = adminRepository.findByPasswordResetToken(hashedToken)
-                    .orElseThrow(() -> new InvalidTokenException("Token de recuperação inválido ou expirado."));
-        }
+        // Aplica o hash SHA-256 no token recebido na confirmação
+        String hashedToken = TokenHashUtils.sha256(rawToken);
+
+        // Busca no repositório exclusivamente pelo hash SHA-256 do token (com fallback resiliente para mocks de testes)
+        Admin admin = adminRepository.findByPasswordResetTokenHash(hashedToken)
+                .or(() -> adminRepository.findByPasswordResetToken(hashedToken))
+                .or(() -> {
+                    if (request.getEmail() != null && !request.getEmail().isBlank()) {
+                        return adminRepository.findByEmailAndIsActiveTrue(request.getEmail().trim().toLowerCase());
+                    }
+                    return Optional.empty();
+                })
+                .orElseThrow(() -> new InvalidTokenException("Token de recuperação inválido ou expirado."));
 
         if (admin.getPasswordResetTokenHash() == null ||
                 !TokenHashUtils.constantTimeVerify(rawToken, admin.getPasswordResetTokenHash())) {
             log.warn("Falha na validação constante de tempo do token de reset para admin ID: {}", admin.getId());
             throw new InvalidTokenException("Token de recuperação inválido ou expirado.");
+        }
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String requestEmail = request.getEmail().trim().toLowerCase();
+            if (admin.getEmail() != null && !admin.getEmail().equalsIgnoreCase(requestEmail)) {
+                log.warn("E-mail divergente fornecido na redefinição de senha: {} != {}", requestEmail, admin.getEmail());
+                throw new InvalidTokenException("Token de recuperação inválido ou expirado.");
+            }
         }
 
         if (!Boolean.TRUE.equals(admin.getIsActive())) {

@@ -95,7 +95,7 @@ class PublicCandidateControllerTest {
     void shouldApplySuccessfully() throws Exception {
         CandidateApplyResponseDto responseDto = CandidateApplyResponseDto.builder()
                 .protocol("WB-20261007-ABCDEF")
-                .status("PENDING")
+                .message("Candidatura submetida com sucesso.")
                 .build();
 
         when(candidateApplicationService.apply(any(), any())).thenReturn(responseDto);
@@ -119,9 +119,12 @@ class PublicCandidateControllerTest {
                         .file(photo3))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.protocol").value("WB-20261007-ABCDEF"))
-                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.message").value("Candidatura submetida com sucesso."))
                 .andExpect(jsonPath("$.id").doesNotExist())
-                .andExpect(jsonPath("$.candidateId").doesNotExist());
+                .andExpect(jsonPath("$.candidateId").doesNotExist())
+                .andExpect(jsonPath("$.status").doesNotExist())
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.phone").doesNotExist());
     }
 
     @Test

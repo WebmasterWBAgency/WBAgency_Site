@@ -81,16 +81,32 @@ CREATE POLICY "Public Read Access for Public Buckets"
     USING (bucket_id IN ('site-assets', 'models-media'));
 
 -- Política 1.2: Leitura restrita e criptografada para fotos de candidatos (LGPD)
--- Justificativa: Bloqueia totalmente 'anon'. Apenas o backend Java (service_role) e admins ativos visualizam.
+-- Justificativa: Bloqueia totalmente 'anon' (sem acesso público). Polaroides e fotos de candidatos
+-- são acessadas exclusivamente via backend Java (service_role) através de Signed URLs temporárias
+-- (TTL de 900s) ou por administradores ativos autenticados.
+DROP POLICY IF EXISTS "Public Read Candidates Uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Candidates Uploads Public Read" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public read for candidates" ON storage.objects;
+DROP POLICY IF EXISTS "Public Access Candidates Uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Anon Read Candidates Uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read Polaroids" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read Access for Candidates" ON storage.objects;
+DROP POLICY IF EXISTS "Public Select Candidates Uploads" ON storage.objects;
 DROP POLICY IF EXISTS "Restricted Admin Read for Candidates Uploads" ON storage.objects;
+
 CREATE POLICY "Restricted Admin Read for Candidates Uploads"
     ON storage.objects
     FOR SELECT
     TO authenticated, service_role
     USING (
         bucket_id = 'candidates-uploads' 
-        AND public.is_active_admin()
+        AND (auth.role() = 'service_role' OR public.is_active_admin())
     );
+
+-- Garantir que o bucket candidates-uploads permaneça estritamente privado
+UPDATE storage.buckets
+SET public = FALSE
+WHERE id = 'candidates-uploads';
 
 -- ------------------------------------------------------------------------------
 -- 4.2. POLÍTICAS DE UPLOAD (INSERT)

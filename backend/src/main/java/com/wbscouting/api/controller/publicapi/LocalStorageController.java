@@ -50,44 +50,52 @@ public class LocalStorageController {
             return ResponseEntity.notFound().build();
         }
 
+        // Blindagem contra Path / Directory Traversal contendo '../'
+        if (bucket.contains("..") || bucket.contains("/") || bucket.contains("\\")
+                || relativePath.contains("../") || relativePath.contains("..\\")
+                || uri.contains("../") || uri.contains("..\\")) {
+            log.warn("Tentativa de Path Traversal contendo '../' detectada. URI='{}', relativePath='{}', bucket='{}'",
+                    uri, relativePath, bucket);
+            throw new SecurityException("Acesso negado: tentativa de Path Traversal contendo '../' detectada");
+        }
+
         String baseDirStr = (supabaseProperties.getStorage() != null && StringUtils.hasText(supabaseProperties.getStorage().getLocalDir()))
                 ? supabaseProperties.getStorage().getLocalDir()
                 : "uploads";
 
         Path baseDir = Paths.get(baseDirStr).toAbsolutePath().normalize();
-        Path baseFolder = baseDir.resolve(bucket).normalize();
-        Path targetFile = baseFolder.resolve(relativePath).normalize();
+        Path basePath = baseDir.resolve(bucket).normalize();
+        Path targetPath = basePath.resolve(relativePath).normalize();
 
-        // Proteção contra Path / Directory Traversal (CWE-22):
-        // Valida se o caminho normalizado inicia estritamente com o diretório raiz configurado (baseDir) e baseFolder
-        if (!targetFile.startsWith(baseFolder) || !targetFile.startsWith(baseDir)) {
-            log.warn("Tentativa de path traversal detectada para path: '{}'", relativePath);
-            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        // Validação estrita: o caminho resolvido normalizado DEVE iniciar com o diretório base configurado
+        if (!targetPath.startsWith(basePath) || !targetPath.startsWith(baseDir)) {
+            log.warn("Tentativa de Path Traversal detectada: targetPath '{}' não inicia com basePath '{}'", targetPath, basePath);
+            throw new SecurityException("Acesso negado: o caminho resolvido não pertence ao diretório base configurado");
         }
 
         try {
-            if (java.nio.file.Files.exists(targetFile)) {
-                Path canonicalTarget = targetFile.toRealPath();
+            if (java.nio.file.Files.exists(targetPath)) {
+                Path canonicalTarget = targetPath.toRealPath();
                 Path canonicalBaseDir = java.nio.file.Files.exists(baseDir) ? baseDir.toRealPath() : baseDir;
-                Path canonicalBaseFolder = java.nio.file.Files.exists(baseFolder) ? baseFolder.toRealPath() : baseFolder;
-                if (!canonicalTarget.startsWith(canonicalBaseFolder) || !canonicalTarget.startsWith(canonicalBaseDir)) {
+                Path canonicalBasePath = java.nio.file.Files.exists(basePath) ? basePath.toRealPath() : basePath;
+                if (!canonicalTarget.startsWith(canonicalBasePath) || !canonicalTarget.startsWith(canonicalBaseDir)) {
                     log.warn("Tentativa de canonical path traversal detectada para path: '{}'", relativePath);
-                    return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+                    throw new SecurityException("Acesso negado: o caminho canônico não pertence ao diretório base");
                 }
             }
         } catch (IOException e) {
             log.warn("Falha ao resolver caminho canônico para path '{}': {}", relativePath, e.getMessage());
-            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+            throw new SecurityException("Acesso negado: erro ao validar integridade do caminho", e);
         }
 
-        if (!java.nio.file.Files.exists(targetFile) || !java.nio.file.Files.isRegularFile(targetFile)) {
-            log.debug("Arquivo local não encontrado: {}", targetFile);
+        if (!java.nio.file.Files.exists(targetPath) || !java.nio.file.Files.isRegularFile(targetPath)) {
+            log.debug("Arquivo local não encontrado: {}", targetPath);
             return ResponseEntity.notFound().build();
         }
 
         try {
-            Resource resource = new UrlResource(targetFile.toUri());
-            MediaType mediaType = MediaTypeFactory.getMediaType(targetFile.getFileName().toString())
+            Resource resource = new UrlResource(targetPath.toUri());
+            MediaType mediaType = MediaTypeFactory.getMediaType(targetPath.getFileName().toString())
                     .orElse(MediaType.APPLICATION_OCTET_STREAM);
 
             return ResponseEntity.ok()
@@ -95,7 +103,7 @@ public class LocalStorageController {
                     .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
                     .body(resource);
         } catch (IOException e) {
-            log.error("Erro ao carregar recurso do arquivo local: {}", targetFile, e);
+            log.error("Erro ao carregar recurso do arquivo local: {}", targetPath, e);
             return ResponseEntity.internalServerError().build();
         }
     }

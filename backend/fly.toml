@@ -4,33 +4,36 @@
 #
 
 # fly.toml
-app = "backend-honeyed-blossom-771"
-primary_region = "gru"
+app = 'backend-honeyed-blossom-771'
+primary_region = 'gru'
 
 [build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  strategy = 'immediate'
 
 [env]
-  PORT = "8080"
-  SPRING_PROFILES_ACTIVE = "prod"
-  JAVA_OPTS = "-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
+  SPRING_PROFILES_ACTIVE = 'prod'
+  SERVER_PORT = '8080'
+  SERVER_ADDRESS = '0.0.0.0'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "off"
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
+  processes = ['app']
 
 [[http_service.checks]]
   grace_period = "120s"
-  interval = "15s"
-  timeout = "5s"
+  interval = "20s"
   method = "GET"
-  path = "/api/v1/actuator/health/liveness"
-
-[deploy]
-  strategy = "bluegreen"
+  path = "/api/v1/public/models"
+  timeout = "10s"
 
 [[vm]]
-  size = "shared-cpu-1x"
   memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

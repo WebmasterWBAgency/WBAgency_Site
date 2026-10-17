@@ -119,7 +119,7 @@ class CandidateApplicationServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getProtocol()).isNotBlank();
-        assertThat(response.getStatus()).isEqualTo("PENDING");
+        assertThat(response.getMessage()).isEqualTo("Candidatura submetida com sucesso.");
 
         verify(modelRepository, times(1)).saveAndFlush(any(Model.class));
         verify(modelMediaRepository, times(1)).saveAll(anyList());
@@ -156,7 +156,7 @@ class CandidateApplicationServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getProtocol()).isNotBlank();
-        assertThat(response.getStatus()).isEqualTo("PENDING");
+        assertThat(response.getMessage()).isEqualTo("Candidatura submetida com sucesso.");
         verify(modelRepository, times(1)).saveAndFlush(any(Model.class));
     }
 

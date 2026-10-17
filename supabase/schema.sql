@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.admins (
     password_hash VARCHAR(255) NOT NULL,
     role admin_role NOT NULL DEFAULT 'SUPER_ADMIN',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    password_reset_token_hash VARCHAR(255) NULL,
     password_reset_token VARCHAR(255) NULL,
     password_reset_expires_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -344,22 +345,63 @@ CREATE INDEX IF NOT EXISTS idx_model_media_order
 
 -- 6. SEGURANÇA E ROW LEVEL SECURITY (RLS)
 
--- Habilitar RLS em todas as tabelas
-ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.models ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.model_media ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.candidates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.candidate_photos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.candidate_submissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.site_contents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
+-- 6.1. Habilitar RLS em todas as tabelas (idempotente)
+ALTER TABLE IF EXISTS public.admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.models ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.model_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.candidate_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.candidate_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.site_contents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
--- 6.1. POLÍTICAS DE SERVICE_ROLE (BYPASS EXPLÍCITO PARA BACKEND SPRING BOOT)
+-- 6.2. REVOGAÇÃO DE PERMISSÕES ABERTAS PARA A ROLE 'anon' (MENOR PRIVILÉGIO)
 -- ==============================================================================
--- Intencionalmente documenta acesso full para service_role, garantindo
--- interoperabilidade caso a conexão JDBC seja futuramente trocada de owner
--- para a role wb_app_user (least privilege).
+-- Supabase concede permissões padrão a 'anon' na criação de tabelas públicas.
+-- Revogamos tudo para aplicar controle de acesso rigoroso por tabela e RLS.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'models') THEN
+            REVOKE ALL ON TABLE public.models FROM anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'model_media') THEN
+            REVOKE ALL ON TABLE public.model_media FROM anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'candidate_submissions') THEN
+            REVOKE ALL ON TABLE public.candidate_submissions FROM anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'candidate_photos') THEN
+            REVOKE ALL ON TABLE public.candidate_photos FROM anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'candidates') THEN
+            REVOKE ALL ON TABLE public.candidates FROM anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'admins') THEN
+            REVOKE ALL ON TABLE public.admins FROM anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'admin_audit_logs') THEN
+            REVOKE ALL ON TABLE public.admin_audit_logs FROM anon;
+        END IF;
+
+        -- Conceder SELECT para 'anon' exclusivamente em tabelas de catálogo público
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'models') THEN
+            GRANT SELECT ON TABLE public.models TO anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'model_media') THEN
+            GRANT SELECT ON TABLE public.model_media TO anon;
+        END IF;
+        IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'site_contents') THEN
+            GRANT SELECT ON TABLE public.site_contents TO anon;
+        END IF;
+    END IF;
+END $$;
+
+-- ==============================================================================
+-- 6.3. POLÍTICAS DE SERVICE_ROLE (BYPASS EXPLÍCITO PARA BACKEND SPRING BOOT)
+-- ==============================================================================
+-- Permite operações transacionais completas via backend Java (service_role)
 
 DROP POLICY IF EXISTS "Service Role Full Access - admins" ON public.admins;
 CREATE POLICY "Service Role Full Access - admins"
@@ -418,9 +460,9 @@ CREATE POLICY "Service Role Full Access - admin_audit_logs"
     WITH CHECK (true);
 
 -- ==============================================================================
--- 6.2. POLÍTICAS DE LEITURA PÚBLICA (Catálogo e Site Institucional)
+-- 6.4. POLÍTICAS DE LEITURA PÚBLICA (Catálogo Condicionado a is_active = TRUE)
 -- ==============================================================================
--- Visitantes podem visualizar apenas modelos marcados como ativos
+-- Visitantes anônimos só podem visualizar modelos com is_active = TRUE
 DROP POLICY IF EXISTS "Public Read Active Models" ON public.models;
 CREATE POLICY "Public Read Active Models"
     ON public.models
@@ -428,7 +470,7 @@ CREATE POLICY "Public Read Active Models"
     TO anon, authenticated
     USING (is_active = TRUE);
 
--- Visitantes podem visualizar mídias de modelos ativos
+-- Visitantes anônimos só podem visualizar mídias de modelos ativos
 DROP POLICY IF EXISTS "Public Read Active Media" ON public.model_media;
 CREATE POLICY "Public Read Active Media"
     ON public.model_media
@@ -443,7 +485,7 @@ CREATE POLICY "Public Read Active Media"
         )
     );
 
--- Conteúdos do site são públicos para visualização irrestrita
+-- Conteúdos do site são públicos para visualização institucional
 DROP POLICY IF EXISTS "Public Read Site Contents" ON public.site_contents;
 CREATE POLICY "Public Read Site Contents"
     ON public.site_contents
@@ -452,15 +494,20 @@ CREATE POLICY "Public Read Site Contents"
     USING (TRUE);
 
 -- ==============================================================================
--- 6.3. POLÍTICAS DO FUNIL DE SCOUTING (Quero ser modelo)
+-- 6.5. PROTEÇÃO RIGOROSA DE CANDIDATOS (CONFORMIDADE LGPD)
 -- ==============================================================================
--- Inscrições e uploads de fotos são estritamente mediados pelo backend Spring Boot
--- com a role service_role. Inserção direta via anon/authenticated é desativada por segurança.
+-- Inscrições, submissões e fotografias de candidatos NÃO possuem política de SELECT
+-- para a role 'anon'. O acesso a dados e polaroids ocorre exclusivamente via backend
+-- (service_role) e geração de Signed URLs de 900s ou via administradores ativos.
 DROP POLICY IF EXISTS "Public Insert Candidate Application" ON public.candidates;
 DROP POLICY IF EXISTS "Public Insert Candidate Photos" ON public.candidate_photos;
+DROP POLICY IF EXISTS "Public Read Candidate Submissions" ON public.candidate_submissions;
+DROP POLICY IF EXISTS "Public Read Candidate Photos" ON public.candidate_photos;
+DROP POLICY IF EXISTS "Anon Read Candidate Submissions" ON public.candidate_submissions;
+DROP POLICY IF EXISTS "Anon Read Candidate Photos" ON public.candidate_photos;
 
 -- ==============================================================================
--- 6.4. POLÍTICAS DE ADMIN_AUDIT_LOGS (RLS Imutável)
+-- 6.6. POLÍTICAS DE ADMIN_AUDIT_LOGS (RLS Imutável)
 -- ==============================================================================
 DROP POLICY IF EXISTS "Webmasters podem visualizar logs de auditoria" ON public.admin_audit_logs;
 CREATE POLICY "Webmasters podem visualizar logs de auditoria"
@@ -481,13 +528,6 @@ CREATE POLICY "Inserção de logs por serviço de backend autenticado"
     FOR INSERT
     TO authenticated, service_role
     WITH CHECK (true);
-
--- ==============================================================================
--- 6.5. BLOQUEIO EXPLÍCITO DE ESCRITA ANÔNIMA (DEFESA EM PROFUNDIDADE)
--- ==============================================================================
--- Roles anon/authenticated NÃO recebem GRANT de INSERT/UPDATE/DELETE nas
--- tabelas transacionais sensíveis. Políticas acima existem para cenários de
--- PostgREST, e a conexão JDBC principal usa privilégio de owner/service_role.
 
 -- ==============================================================================
 -- 7. SEED INSTITUCIONAL: TERMS & PRIVACY (site_contents)

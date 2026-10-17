@@ -147,7 +147,7 @@ class CandidateSubmissionLifecycleE2ETest {
 
         submissionResponseDto = CandidateApplyResponseDto.builder()
                 .protocol(protocol)
-                .status("PENDING")
+                .message("Candidatura submetida com sucesso.")
                 .build();
     }
 
@@ -172,8 +172,11 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").doesNotExist())
                 .andExpect(jsonPath("$.candidateId").doesNotExist())
+                .andExpect(jsonPath("$.status").doesNotExist())
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.protocol").value(protocol))
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$.message").value("Candidatura submetida com sucesso."));
 
         verify(candidateApplicationService, times(1)).apply(any(), any());
     }
