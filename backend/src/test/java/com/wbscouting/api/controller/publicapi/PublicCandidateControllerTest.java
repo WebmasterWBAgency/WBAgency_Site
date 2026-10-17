@@ -123,9 +123,10 @@ class PublicCandidateControllerTest {
                         .file(photo2)
                         .file(photo3))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.id").value(candidateId.toString()))
-                .andExpect(jsonPath("$.data.protocol").value("WB-20261007-ABCDEF"))
-                .andExpect(jsonPath("$.data.status").value("PENDING"));
+                .andExpect(jsonPath("$.protocol").value("WB-20261007-ABCDEF"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.candidateId").doesNotExist());
     }
 
     @Test

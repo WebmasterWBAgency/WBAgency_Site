@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wbscouting.api.config.SupabaseProperties;
 import com.wbscouting.api.controller.AuthController;
 import com.wbscouting.api.controller.admin.AdminApplicationController;
-import com.wbscouting.api.controller.publicapi.CandidatePublicController;
+import com.wbscouting.api.controller.publicapi.PublicCandidateController;
 import com.wbscouting.api.controller.publicapi.PublicModelController;
 import com.wbscouting.api.dto.admin.candidate.CandidateDecisionRequestDto;
 import com.wbscouting.api.dto.auth.LoginRequestDto;
@@ -23,7 +23,6 @@ import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtService;
 import com.wbscouting.api.security.JwtTokenProvider;
 import com.wbscouting.api.service.auth.AuthService;
-import com.wbscouting.api.service.candidate.AdminCandidateService;
 import com.wbscouting.api.service.candidate.CandidateApplicationService;
 import com.wbscouting.api.service.storage.StorageService;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +56,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = {
-        CandidatePublicController.class,
+        PublicCandidateController.class,
         AdminApplicationController.class,
         AuthController.class,
         PublicModelController.class
@@ -75,9 +74,6 @@ class CandidateSubmissionLifecycleE2ETest {
 
     @MockitoBean
     private CandidateApplicationService candidateApplicationService;
-
-    @MockitoBean
-    private AdminCandidateService adminCandidateService;
 
     @MockitoBean
     private com.wbscouting.api.service.candidate.CandidateSubmissionAdminService candidateSubmissionAdminService;
@@ -384,7 +380,7 @@ class CandidateSubmissionLifecycleE2ETest {
     @Test
     @DisplayName("TC-10 [Promotion to Model]: Deve promover candidatura aprovada a Modelo Oficial no casting")
     void shouldPromoteCandidateToOfficialModel() throws Exception {
-        when(adminCandidateService.promoteToModel(eq(candidateId), any()))
+        when(candidateSubmissionAdminService.promoteToModel(eq(candidateId), any()))
                 .thenReturn(candidateId);
 
         mockMvc.perform(post("/api/v1/admin/applications/{id}/promote", candidateId)
@@ -394,19 +390,19 @@ class CandidateSubmissionLifecycleE2ETest {
                 .andExpect(jsonPath("$.message").value("Candidato promovido a modelo com sucesso."))
                 .andExpect(jsonPath("$.data.id").value(candidateId.toString()));
 
-        verify(adminCandidateService, times(1))
+        verify(candidateSubmissionAdminService, times(1))
                 .promoteToModel(eq(candidateId), eq(true));
     }
 
     @Test
     @DisplayName("TC-11 [Soft Delete]: Deve arquivar candidatura com 204 No Content")
     void shouldPurgeApplicationUnderLgpd() throws Exception {
-        doNothing().when(adminCandidateService).deleteCandidate(candidateId);
+        doNothing().when(candidateSubmissionAdminService).deleteApplication(candidateId, false);
 
         mockMvc.perform(delete("/api/v1/admin/applications/{id}", candidateId))
                 .andExpect(status().isNoContent());
 
-        verify(adminCandidateService, times(1)).deleteCandidate(eq(candidateId));
+        verify(candidateSubmissionAdminService, times(1)).deleteApplication(eq(candidateId), eq(false));
     }
 
     @Test

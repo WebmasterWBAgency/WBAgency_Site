@@ -85,10 +85,14 @@ class CandidateApplicationServiceImplTest {
                 .instagramHandle("@isabella_swan")
                 .build();
 
+        byte[] validJpeg = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F'};
+        byte[] validPng = new byte[]{(byte) 0x89, (byte) 0x50, (byte) 0x4E, (byte) 0x47, (byte) 0x0D, (byte) 0x0A, (byte) 0x1A, (byte) 0x0A, 0, 0, 0, 0};
+        byte[] validWebp = new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
+
         validPhotos = List.of(
-                new MockMultipartFile("photos", "photo1.jpg", "image/jpeg", "fake-image-1".getBytes()),
-                new MockMultipartFile("photos", "photo2.png", "image/png", "fake-image-2".getBytes()),
-                new MockMultipartFile("photos", "photo3.webp", "image/webp", "fake-image-3".getBytes())
+                new MockMultipartFile("photos", "photo1.jpg", "image/jpeg", validJpeg),
+                new MockMultipartFile("photos", "photo2.png", "image/png", validPng),
+                new MockMultipartFile("photos", "photo3.webp", "image/webp", validWebp)
         );
 
         lenient().when(supabaseProperties.resolveBucketCandidates()).thenReturn("candidates-uploads");
@@ -231,10 +235,11 @@ class CandidateApplicationServiceImplTest {
     @Test
     @DisplayName("Deve falhar se qualquer foto estiver vazia")
     void shouldFailWhenPhotoIsEmpty() {
+        byte[] validJpeg = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F'};
         List<MultipartFile> photosWithEmpty = List.of(
-                new MockMultipartFile("photos", "1.jpg", "image/jpeg", "1".getBytes()),
+                new MockMultipartFile("photos", "1.jpg", "image/jpeg", validJpeg),
                 new MockMultipartFile("photos", "2.jpg", "image/jpeg", new byte[0]),
-                new MockMultipartFile("photos", "3.jpg", "image/jpeg", "3".getBytes())
+                new MockMultipartFile("photos", "3.jpg", "image/jpeg", validJpeg)
         );
 
         assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, photosWithEmpty))
@@ -245,10 +250,11 @@ class CandidateApplicationServiceImplTest {
     @Test
     @DisplayName("Deve falhar se foto possuir formato não permitido")
     void shouldFailWhenPhotoHasInvalidContentType() {
+        byte[] validJpeg = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F'};
         List<MultipartFile> photosWithGif = List.of(
-                new MockMultipartFile("photos", "1.jpg", "image/jpeg", "1".getBytes()),
-                new MockMultipartFile("photos", "2.gif", "image/gif", "2".getBytes()),
-                new MockMultipartFile("photos", "3.jpg", "image/jpeg", "3".getBytes())
+                new MockMultipartFile("photos", "1.jpg", "image/jpeg", validJpeg),
+                new MockMultipartFile("photos", "2.gif", "image/gif", "GIF89a".getBytes()),
+                new MockMultipartFile("photos", "3.jpg", "image/jpeg", validJpeg)
         );
 
         assertThatThrownBy(() -> candidateApplicationService.apply(validAdultDto, photosWithGif))

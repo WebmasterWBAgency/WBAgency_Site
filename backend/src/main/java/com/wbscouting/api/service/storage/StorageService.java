@@ -15,6 +15,17 @@ public interface StorageService {
     String uploadFile(String bucket, String path, MultipartFile file);
 
     /**
+     * Copia um arquivo de um bucket de origem para um bucket de destino.
+     *
+     * @param sourceBucket Nome do bucket de origem (ex: candidates-uploads)
+     * @param sourcePath Caminho do arquivo de origem
+     * @param destBucket Nome do bucket de destino (ex: models-media)
+     * @param destPath Caminho do arquivo de destino
+     * @return Caminho relativo do objeto no bucket de destino
+     */
+    String copyFile(String sourceBucket, String sourcePath, String destBucket, String destPath);
+
+    /**
      * Remove um arquivo do bucket especificado.
      *
      * @param bucket Nome do bucket

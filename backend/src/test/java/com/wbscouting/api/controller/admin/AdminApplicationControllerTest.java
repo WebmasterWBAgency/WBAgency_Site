@@ -5,12 +5,12 @@ import com.wbscouting.api.dto.admin.candidate.CandidateApplicationSummaryDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDecisionRequestDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDetailResponseDto;
 import com.wbscouting.api.enums.SubmissionStatus;
+import com.wbscouting.api.exception.BusinessException;
 import com.wbscouting.api.exception.ResourceNotFoundException;
 import com.wbscouting.api.security.JwtAuthenticationEntryPoint;
 import com.wbscouting.api.security.JwtAuthenticationFilter;
 import com.wbscouting.api.security.JwtService;
 import com.wbscouting.api.security.JwtTokenProvider;
-import com.wbscouting.api.service.candidate.AdminCandidateService;
 import com.wbscouting.api.service.candidate.CandidateSubmissionAdminService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,9 +47,6 @@ class AdminApplicationControllerTest {
 
     @MockitoBean
     private CandidateSubmissionAdminService candidateSubmissionAdminService;
-
-    @MockitoBean
-    private AdminCandidateService adminCandidateService;
 
     @MockitoBean
     private JwtService jwtService;
@@ -161,20 +158,32 @@ class AdminApplicationControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/admin/applications/{id} deve excluir candidatura e retornar 204 No Content")
+    @DisplayName("DELETE /api/v1/admin/applications/{id} deve excluir candidatura recusada e retornar 204 No Content")
     void deleteApplication_ReturnsNoContent() throws Exception {
-        doNothing().when(adminCandidateService).deleteCandidate(eq(submissionId));
+        doNothing().when(candidateSubmissionAdminService).deleteApplication(eq(submissionId), eq(false));
 
         mockMvc.perform(delete("/api/v1/admin/applications/{id}", submissionId))
                 .andExpect(status().isNoContent());
 
-        verify(adminCandidateService).deleteCandidate(eq(submissionId));
+        verify(candidateSubmissionAdminService).deleteApplication(eq(submissionId), eq(false));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/admin/applications/{id} quando pendente ou aprovada deve retornar 400 Bad Request")
+    void deleteApplication_WhenPendingOrApproved_ReturnsBadRequest() throws Exception {
+        doThrow(new BusinessException("Apenas candidaturas recusadas/declinadas podem ser excluídas permanentemente."))
+                .when(candidateSubmissionAdminService).deleteApplication(eq(submissionId), eq(false));
+
+        mockMvc.perform(delete("/api/v1/admin/applications/{id}", submissionId))
+                .andExpect(status().isBadRequest());
+
+        verify(candidateSubmissionAdminService).deleteApplication(eq(submissionId), eq(false));
     }
 
     @Test
     @DisplayName("POST /api/v1/admin/applications/{id}/promote deve retornar 201 Created com payload do modelo criado")
     void promoteCandidateToModel_ReturnsCreated() throws Exception {
-        when(adminCandidateService.promoteToModel(eq(submissionId), any()))
+        when(candidateSubmissionAdminService.promoteToModel(eq(submissionId), any()))
                 .thenReturn(submissionId);
 
         mockMvc.perform(post("/api/v1/admin/applications/{id}/promote", submissionId))
@@ -188,7 +197,7 @@ class AdminApplicationControllerTest {
     @DisplayName("POST /api/v1/admin/applications/{id}/promote com ID inexistente deve retornar 404 Not Found")
     void promoteCandidateToModel_WhenNotFound_ReturnsNotFound() throws Exception {
         UUID nonExistentId = UUID.randomUUID();
-        when(adminCandidateService.promoteToModel(eq(nonExistentId), any()))
+        when(candidateSubmissionAdminService.promoteToModel(eq(nonExistentId), any()))
                 .thenThrow(new ResourceNotFoundException("Candidatura não encontrada com ID: " + nonExistentId));
 
         mockMvc.perform(post("/api/v1/admin/applications/{id}/promote", nonExistentId))

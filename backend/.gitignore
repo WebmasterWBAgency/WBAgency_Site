@@ -12,4 +12,11 @@ target/
 # Ignorar arquivos internos e documentos da pasta Projeto
 Projeto/
 projeto/
-[Pp]rojeto/**
+[Pp]rojeto/**
+
+# Certificados e chaves privadas
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx

@@ -51,7 +51,8 @@ public class CandidateApplicationSummaryDto {
     private String profilePhotoUrl;
     private String fullBodyPhotoUrl;
     private String protocol;
-    private List<PhotoThumbDto> photos;
+    @Builder.Default
+    private List<PhotoThumbDto> photos = new ArrayList<>();
 
     @Data
     @Builder

@@ -28,4 +28,12 @@ public interface CandidateSubmissionAdminService {
     CandidateDetailResponseDto restoreApplication(UUID id);
 
     UUID promoteToModel(UUID id, Boolean activateImmediately);
+
+    void deleteApplication(UUID id, boolean permanent);
+
+    default void deleteApplication(UUID id) {
+        deleteApplication(id, false);
+    }
+
+    Map<String, Object> purgeArchive(boolean all);
 }

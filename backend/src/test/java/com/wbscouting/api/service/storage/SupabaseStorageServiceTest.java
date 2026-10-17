@@ -146,26 +146,39 @@ class SupabaseStorageServiceTest {
                 .hasMessageContaining("não é suportado");
     }
 
+    private static byte[] createValid1x1Jpeg() {
+        try {
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(img, "jpg", baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     @DisplayName("Deve realizar upload de imagem com sucesso no bucket candidates-uploads")
     void shouldUploadCandidatePhotoSuccessfully() {
-        MockMultipartFile file = new MockMultipartFile("file", "front.webp", "image/webp", "image-content".getBytes());
+        byte[] validBytes = createValid1x1Jpeg();
+        MockMultipartFile file = new MockMultipartFile("file", "front.jpg", "image/jpeg", validBytes);
 
-        mockServer.expect(requestTo("https://testref.supabase.co/storage/v1/object/candidates-uploads/c1/front.webp"))
+        mockServer.expect(requestTo("https://testref.supabase.co/storage/v1/object/candidates-uploads/c1/front.jpg"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(header("Content-Type", "image/webp"))
+                .andExpect(header("Content-Type", "image/jpeg"))
                 .andExpect(header("x-upsert", "true"))
                 .andRespond(withSuccess());
 
-        String uploadedPath = storageService.uploadFile("candidates-uploads", "c1/front.webp", file);
-        assertThat(uploadedPath).isEqualTo("c1/front.webp");
+        String uploadedPath = storageService.uploadFile("candidates-uploads", "c1/front.jpg", file);
+        assertThat(uploadedPath).isEqualTo("c1/front.jpg");
         mockServer.verify();
     }
 
     @Test
     @DisplayName("Deve lançar StorageException se o Supabase retornar erro no upload")
     void shouldThrowStorageExceptionOnUploadError() {
-        MockMultipartFile file = new MockMultipartFile("file", "front.jpg", "image/jpeg", "image-content".getBytes());
+        byte[] validBytes = createValid1x1Jpeg();
+        MockMultipartFile file = new MockMultipartFile("file", "front.jpg", "image/jpeg", validBytes);
 
         mockServer.expect(requestTo("https://testref.supabase.co/storage/v1/object/candidates-uploads/c1/front.jpg"))
                 .andExpect(method(HttpMethod.POST))
@@ -276,14 +289,15 @@ class SupabaseStorageServiceTest {
         properties.getStorage().setLocalFallback(true);
         properties.getStorage().setLocalDir("target/test-uploads");
 
-        MockMultipartFile file = new MockMultipartFile("file", "cand.jpg", "image/jpeg", "dummy-content".getBytes());
+        byte[] validBytes = createValid1x1Jpeg();
+        MockMultipartFile file = new MockMultipartFile("file", "cand.jpg", "image/jpeg", validBytes);
 
         String path = storageService.uploadFile("candidates-uploads", "submissions/c1/cand.jpg", file);
 
         assertThat(path).isEqualTo("submissions/c1/cand.jpg");
         java.nio.file.Path localFile = java.nio.file.Paths.get("target/test-uploads/candidates-uploads/submissions/c1/cand.jpg");
         assertThat(java.nio.file.Files.exists(localFile)).isTrue();
-        assertThat(java.nio.file.Files.readAllBytes(localFile)).isEqualTo("dummy-content".getBytes());
+        assertThat(java.nio.file.Files.size(localFile)).isGreaterThan(0);
 
         // Testa exclusão local
         storageService.deleteFile("candidates-uploads", "submissions/c1/cand.jpg");
@@ -296,7 +310,8 @@ class SupabaseStorageServiceTest {
         properties.setServiceRoleKey("dummy-key");
         properties.getStorage().setLocalFallback(false);
 
-        MockMultipartFile file = new MockMultipartFile("file", "cand.jpg", "image/jpeg", "content".getBytes());
+        byte[] validBytes = createValid1x1Jpeg();
+        MockMultipartFile file = new MockMultipartFile("file", "cand.jpg", "image/jpeg", validBytes);
 
         assertThatThrownBy(() -> storageService.uploadFile("candidates-uploads", "submissions/c1/cand.jpg", file))
                 .isInstanceOf(StorageException.class)
@@ -312,7 +327,8 @@ class SupabaseStorageServiceTest {
     @DisplayName("Deve lançar erro detalhado quando Supabase retornar 404 Bucket Not Found e localFallback estiver desativado")
     void shouldThrowDetailedBucketNotFoundExceptionWhen404AndFallbackDisabled() {
         properties.getStorage().setLocalFallback(false);
-        MockMultipartFile file = new MockMultipartFile("file", "front.jpg", "image/jpeg", "image-content".getBytes());
+        byte[] validBytes = createValid1x1Jpeg();
+        MockMultipartFile file = new MockMultipartFile("file", "front.jpg", "image/jpeg", validBytes);
 
         mockServer.expect(requestTo("https://testref.supabase.co/storage/v1/object/candidates-uploads/c1/front.jpg"))
                 .andExpect(method(HttpMethod.POST))

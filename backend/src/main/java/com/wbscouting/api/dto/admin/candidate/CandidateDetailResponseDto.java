@@ -39,7 +39,8 @@ public class CandidateDetailResponseDto {
     private String city;
     private String state;
     private BiometricsDto biometrics;
-    private List<CandidateMediaDto> photos;
+    @Builder.Default
+    private List<CandidateMediaDto> photos = new ArrayList<>();
     private SubmissionStatus status;
     private String internalNotes;
     private Boolean lgpdConsent;

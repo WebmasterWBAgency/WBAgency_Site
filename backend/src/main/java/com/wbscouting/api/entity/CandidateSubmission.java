@@ -111,6 +111,14 @@ public class CandidateSubmission implements Persistable<UUID> {
     @Column(name = "converted_to_model_id")
     private UUID convertedToModelId;
 
+    public UUID getPromotedModelId() {
+        return this.convertedToModelId;
+    }
+
+    public void setPromotedModelId(UUID promotedModelId) {
+        this.convertedToModelId = promotedModelId;
+    }
+
     @Column(name = "lgpd_consent", nullable = false)
     @Builder.Default
     private Boolean lgpdConsent = false;

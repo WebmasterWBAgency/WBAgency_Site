@@ -6,7 +6,6 @@ import com.wbscouting.api.dto.admin.candidate.CandidateDecisionRequestDto;
 import com.wbscouting.api.dto.admin.candidate.CandidateDetailResponseDto;
 import com.wbscouting.api.enums.SubmissionGender;
 import com.wbscouting.api.security.audit.AuditAction;
-import com.wbscouting.api.service.candidate.AdminCandidateService;
 import com.wbscouting.api.service.candidate.CandidateSubmissionAdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +26,12 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping({"/api/v1/admin/applications", "/admin/applications", "/api/v1/admin/submissions", "/admin/submissions"})
+@RequestMapping({"/api/v1/admin/applications", "/admin/applications", "/api/v1/admin/submissions", "/admin/submissions", "/api/v1/admin/candidates", "/admin/candidates"})
 @PreAuthorize("hasAnyRole('WEBMASTER', 'SUPER_ADMIN', 'CONTENT_ADMIN', 'ADMIN')")
 @RequiredArgsConstructor
 public class AdminApplicationController {
 
     private final CandidateSubmissionAdminService candidateSubmissionAdminService;
-    private final AdminCandidateService adminCandidateService;
 
     @Transactional(readOnly = true)
     @GetMapping
@@ -100,7 +98,7 @@ public class AdminApplicationController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> promote(
             @PathVariable UUID id,
             @RequestParam(required = false, defaultValue = "true") Boolean activateImmediately) {
-        UUID promotedId = adminCandidateService.promoteToModel(id, activateImmediately);
+        UUID promotedId = candidateSubmissionAdminService.promoteToModel(id, activateImmediately);
         Map<String, Object> data = new HashMap<>();
         data.put("id", promotedId != null ? promotedId.toString() : id.toString());
         data.put("status", Boolean.TRUE.equals(activateImmediately) ? "CAST_PUBLIC" : "CAST_INTERNAL");
@@ -121,11 +119,7 @@ public class AdminApplicationController {
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,
             @RequestParam(required = false, defaultValue = "false") boolean permanent) {
-        if (permanent) {
-            adminCandidateService.deleteCandidate(id, true);
-        } else {
-            adminCandidateService.deleteCandidate(id);
-        }
+        candidateSubmissionAdminService.deleteApplication(id, permanent);
         return ResponseEntity.noContent().build();
     }
 
@@ -133,7 +127,7 @@ public class AdminApplicationController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'WEBMASTER')")
     public ResponseEntity<Map<String, Object>> cleanupArchive(
             @RequestParam(required = false, defaultValue = "true") boolean all) {
-        Map<String, Object> response = adminCandidateService.purgeArchive(all);
+        Map<String, Object> response = candidateSubmissionAdminService.purgeArchive(all);
         return ResponseEntity.ok(response);
     }
 

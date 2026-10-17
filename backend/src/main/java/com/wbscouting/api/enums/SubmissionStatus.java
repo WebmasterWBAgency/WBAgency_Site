@@ -11,6 +11,7 @@ package com.wbscouting.api.enums;
  */
 public enum SubmissionStatus {
     PENDING,
+    UNDER_REVIEW,
     APPROVED,
     DECLINED,
     REJECTED,

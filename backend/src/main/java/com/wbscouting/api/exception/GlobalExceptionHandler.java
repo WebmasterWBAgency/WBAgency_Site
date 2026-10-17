@@ -87,7 +87,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidApplicationException.class)
     public ProblemDetail handleInvalidApplicationException(InvalidApplicationException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problemDetail.setTitle("Candidatura Inválida");
+        problemDetail.setTitle("Erro de Validação");
         problemDetail.setType(URI.create("https://wbscouting.com/errors/invalid-application"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;

@@ -236,6 +236,100 @@ public class SupabaseStorageService implements StorageService {
     }
 
     @Override
+    public String copyFile(String sourceBucket, String sourcePath, String destBucket, String destPath) {
+        if (!StringUtils.hasText(sourceBucket) || !StringUtils.hasText(sourcePath)) {
+            throw new InvalidFileException("Bucket e caminho de origem são obrigatórios para cópia.");
+        }
+        if (!StringUtils.hasText(destBucket) || !StringUtils.hasText(destPath)) {
+            throw new InvalidFileException("Bucket e caminho de destino são obrigatórios para cópia.");
+        }
+
+        String normSource = normalizePath(sourcePath);
+        String normDest = normalizePath(destPath);
+        log.info("Copiando arquivo de bucket='{}', path='{}' para bucket='{}', path='{}'",
+                sourceBucket, normSource, destBucket, normDest);
+
+        // Se existir localmente, copia no sistema de arquivos local
+        String baseDir = (supabaseProperties.getStorage() != null && StringUtils.hasText(supabaseProperties.getStorage().getLocalDir()))
+                ? supabaseProperties.getStorage().getLocalDir()
+                : "uploads";
+        java.nio.file.Path localSource = java.nio.file.Paths.get(baseDir, sourceBucket, normSource).normalize();
+        if (java.nio.file.Files.exists(localSource)) {
+            java.nio.file.Path localDest = java.nio.file.Paths.get(baseDir, destBucket, normDest).normalize();
+            try {
+                if (localDest.getParent() != null) {
+                    java.nio.file.Files.createDirectories(localDest.getParent());
+                }
+                java.nio.file.Files.copy(localSource, localDest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                log.info("Arquivo copiado localmente com sucesso: {}", localDest);
+                return normDest;
+            } catch (IOException ioEx) {
+                log.error("Erro ao copiar arquivo localmente", ioEx);
+            }
+        }
+
+        if (!supabaseProperties.isKeyConfigured()) {
+            return normDest;
+        }
+
+        String effectiveKey = supabaseProperties.getEffectiveKey();
+        String rawKey = (effectiveKey != null) ? effectiveKey.trim() : "";
+        if (rawKey.startsWith("Bearer ") || rawKey.startsWith("bearer ")) {
+            rawKey = rawKey.substring(7).trim();
+        }
+        String authHeader = StringUtils.hasText(rawKey) ? "Bearer " + rawKey : "";
+
+        try {
+            Map<String, Object> payload = Map.of(
+                    "bucketId", sourceBucket,
+                    "sourceKey", normSource,
+                    "destinationBucket", destBucket,
+                    "destinationKey", normDest
+            );
+
+            supabaseStorageRestClient.post()
+                    .uri("/storage/v1/object/copy")
+                    .header("apikey", rawKey)
+                    .header(HttpHeaders.AUTHORIZATION, authHeader)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            log.info("Arquivo copiado com sucesso no Supabase Storage: {} -> {}", normSource, normDest);
+            return normDest;
+        } catch (Exception ex) {
+            log.warn("Tentativa de cópia direta via endpoint copy falhou ({}). Tentando download e upload...", ex.getMessage());
+            try {
+                byte[] bytes = supabaseStorageRestClient.get()
+                        .uri("/storage/v1/object/{bucket}/{path}", sourceBucket, normSource)
+                        .header("apikey", rawKey)
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
+                        .retrieve()
+                        .body(byte[].class);
+
+                if (bytes != null && bytes.length > 0) {
+                    supabaseStorageRestClient.post()
+                            .uri("/storage/v1/object/{bucket}/{path}", destBucket, normDest)
+                            .header("apikey", rawKey)
+                            .header(HttpHeaders.AUTHORIZATION, authHeader)
+                            .header("x-upsert", "true")
+                            .header(HttpHeaders.CONTENT_TYPE, "image/jpeg")
+                            .body(bytes)
+                            .retrieve()
+                            .toBodilessEntity();
+                    log.info("Arquivo migrado com sucesso via streaming: {} -> {}", normSource, normDest);
+                    return normDest;
+                }
+            } catch (Exception e2) {
+                log.error("Falha ao copiar arquivo entre buckets: {}", e2.getMessage());
+                throw new StorageException("Não foi possível copiar o arquivo no storage: " + e2.getMessage(), e2);
+            }
+        }
+        return normDest;
+    }
+
+    @Override
     public String getPublicUrl(String bucket, String path) {
         if (!StringUtils.hasText(bucket)) {
             throw new InvalidFileException("O nome do bucket é obrigatório.");
@@ -423,6 +517,9 @@ public class SupabaseStorageService implements StorageService {
 
     @Override
     public String createSignedUrl(String bucket, String path, int expiresInSeconds) {
+        if (expiresInSeconds <= 0) {
+            throw new IllegalArgumentException("Tempo de expiração para Signed URL deve ser maior que zero.");
+        }
         int defaultTtl = "candidates-uploads".equalsIgnoreCase(bucket) ? 900 : 3600;
         int ttl = expiresInSeconds > 0 ? expiresInSeconds : defaultTtl;
         return generateSignedUrl(bucket, path, ttl);
